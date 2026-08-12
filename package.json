@@ -1,0 +1,57 @@
+{
+  "name": "skill-supermarket",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Skill 超市 - 发现、评测、跟踪 Claude Skills / MCP Servers / Agent Packs",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "collect": "tsx scripts/collect.ts",
+    "evaluate": "tsx scripts/evaluate.ts",
+    "rank": "tsx scripts/rank.ts",
+    "seed": "tsx data/seed-skills.ts"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-tabs": "^1.1.1",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.36.4",
+    "lucide-react": "^0.460.0",
+    "next": "14.2.18",
+    "pg": "^8.13.1",
+    "postgres": "^3.4.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.1",
+    "recharts": "^2.13.3",
+    "tailwind-merge": "^2.5.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "drizzle-kit": "^0.28.1",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "14.2.18",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

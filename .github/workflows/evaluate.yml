@@ -1,0 +1,25 @@
+name: Evaluate Queue
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"  # 每 2 小时
+  workflow_dispatch:
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: 跑评测队列
+        run: npm run evaluate
