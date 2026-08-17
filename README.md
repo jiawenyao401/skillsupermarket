@@ -135,7 +135,7 @@ API Key 只保存在部署环境的 `.env` 或密钥管理系统中，不得写�
 | `npm run collect` | 采集并写入当日指标快照 |
 | `npm run rank` | 生成 D1/D7/D30 榜单 |
 | `npm run worker:evaluate` | 启动常驻评测 Worker |
-| `npm run seo:check` | 检查正式站首页、robots、sitemap 和公开详情页 |
+| `npm run seo:check` | 检查正式站健康、评测转化页、真实案例、榜单、认证边界与 SEO |
 | `npm run growth:report` | 输出真实用户、评测、库存和报告覆盖数据 |
 | `npm run indexnow` | 提交更新 URL |
 | `npm run admin:promote -- user@example.com` | 将已注册用户提升为超级管理员 |
