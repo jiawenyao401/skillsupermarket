@@ -3,7 +3,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { skills, evaluations } from "@/lib/schema";
-import { eq, desc, and, or, ilike, sql } from "drizzle-orm";
+import { eq, desc, and, or, ilike } from "drizzle-orm";
+import type { SkillType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   // 列表
   const conditions = [eq(skills.status, "active")];
   if (type && ["claude-skill", "mcp-server", "agent-pack"].includes(type)) {
-    conditions.push(eq(skills.type, type as any));
+    conditions.push(eq(skills.type, type as SkillType));
   }
   if (category) {
     conditions.push(eq(skills.category, category));

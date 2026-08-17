@@ -1,0 +1,38 @@
+module.exports = {
+  apps: [
+    {
+      name: "skillsupermarket",
+      cwd: "/opt/skillsupermarket",
+      script: "node_modules/next/dist/bin/next",
+      args: "start -p 3000",
+      interpreter: "node",
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      max_memory_restart: "768M",
+      kill_timeout: 30000,
+      exp_backoff_restart_delay: 100,
+      time: true,
+      env: { NODE_ENV: "production" },
+    },
+    {
+      name: "skillsupermarket-evaluator",
+      cwd: "/opt/skillsupermarket",
+      script: "node_modules/tsx/dist/cli.mjs",
+      args: "scripts/evaluation-worker.ts",
+      interpreter: "node",
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      max_memory_restart: "512M",
+      kill_timeout: 60000,
+      exp_backoff_restart_delay: 250,
+      time: true,
+      env: {
+        NODE_ENV: "production",
+        EVALUATION_BATCH_SIZE: "3",
+        EVALUATION_POLL_MS: "5000",
+      },
+    },
+  ],
+};

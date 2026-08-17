@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { skills } from "@/lib/schema";
 import { eq, and, or, ilike, sql, desc } from "drizzle-orm";
+import type { SkillType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
     )!,
   ];
   if (type && ["claude-skill", "mcp-server", "agent-pack"].includes(type)) {
-    conditions.push(eq(skills.type, type as any));
+    conditions.push(eq(skills.type, type as SkillType));
   }
 
   const results = await db

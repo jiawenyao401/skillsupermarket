@@ -2,10 +2,10 @@
 // 运行: npm run collect
 import { db } from "../lib/db";
 import { skills, metricsDaily } from "../lib/schema";
-import { eq, sql } from "drizzle-orm";
-import { searchSkills, getRepo, type GitHubRepo } from "../lib/github";
+import { and, eq, lt, sql } from "drizzle-orm";
+import { searchSkills, type GitHubRepo } from "../lib/github";
 import { getNpmPackage, getNpmWeeklyDownloads, searchNpmMcpPackages } from "../lib/npm";
-import { getPypiPackage } from "../lib/pypi";
+import { rankingDateKey } from "../lib/ranker";
 import { slugify } from "../lib/utils";
 
 const log = (...args: unknown[]) => console.log("[collect]", ...args);
@@ -31,6 +31,10 @@ async function collectFromGitHub(): Promise<number> {
   log("开始 GitHub 采集...");
   const repos = await searchSkills(30);
   log(`找到 ${repos.length} 个候选`);
+  const minimumCandidates = Math.max(1, Number(process.env.MIN_GITHUB_CANDIDATES) || 30);
+  if (repos.length < minimumCandidates) {
+    throw new Error(`GitHub 采集结果异常：仅 ${repos.length} 个，低于安全阈值 ${minimumCandidates}`);
+  }
 
   let count = 0;
   for (const repo of repos) {
@@ -83,13 +87,13 @@ async function collectFromGitHub(): Promise<number> {
     }
 
     // 写每日指标
-    const today = new Date().toISOString().split("T")[0];
+    const today = rankingDateKey();
     const skill = await db.select().from(skills).where(eq(skills.slug, slug));
     if (skill[0]) {
       const [prevMetric] = await db
         .select()
         .from(metricsDaily)
-        .where(eq(metricsDaily.skillId, skill[0].id))
+        .where(and(eq(metricsDaily.skillId, skill[0].id), lt(metricsDaily.date, today)))
         .orderBy(sql`${metricsDaily.date} DESC`)
         .limit(1);
       const prevStars = prevMetric?.githubStars ?? repo.stargazers_count;
@@ -170,6 +174,22 @@ async function collectFromNpm(): Promise<number> {
       });
     }
 
+    const today = rankingDateKey();
+    const [skill] = await db.select().from(skills).where(eq(skills.slug, slug)).limit(1);
+    if (skill) {
+      await db.insert(metricsDaily).values({
+        skillId: skill.id,
+        date: today,
+        githubStars: skill.githubStars ?? 0,
+        githubForks: skill.githubForks ?? 0,
+        githubOpenIssues: skill.githubOpenIssues ?? 0,
+        npmDownloadsWeekly: downloads,
+      }).onConflictDoUpdate({
+        target: [metricsDaily.skillId, metricsDaily.date],
+        set: { npmDownloadsWeekly: downloads },
+      });
+    }
+
     count++;
     await new Promise((r) => setTimeout(r, 200));
   }
@@ -194,8 +214,7 @@ async function main() {
   const seconds = ((Date.now() - start) / 1000).toFixed(1);
 
   log(`=== 完成: 共 ${total} 个 skill (GitHub: ${ghCount}, npm: ${npmCount}), 用时 ${seconds}s ===`);
-  log("下一步: npm run evaluate  // 跑评测");
-  log("       npm run rank      // 生成榜单");
+  log("采集指标已写入，流水线将继续生成榜单");
   process.exit(0);
 }
 

@@ -1,7 +1,9 @@
 // npm Registry API 封装
 // 文档: https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md
+import { UpstreamServiceError } from "./upstream-error";
 
 const NPM_REGISTRY = process.env.NPM_REGISTRY || "https://registry.npmjs.org";
+const REQUEST_TIMEOUT_MS = 12_000;
 
 export interface NpmPackage {
   name: string;
@@ -18,25 +20,32 @@ export interface NpmDownloadRange {
   downloads: { day: string; downloads: number }[];
 }
 
-export async function getNpmPackage(name: string): Promise<NpmPackage | null> {
+export async function getNpmPackage(name: string, throwOnUpstreamError = false): Promise<NpmPackage | null> {
   try {
-    const res = await fetch(`${NPM_REGISTRY}/${encodeURIComponent(name)}`, {
+    const res = await fetch(`${NPM_REGISTRY}/${encodeURIComponent(name)}/latest`, {
+      headers: { Accept: "application/json" },
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (!res.ok) return null;
+    if (res.status === 404) return null;
+    if (!res.ok) throw new UpstreamServiceError("npm", res.status, `npm registry returned ${res.status}`);
     const data = await res.json();
     return {
       name: data.name,
-      version: data["dist-tags"]?.latest ?? data.version,
+      version: data.version,
       description: data.description,
       homepage: data.homepage,
-      repository: data.repository,
+      repository: typeof data.repository === "string" ? { url: data.repository } : data.repository,
       license: data.license,
       keywords: data.keywords,
       maintainers: data.maintainers,
     };
   } catch (err) {
     console.error(`[npm] getPackage(${name}) failed:`, err);
+    if (throwOnUpstreamError) {
+      if (err instanceof UpstreamServiceError) throw err;
+      throw new UpstreamServiceError("npm", undefined, "npm registry request failed");
+    }
     return null;
   }
 }
@@ -47,7 +56,8 @@ export async function getNpmWeeklyDownloads(
 ): Promise<number> {
   try {
     const res = await fetch(
-      `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`
+      `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`,
+      { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }
     );
     if (!res.ok) return 0;
     const data = await res.json();

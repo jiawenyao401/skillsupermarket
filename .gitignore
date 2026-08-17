@@ -55,6 +55,7 @@ next-env.d.ts
 # Temporary
 /tmp
 .cache
+/data/case-study-judgments.json
 
 # macOS
 .DS_Store

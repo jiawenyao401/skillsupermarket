@@ -59,11 +59,36 @@ export interface Evaluation {
 }
 
 export interface EvaluationReport {
-  documentation: { score: number; details: string };
-  security: { score: number; details: string; findings: SecurityFinding[] };
+  version?: string;
+  summary?: EvaluationSummary;
+  documentation: {
+    score: number;
+    details: string;
+    checks?: EvaluationCheck[];
+    strengths?: string[];
+    improvements?: string[];
+  };
+  security: {
+    score: number;
+    details: string;
+    findings: SecurityFinding[];
+    riskLevel?: RiskLevel;
+    scannedFiles?: number;
+    scannedCharacters?: number;
+  };
   popularity: { score: number; details: string; stats: PopularityStats };
-  activity: { score: number; details: string };
-  quality: { score: number; details: string; llmComment?: string };
+  activity: { score: number; details: string; lastCommitAt?: string | null };
+  quality: {
+    score: number;
+    details: string;
+    llmComment?: string;
+    deterministicScore?: number;
+    aiScore?: number | null;
+    subScores?: QualitySubScores;
+    evidence?: string[];
+  };
+  recommendation?: EvaluationRecommendation;
+  methodology?: EvaluationMethodology;
   overall: number;
 }
 
@@ -72,6 +97,66 @@ export interface SecurityFinding {
   type: string;
   message: string;
   location?: string;
+  evidence?: string;
+  remediation?: string;
+  confidence?: "low" | "medium" | "high";
+  category?: "prompt-injection" | "secret" | "dangerous-api" | "supply-chain";
+}
+
+export type RiskLevel = "low" | "medium" | "high" | "critical";
+export type EvaluationVerdict =
+  | "recommended"
+  | "promising"
+  | "caution"
+  | "needs-work"
+  | "blocked";
+
+export interface EvaluationSummary {
+  grade: "A+" | "A" | "B" | "C" | "D" | "F";
+  verdict: EvaluationVerdict;
+  verdictLabel: string;
+  riskLevel: RiskLevel;
+  confidence: number;
+  confidenceLabel: "高" | "中" | "低";
+  headline: string;
+}
+
+export interface EvaluationCheck {
+  id: string;
+  label: string;
+  passed: boolean;
+  weight: number;
+  evidence?: string;
+}
+
+export interface QualitySubScores {
+  utility: number;
+  clarity: number;
+  reusability: number;
+  design: number;
+  documentation: number;
+}
+
+export interface EvaluationRecommendation {
+  strengths: string[];
+  concerns: string[];
+  bestFor: string[];
+  avoidFor: string[];
+  nextActions: string[];
+}
+
+export interface EvaluationMethodology {
+  evaluatorVersion: string;
+  evaluatedAt: string;
+  sources: string[];
+  scannedFiles: string[];
+  scannedCharacters: number;
+  aiJudgeUsed: boolean;
+  aiJudgeModel?: string;
+  rubricVersion?: string;
+  weights: Record<string, number>;
+  limitations: string[];
+  caseStudy?: boolean;
 }
 
 export interface PopularityStats {

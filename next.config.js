@@ -8,11 +8,6 @@ const nextConfig = {
       { protocol: "https", hostname: "registry.npmjs.org" },
     ],
   },
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "5mb",
-    },
-  },
 };
 
 module.exports = nextConfig;

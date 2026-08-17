@@ -1,7 +1,7 @@
 // 种子数据: 手动录入一批高质量 skill 作为冷启动
 // 运行: npm run seed
 import { db } from "../lib/db";
-import { skills, evaluations } from "../lib/schema";
+import { skills } from "../lib/schema";
 import { eq } from "drizzle-orm";
 
 interface SeedSkill {

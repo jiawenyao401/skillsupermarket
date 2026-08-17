@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Skill Supermarket data pipeline every 6 hours
+
+[Timer]
+OnCalendar=*-*-* 02,08,14,20:15:00 Asia/Shanghai
+Persistent=true
+RandomizedDelaySec=3min
+AccuracySec=1min
+Unit=skillsupermarket-pipeline.service
+
+[Install]
+WantedBy=timers.target

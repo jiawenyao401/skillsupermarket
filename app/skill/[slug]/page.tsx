@@ -1,25 +1,36 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { skills, evaluations, metricsDaily } from "@/lib/schema";
 import { eq, desc, and, gte, asc } from "drizzle-orm";
-import { EvaluationRadar } from "@/components/EvaluationRadar";
+import { EvaluationReport } from "@/components/EvaluationReport";
 import { TrendChart } from "@/components/TrendChart";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatNumber, relativeTime } from "@/lib/utils";
-import { ExternalLink, Github, Star, GitFork, Download, Calendar, User } from "lucide-react";
+import { ArrowLeft, ExternalLink, Github, Star, GitFork, Download, Calendar, User, ShieldCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { getReadme } from "@/lib/github";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
+import { getReadmeDocument, type GitHubReadmeDocument } from "@/lib/github";
+import { transformReadmeUrl } from "@/lib/readme";
 import Link from "next/link";
+import { getSkillEvaluationSource } from "@/lib/skill-evaluation-source";
+import { JsonLd } from "@/components/JsonLd";
+import { EvaluationBadge } from "@/components/EvaluationBadge";
+import { absoluteUrl, compactDescription } from "@/lib/site";
+import { cache } from "react";
+import type { EvaluationReport as EvaluationReportType } from "@/lib/types";
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export const dynamic = "force-dynamic";
 export const revalidate = 3600;
 
-async function getSkill(slug: string) {
+const getSkill = cache(async (slug: string) => {
   const [skill] = await db
     .select()
     .from(skills)
@@ -50,17 +61,57 @@ async function getSkill(slug: string) {
     .orderBy(asc(metricsDaily.date));
 
   return { skill, evaluation, trend };
+});
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const data = await getSkill(slug);
+  if (!data) {
+    return { title: "Skill 不存在", robots: { index: false, follow: false } };
+  }
+
+  const { skill, evaluation } = data;
+  const report = evaluation?.report as EvaluationReportType | undefined;
+  const scoreLabel = evaluation ? `${evaluation.overallScore} 分` : "待评测";
+  const title = `${skill.name} 评测：${scoreLabel}、安全分析与使用建议`;
+  const fallback = `${skill.name} 的 AI Skill 评测、项目数据、安全风险、文档质量、活跃度与采用建议。`;
+  const description = compactDescription(report?.summary?.headline || skill.description, fallback);
+  const canonical = `/skill/${encodeURIComponent(skill.slug)}`;
+
+  return {
+    title,
+    description,
+    keywords: [skill.name, ...(skill.tags ?? []), "AI Skill 评测", "MCP 安全评测"],
+    alternates: { canonical },
+    authors: skill.authorName ? [{ name: skill.authorName }] : undefined,
+    robots: skill.status === "active"
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
+    openGraph: {
+      type: "article",
+      url: canonical,
+      title,
+      description,
+      siteName: "Skill Supermarket",
+      publishedTime: skill.createdAt?.toISOString(),
+      modifiedTime: (evaluation?.evaluatedAt ?? skill.lastUpdatedAt)?.toISOString(),
+      authors: skill.authorName ? [skill.authorName] : undefined,
+      tags: skill.tags ?? undefined,
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
 
 export default async function SkillDetailPage({ params }: PageProps) {
-  const data = await getSkill(params.slug);
+  const { slug } = await params;
+  const data = await getSkill(slug);
   if (!data) notFound();
 
   const { skill, evaluation, trend } = data;
-  let readme: string | null = null;
+  let readme: GitHubReadmeDocument | null = null;
   if (skill.repoUrl) {
     const match = skill.repoUrl.match(/github\.com\/([^/]+\/[^/]+)/);
-    if (match) readme = await getReadme(match[1]);
+    if (match) readme = await getReadmeDocument(match[1]);
   }
 
   const typeLabel = {
@@ -68,14 +119,68 @@ export default async function SkillDetailPage({ params }: PageProps) {
     "mcp-server": "MCP Server",
     "agent-pack": "Agent Pack",
   }[skill.type];
+  const evaluationSource = getSkillEvaluationSource(skill);
+  const evaluationHref = `/evaluate?skill=${encodeURIComponent(skill.slug)}`;
+  const canonicalUrl = absoluteUrl(`/skill/${encodeURIComponent(skill.slug)}`);
+  const report = evaluation?.report as EvaluationReportType | undefined;
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "首页", item: absoluteUrl("/") },
+        ...(skill.category ? [{
+          "@type": "ListItem",
+          position: 2,
+          name: skill.category,
+          item: absoluteUrl(`/category/${encodeURIComponent(skill.category)}`),
+        }] : []),
+        { "@type": "ListItem", position: skill.category ? 3 : 2, name: skill.name, item: canonicalUrl },
+      ],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareSourceCode",
+      "@id": `${canonicalUrl}#software`,
+      name: skill.name,
+      description: compactDescription(skill.description, `${skill.name} AI 能力项目。`, 300),
+      url: canonicalUrl,
+      codeRepository: skill.repoUrl ?? undefined,
+      downloadUrl: skill.packageUrl ?? undefined,
+      license: skill.license ?? undefined,
+      dateCreated: skill.createdAt?.toISOString(),
+      dateModified: skill.lastUpdatedAt?.toISOString(),
+      keywords: skill.tags?.join(", ") || undefined,
+      author: skill.authorName ? { "@type": "Person", name: skill.authorName, url: skill.authorUrl ?? undefined } : undefined,
+      review: evaluation ? {
+        "@type": "Review",
+        name: `${skill.name} 证据驱动评测`,
+        url: canonicalUrl,
+        datePublished: evaluation.evaluatedAt?.toISOString(),
+        reviewBody: report?.summary?.headline ?? "基于公开项目证据生成的质量与安全评测。",
+        author: { "@type": "Organization", "@id": absoluteUrl("/#organization"), name: "Skill Supermarket" },
+        reviewRating: {
+          "@type": "Rating",
+          ratingValue: evaluation.overallScore,
+          bestRating: 100,
+          worstRating: 0,
+        },
+      } : undefined,
+    },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <JsonLd data={jsonLd} />
+      <Link href="/search" className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+        <ArrowLeft className="h-4 w-4" /> 返回能力市场
+      </Link>
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-start justify-between">
+      <div className="relative overflow-hidden rounded-[2rem] border bg-card p-5 sm:p-8">
+        <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
+        <div className="relative flex flex-col items-start justify-between gap-6 md:flex-row">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Badge variant="default">{typeLabel}</Badge>
               {skill.category && <Badge variant="secondary">{skill.category}</Badge>}
               {skill.license && <Badge variant="outline">{skill.license}</Badge>}
@@ -83,9 +188,9 @@ export default async function SkillDetailPage({ params }: PageProps) {
                 <Badge variant="outline">v{skill.currentVersion}</Badge>
               )}
             </div>
-            <h1 className="text-3xl font-bold">{skill.name}</h1>
+            <h1 className="break-words text-3xl font-black tracking-[-0.04em] sm:text-4xl">{skill.name}</h1>
             {skill.description && (
-              <p className="mt-2 text-muted-foreground max-w-2xl">{skill.description}</p>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">{skill.description}</p>
             )}
             {skill.authorName && (
               <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
@@ -102,9 +207,9 @@ export default async function SkillDetailPage({ params }: PageProps) {
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row md:flex-col">
             {skill.repoUrl && (
-              <Button asChild>
+              <Button asChild className="w-full rounded-xl sm:w-auto">
                 <a href={skill.repoUrl} target="_blank" rel="noreferrer">
                   <Github className="w-4 h-4 mr-2" />
                   GitHub <ExternalLink className="w-3 h-3 ml-1" />
@@ -112,7 +217,7 @@ export default async function SkillDetailPage({ params }: PageProps) {
               </Button>
             )}
             {skill.packageUrl && (
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild className="w-full rounded-xl sm:w-auto">
                 <a href={skill.packageUrl} target="_blank" rel="noreferrer">
                   <Download className="w-4 h-4 mr-2" />
                   Package <ExternalLink className="w-3 h-3 ml-1" />
@@ -123,7 +228,7 @@ export default async function SkillDetailPage({ params }: PageProps) {
         </div>
 
         {/* Stats */}
-        <div className="flex flex-wrap gap-6 text-sm">
+        <div className="relative mt-7 flex flex-wrap gap-x-6 gap-y-3 border-t pt-5 text-sm">
           {(skill.githubStars ?? 0) > 0 && (
             <div className="flex items-center gap-1">
               <Star className="w-4 h-4 text-yellow-500" />
@@ -154,51 +259,45 @@ export default async function SkillDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* 评测 + 趋势 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {evaluation && (() => {
-          const report = evaluation.report as unknown as import("@/lib/types").EvaluationReport;
-          return (
-          <div className="rounded-lg border p-6">
-            <h2 className="text-lg font-semibold mb-4">📊 评测报告</h2>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="text-4xl font-bold text-primary">
-                {evaluation.overallScore}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                <div>综合评分</div>
-                <div>更新于 {relativeTime(evaluation.evaluatedAt)}</div>
-              </div>
-            </div>
-            <EvaluationRadar evaluation={evaluation} />
-            <div className="mt-4 text-xs text-muted-foreground">
-              {report.documentation.details} ·{" "}
-              {report.security.details} ·{" "}
-              {report.activity.details}
-            </div>
-            {report.quality.llmComment && (
-              <div className="mt-3 p-3 bg-muted rounded text-sm">
-                💬 {report.quality.llmComment}
-              </div>
-            )}
-          </div>
-          );
-        })()}
+      {evaluation ? (
+        <EvaluationReport
+          evaluation={evaluation}
+          report={evaluation.report as unknown as EvaluationReportType}
+        />
+      ) : (
+        <div className="surface-card flex flex-col items-center px-6 py-12 text-center">
+          <ShieldCheck className="h-8 w-8 text-primary" />
+          <h2 className="mt-3 font-bold">尚未生成评测报告</h2>
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">提交该项目后，系统会生成安全证据、置信度与采用建议。</p>
+          {evaluationSource ? (
+            <Link href={evaluationHref} className="button-primary mt-5 h-10 px-5 text-sm">开始评测 {skill.name}</Link>
+          ) : (
+            <span className="mt-5 text-xs font-semibold text-muted-foreground">该项目暂时没有可验证的公开来源</span>
+          )}
+        </div>
+      )}
 
-        {trend.length > 0 && (
-          <div className="rounded-lg border p-6">
-            <h2 className="text-lg font-semibold mb-4">📈 30 天热度趋势</h2>
-            <TrendChart
-              data={trend.map((d) => ({
-                date: d.date,
-                githubStars: d.githubStars ?? 0,
-                githubStarsDelta: d.githubStarsDelta ?? 0,
-                hotScore: d.hotScore ?? "0",
-              }))}
-            />
-          </div>
-        )}
-      </div>
+      {evaluation && (
+        <EvaluationBadge
+          badgeUrl={absoluteUrl(`/api/badge/${encodeURIComponent(skill.slug)}`)}
+          detailUrl={`${canonicalUrl}?utm_source=github&utm_medium=readme&utm_campaign=evaluation_badge`}
+          skillName={skill.name}
+        />
+      )}
+
+      {trend.length > 0 && (
+        <div className="surface-card p-5 sm:p-6">
+          <h2 className="mb-4 text-lg font-semibold">30 天热度趋势</h2>
+          <TrendChart
+            data={trend.map((d) => ({
+              date: d.date,
+              githubStars: d.githubStars ?? 0,
+              githubStarsDelta: d.githubStarsDelta ?? 0,
+              hotScore: d.hotScore ?? "0",
+            }))}
+          />
+        </div>
+      )}
 
       {/* Tags */}
       {(skill.tags ?? []).length > 0 && (
@@ -218,44 +317,42 @@ export default async function SkillDetailPage({ params }: PageProps) {
 
       {/* README */}
       {readme && (
-        <div className="rounded-lg border p-6">
-          <h2 className="text-lg font-semibold mb-4">📖 README</h2>
+        <div className="surface-card overflow-hidden p-5 sm:p-6">
+          <h2 className="mb-4 text-lg font-semibold">README</h2>
           <div className="markdown">
-            <ReactMarkdown>{readme}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}
+              urlTransform={(url, key) => transformReadmeUrl(url, key, {
+                repositoryUrl: skill.repoUrl!,
+                htmlUrl: readme.htmlUrl,
+                rawUrl: readme.rawUrl,
+              })}
+              components={{
+                a: ({ href, children, ...props }) => {
+                  const external = Boolean(href && /^https?:\/\//i.test(href));
+                  return (
+                    <a
+                      href={href}
+                      target={external ? "_blank" : undefined}
+                      rel={external ? "noopener noreferrer" : undefined}
+                      {...props}
+                    >
+                      {children}
+                    </a>
+                  );
+                },
+                img: ({ alt, ...props }) => (
+                  <img alt={alt ?? "README 图片"} loading="lazy" decoding="async" {...props} />
+                ),
+              }}
+            >
+              {readme.content}
+            </ReactMarkdown>
           </div>
         </div>
       )}
 
-      {/* 安全发现 */}
-      {evaluation && (() => {
-        const report = evaluation.report as unknown as import("@/lib/types").EvaluationReport;
-        const findings = report.security?.findings ?? [];
-        return findings.length > 0 ? (
-          <div className="rounded-lg border p-6 border-destructive/30">
-            <h2 className="text-lg font-semibold mb-4">⚠️ 安全发现</h2>
-            <ul className="space-y-2 text-sm">
-              {findings.map((f, i) => (
-                <li
-                  key={i}
-                  className={`p-2 rounded ${
-                    f.level === "danger"
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"
-                  }`}
-                >
-                  <span className="font-mono text-xs mr-2">{f.type}</span>
-                  {f.message}
-                  {f.location && (
-                    <span className="text-xs text-muted-foreground ml-2">
-                      ({f.location})
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null;
-      })()}
     </div>
   );
 }

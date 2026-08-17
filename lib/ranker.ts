@@ -1,8 +1,35 @@
 // 热度计算 + 榜单生成
 import { db } from "./db";
 import { skills, metricsDaily, rankings } from "./schema";
-import { eq, desc, sql, and, gte } from "drizzle-orm";
+import { eq, sql, and, gte, lte, max } from "drizzle-orm";
 import type { RankingPeriod } from "./types";
+
+const RANKING_TIME_ZONE = process.env.APP_TIME_ZONE || "Asia/Shanghai";
+
+export function rankingDateKey(date: Date = new Date(), timeZone = RANKING_TIME_ZONE): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+export function rankingWindowStart(period: RankingPeriod, date: Date = new Date()): string {
+  const days = period === "daily" ? 1 : period === "weekly" ? 7 : 30;
+  const endKey = rankingDateKey(date);
+  const start = new Date(`${endKey}T12:00:00.000Z`);
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+  return start.toISOString().slice(0, 10);
+}
+
+function snapshotAgeDays(snapshotDate: string, date: Date = new Date()): number {
+  const current = new Date(`${rankingDateKey(date)}T12:00:00.000Z`);
+  const snapshot = new Date(`${snapshotDate}T12:00:00.000Z`);
+  return Math.max(0, Math.round((current.getTime() - snapshot.getTime()) / 86_400_000));
+}
 
 /**
  * 热度算法 (Hot Score)
@@ -17,12 +44,12 @@ import type { RankingPeriod } from "./types";
  */
 export function calcHotScore(delta: {
   starsDelta: number;
-  downloadsDelta: number;
+  downloadsSignal: number;
   activityScore: number;
   mentionCount: number;
 }): number {
   const starsPart = Math.log10(1 + Math.max(0, delta.starsDelta)) * 100;
-  const dlPart = Math.log10(1 + Math.max(0, delta.downloadsDelta)) * 80;
+  const dlPart = Math.log10(1 + Math.max(0, delta.downloadsSignal)) * 80;
   const actPart = delta.activityScore * 200; // 0-1 → 0-200
   const menPart = Math.log10(1 + Math.max(0, delta.mentionCount)) * 30;
 
@@ -42,37 +69,57 @@ export async function generateRankings(
   date: Date = new Date()
 ): Promise<{ skillId: string; score: number; rank: number }[]> {
   const days = period === "daily" ? 1 : period === "weekly" ? 7 : 30;
-  const since = new Date(date);
-  since.setDate(since.getDate() - days);
+  const dateStr = rankingDateKey(date);
+  const sinceStr = rankingWindowStart(period, date);
 
   // 聚合每个 skill 的 delta
   const aggregated = await db
     .select({
       skillId: metricsDaily.skillId,
       starsDelta: sql<number>`COALESCE(SUM(${metricsDaily.githubStarsDelta}), 0)`,
-      // 简化的活跃度: 当天有 commit 记 1
-      activeDays: sql<number>`COUNT(CASE WHEN ${metricsDaily.githubStarsDelta} > 0 THEN 1 END)`,
+      activeDays: sql<number>`COUNT(DISTINCT CASE WHEN ${metricsDaily.githubStarsDelta} > 0 THEN ${metricsDaily.date} END)`,
+      observedDays: sql<number>`COUNT(DISTINCT ${metricsDaily.date})`,
+      latestDownloads: sql<number>`(ARRAY_AGG(COALESCE(${metricsDaily.npmDownloadsWeekly}, 0) + COALESCE(${metricsDaily.pypiDownloadsWeekly}, 0) ORDER BY ${metricsDaily.date} DESC))[1]`,
+      earliestDownloads: sql<number>`(ARRAY_AGG(COALESCE(${metricsDaily.npmDownloadsWeekly}, 0) + COALESCE(${metricsDaily.pypiDownloadsWeekly}, 0) ORDER BY ${metricsDaily.date} ASC))[1]`,
+      currentStars: sql<number>`MAX(COALESCE(${metricsDaily.githubStars}, 0))`,
+      lastCommit: sql<Date | null>`MAX(${skills.githubLastCommit})`,
     })
     .from(metricsDaily)
-    .where(gte(metricsDaily.date, since.toISOString().split("T")[0]))
+    .innerJoin(skills, eq(skills.id, metricsDaily.skillId))
+    .where(and(
+      gte(metricsDaily.date, sinceStr),
+      lte(metricsDaily.date, dateStr),
+      eq(skills.status, "active")
+    ))
     .groupBy(metricsDaily.skillId);
 
   const scored = aggregated.map((row) => {
-    const activityScore = Math.min(1, row.activeDays / days);
+    const observedDays = Math.max(1, Math.min(days, Number(row.observedDays)));
+    const growthActivity = Math.min(1, Number(row.activeDays) / observedDays);
+    const lastCommit = row.lastCommit ? new Date(row.lastCommit) : null;
+    const commitAgeDays = lastCommit ? Math.max(0, (date.getTime() - lastCommit.getTime()) / 86_400_000) : Number.POSITIVE_INFINITY;
+    const maintenanceActivity = commitAgeDays <= 7 ? 1 : commitAgeDays <= 30 ? 0.8 : commitAgeDays <= 90 ? 0.55 : commitAgeDays <= 180 ? 0.3 : 0.1;
+    const activityScore = maintenanceActivity * 0.65 + growthActivity * 0.35;
+    const latestDownloads = Number(row.latestDownloads) || 0;
+    const downloadMomentum = Math.max(0, latestDownloads - (Number(row.earliestDownloads) || 0));
+    // Weekly registry downloads are already a recent-demand signal. A small
+    // adoption component keeps new packages rankable before two snapshots exist.
+    const downloadsSignal = downloadMomentum + latestDownloads * 0.02;
     return {
       skillId: row.skillId,
       score: calcHotScore({
         starsDelta: Number(row.starsDelta),
-        downloadsDelta: 0, // 简化: 暂未采集
+        downloadsSignal,
         activityScore,
         mentionCount: 0, // 简化: 暂未采集
       }),
+      tieBreaker: Number(row.currentStars) + latestDownloads / 100,
     };
   });
 
   // 排序 + 给 rank
-  scored.sort((a, b) => b.score - a.score);
-  const ranked = scored.map((s, i) => ({ ...s, rank: i + 1 }));
+  scored.sort((a, b) => b.score - a.score || b.tieBreaker - a.tieBreaker || a.skillId.localeCompare(b.skillId));
+  const ranked = scored.map(({ tieBreaker: _tieBreaker, ...item }, i) => ({ ...item, rank: i + 1 }));
 
   return ranked;
 }
@@ -84,26 +131,21 @@ export async function saveRankings(
   period: RankingPeriod,
   date: Date = new Date()
 ): Promise<number> {
-  const dateStr = date.toISOString().split("T")[0];
+  const dateStr = rankingDateKey(date);
   const ranked = await generateRankings(period, date);
 
   if (ranked.length === 0) return 0;
 
-  // 删除当日已存在的
-  await db
-    .delete(rankings)
-    .where(and(eq(rankings.period, period), eq(rankings.date, dateStr)));
-
-  // 批量插入
-  await db.insert(rankings).values(
-    ranked.map((r) => ({
+  await db.transaction(async (tx) => {
+    await tx.delete(rankings).where(and(eq(rankings.period, period), eq(rankings.date, dateStr)));
+    await tx.insert(rankings).values(ranked.map((r) => ({
       period,
       date: dateStr,
       rank: r.rank,
       skillId: r.skillId,
       score: r.score.toString(),
-    }))
-  );
+    })));
+  });
 
   return ranked.length;
 }
@@ -115,8 +157,13 @@ export async function getRankings(
   period: RankingPeriod,
   limit: number = 20
 ) {
-  const dateStr = new Date().toISOString().split("T")[0];
-  return db
+  const [snapshot] = await db.select({ date: max(rankings.date) })
+    .from(rankings)
+    .where(eq(rankings.period, period));
+  const snapshotDate = snapshot?.date ?? null;
+  if (!snapshotDate) return { snapshotDate: null, ageDays: null, isStale: true, items: [] };
+
+  const items = await db
     .select({
       rank: rankings.rank,
       score: rankings.score,
@@ -135,7 +182,9 @@ export async function getRankings(
     })
     .from(rankings)
     .innerJoin(skills, eq(skills.id, rankings.skillId))
-    .where(and(eq(rankings.period, period), eq(rankings.date, dateStr)))
+    .where(and(eq(rankings.period, period), eq(rankings.date, snapshotDate)))
     .orderBy(rankings.rank)
     .limit(limit);
+  const ageDays = snapshotAgeDays(snapshotDate);
+  return { snapshotDate, ageDays, isStale: ageDays > 1, items };
 }
