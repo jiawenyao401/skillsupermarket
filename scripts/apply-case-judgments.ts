@@ -6,10 +6,10 @@ import { z } from "zod";
 import { db } from "../lib/db";
 import { buildSummary, clamp, EVALUATOR_VERSION, WEIGHTS } from "../lib/evaluator";
 import { getReadme } from "../lib/github";
-import { evaluations, skills } from "../lib/schema";
+import { evaluations } from "../lib/schema";
 import type { JudgeResult } from "../lib/judge";
 import type { EvaluationReport, RiskLevel } from "../lib/types";
-import { slugify } from "../lib/utils";
+import { findSkillByEvaluationSource } from "../lib/skill-upsert";
 
 const scoresSchema = z.object({
   utility: z.number().int().min(0).max(20),
@@ -51,7 +51,7 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
   const currentHash = createHash("sha256").update(readme).digest("hex");
   if (currentHash !== entry.readmeSha256) throw new Error(`${entry.repository}: README changed after local judgment`);
 
-  const [skill] = await db.select().from(skills).where(eq(skills.slug, slugify(entry.repository))).limit(1);
+  const skill = await findSkillByEvaluationSource({ kind: "github", fullName: entry.repository });
   if (!skill) throw new Error(`${entry.repository}: skill case not found`);
   const [evaluation] = await db.select().from(evaluations)
     .where(eq(evaluations.skillId, skill.id))

@@ -24,6 +24,18 @@ echo "--- 1. 导出数据快照 ---"
 SNAPSHOT_STAMP=$(npx tsx scripts/export-snapshot.ts 2>&1 | tail -1)
 echo "快照: $SNAPSHOT_STAMP"
 
+# 公开 Git 同步只能包含显式允许的数据文件。历史目录中若残留过
+# evaluation_jobs 等内部快照，立即拒绝提交，避免一次误操作永久泄露。
+while IFS= read -r SNAPSHOT_FILE; do
+  case "$(basename "$SNAPSHOT_FILE")" in
+    skills.json|evaluations.json|metrics_daily.json|rankings.json|meta.json|latest) ;;
+    *)
+      echo "=== [auto-sync] ❌ 拒绝同步非公开快照: $SNAPSHOT_FILE ==="
+      exit 1
+      ;;
+  esac
+done < <(find data/snapshots -type f -print)
+
 # 2. git 操作
 echo ""
 echo "--- 2. 检查 git 状态 ---"

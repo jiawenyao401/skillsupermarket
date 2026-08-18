@@ -3,7 +3,7 @@
 // 运行: tsx scripts/export-snapshot.ts
 import "dotenv/config";
 import { db } from "../lib/db";
-import { skills, evaluations, metricsDaily, rankings, evaluationJobs } from "../lib/schema";
+import { skills, evaluations, metricsDaily, rankings } from "../lib/schema";
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -36,18 +36,17 @@ async function main() {
   // 切换到快照目录
   process.chdir(dir);
 
-  // 导出 5 张表
+  // 这里只生成可公开同步的数据快照。用户、会话、额度与评测任务属于
+  // 内部运营数据，必须留在受限备份系统中，不能进入 Git 历史。
   await exportTable("skills", await db.select().from(skills));
   await exportTable("evaluations", await db.select().from(evaluations));
   await exportTable("metrics_daily", await db.select().from(metricsDaily));
   await exportTable("rankings", await db.select().from(rankings));
-  await exportTable("evaluation_jobs", await db.select().from(evaluationJobs));
 
   // 写 meta
   const meta = {
     snapshot_at: now.toISOString(),
     git_commit: process.env.GIT_COMMIT ?? "unknown",
-    hostname: process.env.HOSTNAME ?? "unknown",
   };
   await writeFile(join(dir, "meta.json"), JSON.stringify(meta, null, 2), "utf-8");
 

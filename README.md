@@ -62,7 +62,7 @@
 | 认证 | Better Auth、数据库 Session、服务端路由保护 |
 | 评测 | 常驻异步 Worker、幂等任务认领、超时恢复、最多 3 次尝试 |
 | 采集 | GitHub / npm / PyPI 公共 API、每日指标快照 |
-| 生产运行 | PM2 Web + Worker、systemd timer 数据流水线 |
+| 生产运行 | PM2 Web + Worker、systemd timer 数据流水线与主机完整性巡检 |
 
 ```text
 公开数据源 ──> 定时采集 ──> skills / metrics_daily ──> D1/D7/D30 榜单
@@ -250,6 +250,29 @@ journalctl -u skillsupermarket-pipeline.service --since today
 pm2 status
 ```
 
+### 主机木马与篡改巡检
+
+`deploy/skillsupermarket-security-monitor.timer` 每 5 分钟执行一次只读巡检，检查 release 文件哈希、登录账号、`authorized_keys`、监听端口、PM2 进程、已删除但仍在运行的可执行文件、常见矿工/反向 Shell 进程特征、临时目录新增可执行文件、SSH 爆破、Nginx 5xx 与磁盘压力；服务器已安装 ClamAV 或 rkhunter 时每天额外运行一次。
+
+监控不会自动杀进程、删文件、封账号、改密钥或把可疑文件加入白名单。首次基线必须在人工确认服务器、release、账号、密钥和端口可信后显式建立，防止把已入侵状态误当成正常：
+
+```bash
+install -m 0755 scripts/security-monitor.sh /opt/skillsupermarket/scripts/security-monitor.sh
+install -m 0644 deploy/skillsupermarket-security-monitor.service /etc/systemd/system/
+install -m 0644 deploy/skillsupermarket-security-monitor.timer /etc/systemd/system/
+
+# 先人工核对，再初始化；这一步会覆盖受信基线，不能放进无人值守脚本。
+SECURITY_BASELINE_APPROVED=1 /opt/skillsupermarket/scripts/security-monitor.sh --init
+
+systemctl daemon-reload
+systemctl enable --now skillsupermarket-security-monitor.timer
+systemctl start skillsupermarket-security-monitor.service
+systemctl status skillsupermarket-security-monitor.timer
+journalctl -u skillsupermarket-security-monitor.service --since today
+```
+
+正常发布会改变代码哈希。新 release 完成构建、来源核验、测试、健康检查与人工差异审查后，再用同一条 `--init` 命令更新基线；告警中的文件、账号、密钥或端口变化未查清前不得重新初始化。systemd 返回码 `2` 表示发现变化或攻击信号，`3/4` 表示监控配置不完整，均应保留日志和现场证据后再处置。
+
 不要把服务器地址、SSH 密码、数据库口令或 API Key 写入 README、PM2 配置、systemd unit 或提交历史。
 
 ## 上线前检查
@@ -281,6 +304,7 @@ git diff --check
 - 日志和公开错误必须脱敏，禁止输出 Token、邮箱列表、连接串和上游响应正文。
 - 流量统计只保存日级聚合值；IP 与 User-Agent 仅用于进程内限流并立即哈希，不写入数据库。
 - 支付接入前必须实现服务端验签、幂等回调、权益状态机、退款/撤销和审计记录。
+- 公开 Git 快照只包含 Skill、报告与榜单等公开数据；用户、额度、会话和评测任务原始记录不得进入 `data/snapshots` 或 Git 历史。
 
 ## License
 

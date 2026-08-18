@@ -2,8 +2,8 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../lib/db";
 import { evaluateSkill } from "../lib/evaluator";
 import { getRepo } from "../lib/github";
-import { evaluationJobs, evaluations, skills } from "../lib/schema";
-import { slugify } from "../lib/utils";
+import { evaluationJobs, evaluations } from "../lib/schema";
+import { upsertSkillByEvaluationSource } from "../lib/skill-upsert";
 
 const DEFAULT_CASES = [
   "microsoft/playwright-mcp",
@@ -27,12 +27,10 @@ function inferCategory(repo: { description: string | null; topics: string[] }) {
   return "programming";
 }
 
-async function upsertCase(fullName: string): Promise<string> {
+async function upsertCase(fullName: string) {
   const repo = await getRepo(fullName, true);
   if (!repo) throw new Error(`${fullName}: repository not found`);
-  const slug = slugify(repo.full_name);
-  const meta = {
-    slug,
+  return upsertSkillByEvaluationSource({ kind: "github", fullName: repo.full_name }, {
     name: repo.name,
     description: repo.description,
     repoUrl: repo.html_url,
@@ -47,24 +45,15 @@ async function upsertCase(fullName: string): Promise<string> {
     type: inferType(repo),
     category: inferCategory(repo),
     tags: (repo.topics ?? []).map((tag) => tag.toLowerCase().slice(0, 40)).filter(Boolean).slice(0, 8),
-    source: "github" as const,
     status: "active" as const,
     lastUpdatedAt: new Date(),
     lastIndexedAt: new Date(),
-  };
-
-  const [existing] = await db.select().from(skills).where(eq(skills.slug, slug)).limit(1);
-  if (existing) {
-    await db.update(skills).set(meta).where(eq(skills.id, existing.id));
-    return existing.id;
-  }
-  const [created] = await db.insert(skills).values(meta).returning();
-  if (!created) throw new Error(`${fullName}: failed to create skill`);
-  return created.id;
+  });
 }
 
 async function evaluateCase(fullName: string) {
-  const skillId = await upsertCase(fullName);
+  const skill = await upsertCase(fullName);
+  const skillId = skill.id;
   const [activeJob] = await db.select().from(evaluationJobs).where(and(
     eq(evaluationJobs.skillId, skillId),
     inArray(evaluationJobs.status, ["pending", "running"])
@@ -84,7 +73,7 @@ async function evaluateCase(fullName: string) {
   const report = evaluation.report as { quality?: { aiScore?: number | null; llmComment?: string }; summary?: { verdictLabel?: string } };
   return {
     repository: fullName,
-    slug: slugify(fullName),
+    slug: skill.slug,
     evaluationId,
     overall: evaluation.overallScore,
     documentation: evaluation.documentationScore,

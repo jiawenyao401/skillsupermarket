@@ -3,14 +3,18 @@ import { NextResponse } from "next/server";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { evaluationJobs, evaluations, skills } from "@/lib/schema";
+import { evaluationJobs, evaluations } from "@/lib/schema";
 import { getRepo } from "@/lib/github";
 import { getNpmPackage } from "@/lib/npm";
 import { getPypiPackage } from "@/lib/pypi";
 import { extractGithubUrl, parseEvaluationSource } from "@/lib/source-parser";
 import { UpstreamServiceError } from "@/lib/upstream-error";
-import { slugify } from "@/lib/utils";
 import { getRequestSession, unauthorizedResponse } from "@/lib/auth-session";
+import {
+  findSkillByEvaluationSource,
+  SourceIdentityConflictError,
+  upsertSkillByEvaluationSource,
+} from "@/lib/skill-upsert";
 import {
   ActiveEvaluationRaceError,
   getEvaluationNetworkKey,
@@ -108,8 +112,7 @@ export async function POST(request: Request) {
 
     // Fast path: a fresh local report or active job must remain available even
     // when GitHub/npm/PyPI is temporarily rate-limited or unavailable.
-    const submittedSlug = slugify(source.kind === "github" ? source.fullName : source.name);
-    const [knownSkill] = await db.select().from(skills).where(eq(skills.slug, submittedSlug)).limit(1);
+    const knownSkill = await findSkillByEvaluationSource(source);
     if (knownSkill) {
       const [knownActiveJob] = await db.select().from(evaluationJobs).where(and(
         eq(evaluationJobs.skillId, knownSkill.id),
@@ -145,7 +148,6 @@ export async function POST(request: Request) {
     }
 
     let meta: {
-      slug: string;
       name: string;
       description: string | null;
       repoUrl: string | null;
@@ -163,12 +165,13 @@ export async function POST(request: Request) {
       category: string;
       tags: string[];
     };
+    let canonicalSource = source;
 
     if (source.kind === "github") {
       const repo = await getRepo(source.fullName, true);
       if (!repo) return NextResponse.json({ error: "GitHub 仓库不存在、不可公开访问或上游暂时不可用", code: "SOURCE_NOT_FOUND" }, { status: 404 });
+      canonicalSource = { kind: "github", fullName: repo.full_name };
       meta = {
-        slug: slugify(repo.full_name),
         name: repo.name,
         description: repo.description,
         repoUrl: repo.html_url,
@@ -189,8 +192,9 @@ export async function POST(request: Request) {
     } else if (source.kind === "npm") {
       const pkg = await getNpmPackage(source.name, true);
       if (!pkg) return NextResponse.json({ error: "npm 包不存在或上游暂时不可用", code: "SOURCE_NOT_FOUND" }, { status: 404 });
+      canonicalSource = { kind: "npm", name: pkg.name };
       meta = {
-        slug: slugify(pkg.name), name: pkg.name, description: pkg.description ?? null,
+        name: pkg.name, description: pkg.description ?? null,
         repoUrl: extractGithubUrl(pkg.repository?.url), packageUrl: `https://www.npmjs.com/package/${pkg.name}`,
         authorName: pkg.maintainers?.[0]?.name ?? null, authorAvatar: null, authorUrl: null,
         license: pkg.license ?? null, currentVersion: pkg.version,
@@ -202,8 +206,9 @@ export async function POST(request: Request) {
     } else {
       const pkg = await getPypiPackage(source.name, true);
       if (!pkg) return NextResponse.json({ error: "PyPI 包不存在或上游暂时不可用", code: "SOURCE_NOT_FOUND" }, { status: 404 });
+      canonicalSource = { kind: "pypi", name: pkg.name };
       meta = {
-        slug: slugify(pkg.name), name: pkg.name, description: pkg.summary ?? null,
+        name: pkg.name, description: pkg.summary ?? null,
         repoUrl: extractGithubUrl(pkg.home_page ?? pkg.project_url), packageUrl: `https://pypi.org/project/${pkg.name}/`,
         authorName: pkg.author ?? null, authorAvatar: null, authorUrl: null,
         license: pkg.license ?? null, currentVersion: pkg.version,
@@ -214,25 +219,13 @@ export async function POST(request: Request) {
       };
     }
 
-    const [existingSkill] = await db.select().from(skills).where(eq(skills.slug, meta.slug)).limit(1);
-    let skillId: string;
-    if (existingSkill) {
-      skillId = existingSkill.id;
-      await db.update(skills).set({ ...meta, lastUpdatedAt: new Date(), lastIndexedAt: new Date(), status: "active" }).where(eq(skills.id, skillId));
-    } else {
-      const [created] = await db.insert(skills).values({
-        ...meta,
-        source: source.kind,
-      }).onConflictDoNothing().returning();
-      if (created) {
-        skillId = created.id;
-      } else {
-        const [concurrentSkill] = await db.select().from(skills).where(eq(skills.slug, meta.slug)).limit(1);
-        if (!concurrentSkill) throw new Error("项目创建失败");
-        skillId = concurrentSkill.id;
-        await db.update(skills).set({ ...meta, lastUpdatedAt: new Date(), lastIndexedAt: new Date(), status: "active" }).where(eq(skills.id, skillId));
-      }
-    }
+    const persistedSkill = await upsertSkillByEvaluationSource(canonicalSource, {
+      ...meta,
+      lastUpdatedAt: new Date(),
+      lastIndexedAt: new Date(),
+      status: "active",
+    });
+    const skillId = persistedSkill.id;
 
     const [activeJob] = await db.select().from(evaluationJobs).where(and(
       eq(evaluationJobs.skillId, skillId),
@@ -248,7 +241,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         duplicate: true,
-        slug: meta.slug,
+        slug: persistedSkill.slug,
         skillId,
         jobId: activeJob.id,
         status: activeJob.status,
@@ -265,7 +258,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         cached: true,
-        slug: meta.slug,
+        slug: persistedSkill.slug,
         skillId,
         evaluationId: latestEvaluation.id,
         status: "done",
@@ -297,7 +290,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         duplicate: true,
-        slug: meta.slug,
+        slug: persistedSkill.slug,
         skillId,
         jobId: job.id,
         status: job.status,
@@ -311,7 +304,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      slug: meta.slug,
+      slug: persistedSkill.slug,
       skillId,
       jobId: job.id,
       status: "pending",
@@ -334,6 +327,12 @@ export async function POST(request: Request) {
         error: `${error.service.toUpperCase()} 上游暂时不可用，请稍后重试`,
         code: "UPSTREAM_UNAVAILABLE",
       }, { status: 503, headers: { "Retry-After": "60" } });
+    }
+    if (error instanceof SourceIdentityConflictError) {
+      return NextResponse.json({
+        error: "该项目的公开标识与已有来源冲突，请联系管理员核验",
+        code: "SOURCE_IDENTITY_CONFLICT",
+      }, { status: 409, headers: { "Cache-Control": "no-store" } });
     }
     const message = error instanceof SyntaxError ? "请求格式不正确" : "提交失败，请稍后重试";
     const status = error instanceof SyntaxError ? 400 : 500;

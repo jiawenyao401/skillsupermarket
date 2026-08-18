@@ -1,12 +1,12 @@
 // 采集脚本: 从 GitHub / npm / PyPI 抓 skill 元数据
 // 运行: npm run collect
 import { db } from "../lib/db";
-import { skills, metricsDaily } from "../lib/schema";
+import { metricsDaily } from "../lib/schema";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { searchSkills, type GitHubRepo } from "../lib/github";
 import { getNpmPackage, getNpmWeeklyDownloads, searchNpmMcpPackages } from "../lib/npm";
 import { rankingDateKey } from "../lib/ranker";
-import { slugify } from "../lib/utils";
+import { upsertSkillByEvaluationSource } from "../lib/skill-upsert";
 
 const log = (...args: unknown[]) => console.log("[collect]", ...args);
 
@@ -38,62 +38,41 @@ async function collectFromGitHub(): Promise<number> {
 
   let count = 0;
   for (const repo of repos) {
-    const slug = slugify(repo.full_name);
     const type = inferType(repo);
     const category = inferCategory(repo);
-
-    const existing = await db.select().from(skills).where(eq(skills.slug, slug));
-
-    if (existing.length > 0) {
-      // 更新
-      await db
-        .update(skills)
-        .set({
-          name: repo.name,
-          description: repo.description,
-          tags: (repo.topics ?? []).slice(0, 8),
-          category,
-          githubStars: repo.stargazers_count,
-          githubForks: repo.forks_count,
-          githubWatchers: repo.watchers_count,
-          githubOpenIssues: repo.open_issues_count,
-          githubLastCommit: new Date(repo.pushed_at),
-          license: repo.license?.spdx_id ?? null,
-          lastUpdatedAt: new Date(),
-          lastIndexedAt: new Date(),
-        })
-        .where(eq(skills.slug, slug));
-    } else {
-      // 新增
-      await db.insert(skills).values({
-        slug,
+    const skill = await upsertSkillByEvaluationSource(
+      { kind: "github", fullName: repo.full_name },
+      {
         type,
         name: repo.name,
         description: repo.description,
         tags: (repo.topics ?? []).slice(0, 8),
         category,
-        source: "github",
         repoUrl: repo.html_url,
+        packageUrl: null,
         authorName: repo.owner.login,
         authorAvatar: repo.owner.avatar_url,
         authorUrl: repo.owner.html_url,
         license: repo.license?.spdx_id ?? null,
+        currentVersion: null,
         githubStars: repo.stargazers_count,
         githubForks: repo.forks_count,
         githubWatchers: repo.watchers_count,
         githubOpenIssues: repo.open_issues_count,
         githubLastCommit: new Date(repo.pushed_at),
-      });
-    }
+        lastUpdatedAt: new Date(),
+        lastIndexedAt: new Date(),
+        status: "active",
+      },
+    );
 
     // 写每日指标
     const today = rankingDateKey();
-    const skill = await db.select().from(skills).where(eq(skills.slug, slug));
-    if (skill[0]) {
+    if (skill) {
       const [prevMetric] = await db
         .select()
         .from(metricsDaily)
-        .where(and(eq(metricsDaily.skillId, skill[0].id), lt(metricsDaily.date, today)))
+        .where(and(eq(metricsDaily.skillId, skill.id), lt(metricsDaily.date, today)))
         .orderBy(sql`${metricsDaily.date} DESC`)
         .limit(1);
       const prevStars = prevMetric?.githubStars ?? repo.stargazers_count;
@@ -102,7 +81,7 @@ async function collectFromGitHub(): Promise<number> {
       await db
         .insert(metricsDaily)
         .values({
-          skillId: skill[0].id,
+          skillId: skill.id,
           date: today,
           githubStars: repo.stargazers_count,
           githubStarsDelta: delta,
@@ -139,43 +118,30 @@ async function collectFromNpm(): Promise<number> {
     if (!pkg) continue;
 
     const downloads = await getNpmWeeklyDownloads(name);
-    const slug = slugify(pkg.name);
-
-    const existing = await db.select().from(skills).where(eq(skills.slug, slug));
     const repoUrl = extractGithubFromNpm(pkg.repository?.url);
-
-    if (existing.length > 0) {
-      await db
-        .update(skills)
-        .set({
-          description: pkg.description ?? null,
-          license: pkg.license ?? null,
-          currentVersion: pkg.version,
-          npmDownloadsWeekly: downloads,
-          lastUpdatedAt: new Date(),
-          lastIndexedAt: new Date(),
-        })
-        .where(eq(skills.slug, slug));
-    } else {
-      await db.insert(skills).values({
-        slug,
+    const skill = await upsertSkillByEvaluationSource(
+      { kind: "npm", name: pkg.name },
+      {
         type: "mcp-server",
         name: pkg.name,
         description: pkg.description ?? null,
         tags: (pkg.keywords ?? []).slice(0, 8),
         category: "programming",
-        source: "npm",
         repoUrl,
         packageUrl: `https://www.npmjs.com/package/${pkg.name}`,
         authorName: pkg.maintainers?.[0]?.name ?? null,
+        authorAvatar: null,
+        authorUrl: null,
         license: pkg.license ?? null,
         currentVersion: pkg.version,
         npmDownloadsWeekly: downloads,
-      });
-    }
+        lastUpdatedAt: new Date(),
+        lastIndexedAt: new Date(),
+        status: "active",
+      },
+    );
 
     const today = rankingDateKey();
-    const [skill] = await db.select().from(skills).where(eq(skills.slug, slug)).limit(1);
     if (skill) {
       await db.insert(metricsDaily).values({
         skillId: skill.id,

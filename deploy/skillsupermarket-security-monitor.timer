@@ -1,0 +1,13 @@
+[Unit]
+Description=Run Skill Supermarket security monitor every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+Persistent=true
+RandomizedDelaySec=20s
+AccuracySec=15s
+Unit=skillsupermarket-security-monitor.service
+
+[Install]
+WantedBy=timers.target
