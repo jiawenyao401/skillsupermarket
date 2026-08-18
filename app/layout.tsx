@@ -12,6 +12,7 @@ import { Suspense } from "react";
 import { AuthNav } from "@/components/AuthNav";
 import { AdminMobileNavLink } from "@/components/AdminMobileNavLink";
 import { JsonLd } from "@/components/JsonLd";
+import { TrafficTracker } from "@/components/TrafficTracker";
 import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 import "./globals.css";
 
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground antialiased">
+        <Suspense fallback={null}><TrafficTracker /></Suspense>
         <JsonLd
           data={[
             {
@@ -130,6 +132,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <Link key={href} href={href} className="nav-link">{label}</Link>
               ))}
               <Link href="/evaluation" className="nav-link">评测</Link>
+              <Link href="/guides" className="nav-link">指南</Link>
               <Link href="/account" className="nav-link">个人中心</Link>
             </nav>
 
@@ -160,6 +163,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <Link key={href} href={href} className="mobile-nav-link">{label}</Link>
                   ))}
                   <Link href="/evaluation" className="mobile-nav-link"><ShieldCheck className="h-4 w-4" />了解评测服务</Link>
+                  <Link href="/guides" className="mobile-nav-link">实战指南</Link>
                   <Link href="/evaluate" className="mobile-nav-link"><ShieldCheck className="h-4 w-4" />提交评测</Link>
                   <Link href="/account" className="mobile-nav-link">个人中心</Link>
                   <Suspense fallback={null}><AdminMobileNavLink /></Suspense>
@@ -197,6 +201,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {categories.map(([label, href]) => <Link key={href} href={href} className="footer-link">{label}</Link>)}
                 <Link href="/search" className="footer-link">全部技能</Link>
                 <Link href="/evaluation" className="footer-link">评测服务</Link>
+                <Link href="/guides" className="footer-link">实战指南</Link>
                 <Link href="/evaluate" className="footer-link">提交评测</Link>
               </div>
             </div>
@@ -216,7 +221,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="border-t">
             <div className="container flex flex-col gap-2 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span>© {new Date().getFullYear()} Skill Supermarket</span>
-              <span>为 AI builder 构建 · 开源项目</span>
+              <span className="flex items-center gap-3"><Link href="/privacy" className="hover:text-foreground">隐私说明</Link><span>为 AI builder 构建 · 开源项目</span></span>
             </div>
           </div>
         </footer>

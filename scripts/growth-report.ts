@@ -4,32 +4,66 @@ import { db } from "../lib/db";
 
 interface ContentRow extends Record<string, unknown> {
   active_skills: number;
+  new_skills_1d: number;
+  new_skills_7d: number;
+  new_skills_30d: number;
+  collected_skills_today: number;
+  last_collection_date: string | null;
   evaluated_skills: number;
+  total_evaluations: number;
   missing_descriptions: number;
   stale_skills: number;
 }
 
 interface UserRow extends Record<string, unknown> {
   total_users: number;
+  new_users_1d: number;
   new_users_7d: number;
   new_users_30d: number;
 }
 
 interface JobRow extends Record<string, unknown> {
+  jobs_1d: number;
   jobs_7d: number;
   jobs_30d: number;
+  completed_1d: number;
   completed_7d: number;
+  completed_30d: number;
+  failed_1d: number;
+  failed_7d: number;
+  failed_30d: number;
+  evaluators_1d: number;
+  evaluators_7d: number;
+  evaluators_30d: number;
 }
 
-interface EvaluatorRow extends Record<string, unknown> {
-  evaluators_7d: number;
+interface MonetizationRow extends Record<string, unknown> {
+  active_subscriptions: number;
+  free_quota_users: number;
+  free_quota_used: number;
+  exhausted_free_users: number;
+}
+
+interface TrafficRow extends Record<string, unknown> {
+  page_views_1d: number;
+  page_views_7d: number;
+  page_views_30d: number;
+  evaluation_views_1d: number;
+  evaluation_views_7d: number;
+  evaluation_views_30d: number;
+  cta_clicks_1d: number;
+  cta_clicks_7d: number;
+  cta_clicks_30d: number;
+  organic_views_7d: number;
+  community_views_7d: number;
+  github_views_7d: number;
 }
 
 function percentage(value: number, total: number): string {
   return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "0.0%";
 }
 
-async function tableExists(name: "user" | "evaluation_jobs"): Promise<boolean> {
+async function tableExists(name: string): Promise<boolean> {
   const result = await db.execute<{ exists: boolean }>(sql`
     select to_regclass(${`public.${name}`}) is not null as exists
   `);
@@ -50,73 +84,164 @@ async function main() {
   const contentResult = await db.execute<ContentRow>(sql`
     select
       (select count(*)::int from skills where status = 'active') as active_skills,
+      (select count(*)::int from skills where coalesce(first_seen_at, created_at) >= now() - interval '1 day') as new_skills_1d,
+      (select count(*)::int from skills where coalesce(first_seen_at, created_at) >= now() - interval '7 days') as new_skills_7d,
+      (select count(*)::int from skills where coalesce(first_seen_at, created_at) >= now() - interval '30 days') as new_skills_30d,
+      (select count(distinct skill_id)::int from metrics_daily where date = timezone('Asia/Shanghai', now())::date) as collected_skills_today,
+      (select max(date)::text from metrics_daily) as last_collection_date,
       (select count(distinct skill_id)::int from evaluations) as evaluated_skills,
+      (select count(*)::int from evaluations) as total_evaluations,
       (select count(*)::int from skills where status = 'active' and (description is null or length(trim(description)) < 40)) as missing_descriptions,
       (select count(*)::int from skills where status = 'active' and coalesce(last_updated_at, created_at) < now() - interval '30 days') as stale_skills
   `);
   const content = contentResult[0];
   if (!content) throw new Error("增长报表内容查询未返回数据");
 
-  const [hasUsers, hasJobs, hasJobUsers] = await Promise.all([
+  const [hasUsers, hasJobs, hasJobUsers, hasSubscriptions, hasQuota, hasTraffic] = await Promise.all([
     tableExists("user"),
     tableExists("evaluation_jobs"),
     columnExists("evaluation_jobs", "user_id"),
+    tableExists("subscriptions"),
+    tableExists("evaluation_quota_usage"),
+    tableExists("traffic_daily"),
   ]);
-  const users = hasUsers
-    ? (await db.execute<UserRow>(sql`
-      select
-        count(*)::int as total_users,
-        count(*) filter (where created_at >= now() - interval '7 days')::int as new_users_7d,
-        count(*) filter (where created_at >= now() - interval '30 days')::int as new_users_30d
-      from "user"
-    `))[0]
-    : undefined;
-  const jobs = hasJobs
-    ? (await db.execute<JobRow>(sql`
-      select
-        count(*) filter (where created_at >= now() - interval '7 days')::int as jobs_7d,
-        count(*) filter (where created_at >= now() - interval '30 days')::int as jobs_30d,
-        count(*) filter (where created_at >= now() - interval '7 days' and status = 'done')::int as completed_7d
-      from evaluation_jobs
-    `))[0]
-    : undefined;
-  const evaluators = hasJobUsers
-    ? (await db.execute<EvaluatorRow>(sql`
-      select count(distinct user_id) filter (
-        where created_at >= now() - interval '7 days' and user_id is not null
-      )::int as evaluators_7d
-      from evaluation_jobs
-    `))[0]
-    : undefined;
+
+  const users = hasUsers ? (await db.execute<UserRow>(sql`
+    select
+      count(*)::int as total_users,
+      count(*) filter (where created_at >= now() - interval '1 day')::int as new_users_1d,
+      count(*) filter (where created_at >= now() - interval '7 days')::int as new_users_7d,
+      count(*) filter (where created_at >= now() - interval '30 days')::int as new_users_30d
+    from "user"
+  `))[0] : undefined;
+
+  const jobs = hasJobs && hasJobUsers ? (await db.execute<JobRow>(sql`
+    select
+      count(*) filter (where created_at >= now() - interval '1 day')::int as jobs_1d,
+      count(*) filter (where created_at >= now() - interval '7 days')::int as jobs_7d,
+      count(*) filter (where created_at >= now() - interval '30 days')::int as jobs_30d,
+      count(*) filter (where created_at >= now() - interval '1 day' and status = 'done')::int as completed_1d,
+      count(*) filter (where created_at >= now() - interval '7 days' and status = 'done')::int as completed_7d,
+      count(*) filter (where created_at >= now() - interval '30 days' and status = 'done')::int as completed_30d,
+      count(*) filter (where created_at >= now() - interval '1 day' and status = 'failed')::int as failed_1d,
+      count(*) filter (where created_at >= now() - interval '7 days' and status = 'failed')::int as failed_7d,
+      count(*) filter (where created_at >= now() - interval '30 days' and status = 'failed')::int as failed_30d,
+      count(distinct user_id) filter (where created_at >= now() - interval '1 day' and user_id is not null)::int as evaluators_1d,
+      count(distinct user_id) filter (where created_at >= now() - interval '7 days' and user_id is not null)::int as evaluators_7d,
+      count(distinct user_id) filter (where created_at >= now() - interval '30 days' and user_id is not null)::int as evaluators_30d
+    from evaluation_jobs
+  `))[0] : hasJobs ? (await db.execute<JobRow>(sql`
+    select
+      count(*) filter (where created_at >= now() - interval '1 day')::int as jobs_1d,
+      count(*) filter (where created_at >= now() - interval '7 days')::int as jobs_7d,
+      count(*) filter (where created_at >= now() - interval '30 days')::int as jobs_30d,
+      count(*) filter (where created_at >= now() - interval '1 day' and status = 'done')::int as completed_1d,
+      count(*) filter (where created_at >= now() - interval '7 days' and status = 'done')::int as completed_7d,
+      count(*) filter (where created_at >= now() - interval '30 days' and status = 'done')::int as completed_30d,
+      count(*) filter (where created_at >= now() - interval '1 day' and status = 'failed')::int as failed_1d,
+      count(*) filter (where created_at >= now() - interval '7 days' and status = 'failed')::int as failed_7d,
+      count(*) filter (where created_at >= now() - interval '30 days' and status = 'failed')::int as failed_30d,
+      0::int as evaluators_1d,
+      0::int as evaluators_7d,
+      0::int as evaluators_30d
+    from evaluation_jobs
+  `))[0] : undefined;
+
+  const monetization = hasSubscriptions && hasQuota ? (await db.execute<MonetizationRow>(sql`
+    select
+      (select count(*)::int from subscriptions where status = 'active' and (current_period_end is null or current_period_end > now())) as active_subscriptions,
+      count(distinct q.subject_key) filter (where q.subject_type = 'user')::int as free_quota_users,
+      coalesce(sum(q.used) filter (where q.subject_type = 'user'), 0)::int as free_quota_used,
+      count(*) filter (where q.subject_type = 'user' and q.used >= q.quota_limit)::int as exhausted_free_users
+    from evaluation_quota_usage q
+    where q.period_end > now()
+      and not exists (
+        select 1 from subscriptions s
+        where s.user_id = q.subject_key and s.status = 'active'
+          and (s.current_period_end is null or s.current_period_end > now())
+      )
+  `))[0] : undefined;
+
+  const traffic = hasTraffic ? (await db.execute<TrafficRow>(sql`
+    select
+      coalesce(sum(page_views) filter (where date >= timezone('Asia/Shanghai', now())::date), 0)::int as page_views_1d,
+      coalesce(sum(page_views) filter (where date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as page_views_7d,
+      coalesce(sum(page_views) filter (where date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as page_views_30d,
+      coalesce(sum(page_views) filter (where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as evaluation_views_1d,
+      coalesce(sum(page_views) filter (where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as evaluation_views_7d,
+      coalesce(sum(page_views) filter (where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as evaluation_views_30d,
+      coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date), 0)::int as cta_clicks_1d,
+      coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as cta_clicks_7d,
+      coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as cta_clicks_30d,
+      coalesce(sum(page_views) filter (where source = 'organic' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as organic_views_7d,
+      coalesce(sum(page_views) filter (where source = 'community' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as community_views_7d,
+      coalesce(sum(page_views) filter (where source = 'github' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as github_views_7d
+    from traffic_daily
+  `))[0] : undefined;
 
   const totalUsers = users?.total_users ?? 0;
-  const newUsers7d = users?.new_users_7d ?? 0;
-  const newUsers30d = users?.new_users_30d ?? 0;
+  const jobs1d = jobs?.jobs_1d ?? 0;
   const jobs7d = jobs?.jobs_7d ?? 0;
   const jobs30d = jobs?.jobs_30d ?? 0;
-  const evaluators7d = evaluators?.evaluators_7d ?? 0;
-  const completed7d = jobs?.completed_7d ?? 0;
-
   const report = {
     generatedAt: new Date().toISOString(),
     acquisition: {
-      available: hasUsers,
+      usersAvailable: hasUsers,
+      trafficAvailable: hasTraffic,
       totalUsers,
-      newUsers7d,
-      newUsers30d,
+      newUsers1d: users?.new_users_1d ?? 0,
+      newUsers7d: users?.new_users_7d ?? 0,
+      newUsers30d: users?.new_users_30d ?? 0,
+      pageViews1d: traffic?.page_views_1d ?? 0,
+      pageViews7d: traffic?.page_views_7d ?? 0,
+      pageViews30d: traffic?.page_views_30d ?? 0,
+      evaluationViews1d: traffic?.evaluation_views_1d ?? 0,
+      evaluationViews7d: traffic?.evaluation_views_7d ?? 0,
+      evaluationViews30d: traffic?.evaluation_views_30d ?? 0,
+      evaluationCtaClicks1d: traffic?.cta_clicks_1d ?? 0,
+      evaluationCtaClicks7d: traffic?.cta_clicks_7d ?? 0,
+      evaluationCtaClicks30d: traffic?.cta_clicks_30d ?? 0,
+      sourceViews7d: {
+        organic: traffic?.organic_views_7d ?? 0,
+        community: traffic?.community_views_7d ?? 0,
+        github: traffic?.github_views_7d ?? 0,
+      },
     },
     activation: {
       available: hasJobs,
       userAttributionAvailable: hasJobUsers,
+      evaluationJobs1d: jobs1d,
       evaluationJobs7d: jobs7d,
       evaluationJobs30d: jobs30d,
-      uniqueEvaluators7d: evaluators7d,
-      completed7d,
-      completionRate7d: percentage(completed7d, jobs7d),
+      completed1d: jobs?.completed_1d ?? 0,
+      completed7d: jobs?.completed_7d ?? 0,
+      completed30d: jobs?.completed_30d ?? 0,
+      failed1d: jobs?.failed_1d ?? 0,
+      failed7d: jobs?.failed_7d ?? 0,
+      failed30d: jobs?.failed_30d ?? 0,
+      uniqueEvaluators1d: jobs?.evaluators_1d ?? 0,
+      uniqueEvaluators7d: jobs?.evaluators_7d ?? 0,
+      uniqueEvaluators30d: jobs?.evaluators_30d ?? 0,
+      completionRate1d: percentage(jobs?.completed_1d ?? 0, jobs1d),
+      completionRate7d: percentage(jobs?.completed_7d ?? 0, jobs7d),
+      completionRate30d: percentage(jobs?.completed_30d ?? 0, jobs30d),
     },
-    seoInventory: {
+    monetization: {
+      available: hasSubscriptions && hasQuota,
+      activeSubscriptions: monetization?.active_subscriptions ?? 0,
+      freeQuotaUsers: monetization?.free_quota_users ?? 0,
+      freeQuotaUsed: monetization?.free_quota_used ?? 0,
+      exhaustedFreeUsers: monetization?.exhausted_free_users ?? 0,
+    },
+    inventory: {
       activeSkills: content.active_skills,
+      newSkills1d: content.new_skills_1d,
+      newSkills7d: content.new_skills_7d,
+      newSkills30d: content.new_skills_30d,
+      collectedSkillsToday: content.collected_skills_today,
+      lastCollectionDate: content.last_collection_date,
       evaluatedSkills: content.evaluated_skills,
+      totalEvaluations: content.total_evaluations,
       evaluationCoverage: percentage(content.evaluated_skills, content.active_skills),
       thinDescriptions: content.missing_descriptions,
       staleSkills30d: content.stale_skills,
@@ -128,15 +253,21 @@ async function main() {
     return;
   }
 
-  console.log("[growth] Skill Supermarket 增长与内容库存");
+  console.log("[growth] Skill Supermarket 真实增长与变现报表");
   console.log(hasUsers
-    ? `[growth] 用户: 总计 ${totalUsers}，近 7 天 +${newUsers7d}，近 30 天 +${newUsers30d}`
-    : "[growth] 用户: 当前数据库尚未迁移用户表，部署迁移后开始统计");
+    ? `[growth] 用户: 总计 ${totalUsers}，D1 +${report.acquisition.newUsers1d} / D7 +${report.acquisition.newUsers7d} / D30 +${report.acquisition.newUsers30d}`
+    : "[growth] 用户: 数据不可用（用户表尚未部署）");
+  console.log(hasTraffic
+    ? `[growth] 访问: D1 ${report.acquisition.pageViews1d} / D7 ${report.acquisition.pageViews7d} / D30 ${report.acquisition.pageViews30d} 次页面浏览；评测页 D7 ${report.acquisition.evaluationViews7d}，CTA D7 ${report.acquisition.evaluationCtaClicks7d}`
+    : "[growth] 访问: 数据不可用（隐私友好流量表尚未部署）");
   console.log(hasJobs
-    ? `[growth] 激活: 近 7 天 ${jobs7d} 次任务${hasJobUsers ? ` / ${evaluators7d} 位用户` : "（旧表尚无用户归因）"}，完成率 ${report.activation.completionRate7d}`
-    : "[growth] 激活: 当前数据库尚未迁移评测任务表，部署迁移后开始统计");
-  console.log(`[growth] SEO: ${content.active_skills} 个公开 Skill，${content.evaluated_skills} 个有报告，覆盖率 ${report.seoInventory.evaluationCoverage}`);
-  console.log(`[growth] 内容债务: ${content.missing_descriptions} 个简介过短，${content.stale_skills} 个超过 30 天未更新`);
+    ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次任务，D7 ${report.activation.uniqueEvaluators7d} 位评测用户，完成率 ${report.activation.completionRate7d}`
+    : "[growth] 激活: 数据不可用（评测任务表尚未部署）");
+  console.log(report.monetization.available
+    ? `[growth] 变现: ${report.monetization.activeSubscriptions} 个有效订阅，${report.monetization.freeQuotaUsers} 位免费用户本周已用 ${report.monetization.freeQuotaUsed} 次，${report.monetization.exhaustedFreeUsers} 位已耗尽额度`
+    : "[growth] 变现: 数据不可用（订阅或额度表尚未部署）");
+  console.log(`[growth] 库存: ${content.active_skills} 个有效项目，D1 +${content.new_skills_1d} / D7 +${content.new_skills_7d} / D30 +${content.new_skills_30d}，今日采集 ${content.collected_skills_today}，最近采集 ${content.last_collection_date ?? "暂无"}`);
+  console.log(`[growth] 报告: ${content.evaluated_skills}/${content.active_skills} 个项目有报告，覆盖率 ${report.inventory.evaluationCoverage}，累计 ${content.total_evaluations} 份`);
 }
 
 main().catch((error) => {

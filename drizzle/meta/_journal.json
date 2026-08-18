@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786550805493,
+      "tag": "0000_evaluation_engine_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786588187000,
+      "tag": "0001_rankings_reliability",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786613130601,
+      "tag": "0002_authentication",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786631400000,
+      "tag": "0003_billing_and_quotas",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786723200000,
+      "tag": "0004_super_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786982400000,
+      "tag": "0005_privacy_traffic_analytics",
+      "breakpoints": true
+    }
+  ]
+}

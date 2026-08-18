@@ -242,7 +242,7 @@ export default async function EvaluationLandingPage() {
         </div>
       </section>
 
-      <section>
+      <section id="cases" className="scroll-mt-24">
         <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
             <div className="section-eyebrow flex items-center gap-2"><Github className="h-4 w-4" /> Real reports</div>

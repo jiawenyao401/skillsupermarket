@@ -45,8 +45,10 @@ next-env.d.ts
 .vscode
 *.swp
 
-# Drizzle
-/drizzle/meta
+# Drizzle schema snapshots are generated locally; the migration journal is
+# required by `drizzle-kit migrate` and must remain versioned.
+/drizzle/meta/*
+!/drizzle/meta/_journal.json
 
 # Logs
 /logs

@@ -3,6 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { skills } from "@/lib/schema";
 import { absoluteUrl } from "@/lib/site";
+import { GUIDES } from "@/lib/guides";
 
 // Avoid freezing a partial sitemap when the database is temporarily unavailable
 // during a deployment build. Crawlers request this route infrequently.
@@ -11,6 +12,13 @@ export const dynamic = "force-dynamic";
 const staticEntries: MetadataRoute.Sitemap = [
   { url: absoluteUrl("/"), changeFrequency: "daily", priority: 1 },
   { url: absoluteUrl("/evaluation"), changeFrequency: "weekly", priority: 0.9 },
+  { url: absoluteUrl("/guides"), changeFrequency: "weekly", priority: 0.8 },
+  ...GUIDES.map((guide) => ({
+    url: absoluteUrl(`/guides/${guide.slug}`),
+    lastModified: new Date(guide.updatedAt),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  })),
   { url: absoluteUrl("/category/programming"), changeFrequency: "daily", priority: 0.8 },
   { url: absoluteUrl("/category/data"), changeFrequency: "daily", priority: 0.8 },
   { url: absoluteUrl("/category/design"), changeFrequency: "daily", priority: 0.8 },
@@ -29,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from(skills)
       .where(eq(skills.status, "active"))
       .orderBy(asc(skills.slug))
-      .limit(49_990);
+      .limit(50_000 - staticEntries.length);
 
     return [
       ...staticEntries,

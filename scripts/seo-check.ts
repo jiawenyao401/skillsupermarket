@@ -50,6 +50,9 @@ async function main() {
     health,
     home,
     evaluation,
+    guides,
+    guide,
+    privacy,
     login,
     robots,
     sitemap,
@@ -61,6 +64,9 @@ async function main() {
     request("/api/health"),
     request("/"),
     request("/evaluation"),
+    request("/guides"),
+    request("/guides/mcp-server-security-checklist-2026"),
+    request("/privacy"),
     request("/login?returnTo=%2Fevaluate"),
     request("/robots.txt"),
     request("/sitemap.xml"),
@@ -109,6 +115,20 @@ async function main() {
     detail: "Service + FAQPage",
   });
   checks.push({
+    name: "高意图指南入口",
+    ok: guides.status === 200 && guides.body.includes("Builder guides") && guides.body.includes("CollectionPage"),
+    detail: `HTTP ${guides.status}`,
+  });
+  checks.push({
+    name: "MCP 安全指南",
+    ok: guide.status === 200
+      && guide.body.includes("2026-07-28")
+      && guide.body.includes("application/ld+json")
+      && guide.body.includes(`${SITE_URL}/guides/mcp-server-security-checklist-2026`),
+    detail: `HTTP ${guide.status} · Article + canonical`,
+  });
+  checks.push({ name: "隐私说明", ok: privacy.status === 200 && privacy.body.includes("Global Privacy Control"), detail: `HTTP ${privacy.status}` });
+  checks.push({
     name: "登录页",
     ok: login.status === 200 && login.body.includes("登录"),
     detail: `HTTP ${login.status}`,
@@ -119,7 +139,8 @@ async function main() {
     ok: sitemap.status === 200
       && sitemap.body.includes("<urlset")
       && sitemap.body.includes("/skill/")
-      && sitemap.body.includes("/evaluation"),
+      && sitemap.body.includes("/evaluation")
+      && sitemap.body.includes("/guides/mcp-server-security-checklist-2026"),
     detail: `HTTP ${sitemap.status} · ${(sitemap.body.match(/<loc>/g) ?? []).length} URLs`,
   });
 

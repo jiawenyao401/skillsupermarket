@@ -2,6 +2,7 @@ import "dotenv/config";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { db } from "../lib/db";
 import { INDEXNOW_KEY } from "../lib/indexnow";
+import { GUIDES } from "../lib/guides";
 import { skills } from "../lib/schema";
 import { SITE_URL, absoluteUrl } from "../lib/site";
 
@@ -18,6 +19,9 @@ async function main() {
 
   const urlList = Array.from(new Set([
     absoluteUrl("/"),
+    absoluteUrl("/evaluation"),
+    absoluteUrl("/guides"),
+    ...GUIDES.map((guide) => absoluteUrl(`/guides/${guide.slug}`)),
     absoluteUrl("/sitemap.xml"),
     ...changed.flatMap((skill) => [
       absoluteUrl(`/skill/${encodeURIComponent(skill.slug)}`),

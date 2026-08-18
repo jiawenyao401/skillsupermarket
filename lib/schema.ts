@@ -130,6 +130,21 @@ export const rateLimit = pgTable("rate_limit", {
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
 
+// Privacy-preserving traffic telemetry. Only daily aggregate counters are
+// stored: no IP address, cookie identifier, full referrer URL or user agent.
+export const trafficDaily = pgTable("traffic_daily", {
+  date: date("date").notNull(),
+  path: text("path").notNull(),
+  source: text("source").notNull(),
+  pageViews: integer("page_views").notNull().default(0),
+  evaluationCtaClicks: integer("evaluation_cta_clicks").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.date, t.path, t.source] }),
+  dateIdx: index("traffic_daily_date_idx").on(t.date),
+  sourceDateIdx: index("traffic_daily_source_date_idx").on(t.source, t.date),
+}));
+
 // Paid entitlements are deliberately separate from the auth user record.
 // A payment webhook can update this table transactionally without coupling
 // Better Auth migrations to the billing provider chosen later.

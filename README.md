@@ -42,8 +42,16 @@
 
 - 服务端 Metadata、Canonical、Open Graph、JSON-LD、`robots.txt` 和动态 `sitemap.xml`。
 - Skill 详情页和真实评测报告可被索引，评测结果可生成公开分数徽章。
+- `/guides` 提供 Skill 评测、MCP 安全清单和 Skill/MCP/Agent 分类等高意图实战内容，并连接真实报告与评测入口。
 - 采集完成后可向支持 IndexNow 的搜索引擎提交更新 URL。
 - README 使用 GFM 渲染并经过 HTML 白名单清洗，避免直接展示原始标签或执行不可信 HTML。
+
+### 隐私友好的转化统计
+
+- 自建统计只按日期、公开页面和粗粒度来源聚合页面浏览与评测入口点击。
+- 不持久化访问者 IP、完整 Referer、User-Agent、广告标识或跨天访客 ID，不使用统计 Cookie。
+- 浏览器启用 Do Not Track 或 Global Privacy Control 时不发送统计事件。
+- 运营后台和 `npm run growth:report` 按 D1/D7/D30 展示访问、注册、评测、免费额度与订阅数据，不用估算值代替真实数据。
 
 ## 技术架构
 
@@ -62,6 +70,8 @@
 登录用户 ──> 额度预占 ──> evaluation_jobs ──> 常驻 Worker ──> 公开评测报告
                               │                                  │
                               └──────── 个人中心 / 运营后台 <────┘
+
+公开页面 ──> 无 Cookie 聚合事件 ──> traffic_daily ──> D1/D7/D30 转化漏斗
 ```
 
 ## 目录结构
@@ -177,10 +187,12 @@ npm run apply:case-judgments
 | `/` | 市场首页和 D1/D7/D30 榜单 |
 | `/skill/[slug]` | 能力详情与最新评测报告 |
 | `/evaluation` | 评测方法、真实案例和转化落地页 |
+| `/guides`、`/guides/[slug]` | AI Skill、MCP 与 Agent 实战指南 |
 | `/evaluate` | 登录用户评测工作台 |
 | `/account` | 个人中心与额度记录 |
 | `/admin` | 超级管理员运营后台 |
 | `/login` | 登录与注册 |
+| `/privacy` | 账户、评测与最小化统计隐私说明 |
 
 ### 主要 API
 
@@ -193,6 +205,7 @@ npm run apply:case-judgments
 | `POST /api/evaluate` | 登录后创建评测任务并预占额度 |
 | `GET /api/evaluate/[jobId]` | 查询本人任务状态 |
 | `GET /api/badge/[slug]` | 获取公开评测分数徽章 |
+| `POST /api/events` | 同源、无 Cookie 的页面浏览与评测入口聚合事件 |
 | `ALL /api/auth/[...all]` | Better Auth 认证接口 |
 
 所有写接口都必须在服务端校验身份、输入和权限；前端按钮隐藏或禁用不能作为安全边界。
@@ -266,6 +279,7 @@ git diff --check
 - 用户只能读取自己的评测任务，管理员页面同时校验 Session 与 `super_admin` 角色。
 - 额度在数据库事务中原子预占，不能依赖客户端计数。
 - 日志和公开错误必须脱敏，禁止输出 Token、邮箱列表、连接串和上游响应正文。
+- 流量统计只保存日级聚合值；IP 与 User-Agent 仅用于进程内限流并立即哈希，不写入数据库。
 - 支付接入前必须实现服务端验签、幂等回调、权益状态机、退款/撤销和审计记录。
 
 ## License
