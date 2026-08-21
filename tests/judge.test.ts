@@ -33,6 +33,61 @@ test("judge calibration rejects inflated scores when most evidence is missing", 
   ), /缺失证据不一致/);
 });
 
+test("judge calibration rejects inflated reusability when adoption evidence is missing", () => {
+  assert.throws(() => validateJudgeCalibration(
+    { utility: 12, clarity: 12, reusability: 16, design: 11, documentation: 11 },
+    {
+      name: "Hard to adopt skill",
+      type: "mcp-server",
+      description: "A plausible integration with incomplete adoption instructions.",
+      readme: "A".repeat(800),
+      deterministicEvidence: [
+        "缺失: 安装或接入步骤",
+        "缺失: 可执行示例",
+        "缺失: 输入、参数或工具说明",
+        "通过: 限制、权限或边界",
+      ],
+    },
+  ), /复用性评分/);
+});
+
+test("judge calibration rejects inflated design when boundaries and failures are missing", () => {
+  assert.throws(() => validateJudgeCalibration(
+    { utility: 13, clarity: 12, reusability: 12, design: 16, documentation: 12 },
+    {
+      name: "Unsafe defaults skill",
+      type: "agent-pack",
+      description: "A documented agent pack without observable safety or failure handling.",
+      readme: "B".repeat(800),
+      deterministicEvidence: [
+        "通过: 安装或接入步骤",
+        "通过: 可执行示例",
+        "缺失: 限制、权限或边界",
+        "缺失: 错误处理或排障",
+      ],
+    },
+  ), /设计评分/);
+});
+
+test("judge calibration accepts differentiated scores supported by complete evidence", () => {
+  assert.doesNotThrow(() => validateJudgeCalibration(
+    { utility: 16, clarity: 15, reusability: 14, design: 13, documentation: 15 },
+    {
+      name: "Evidence-backed skill",
+      type: "claude-skill",
+      description: "A complete skill with observable adoption, safety, and failure handling evidence.",
+      readme: "Complete documentation. ".repeat(40),
+      deterministicEvidence: [
+        "通过: 安装或接入步骤",
+        "通过: 可执行示例",
+        "通过: 输入、参数或工具说明",
+        "通过: 限制、权限或边界",
+        "通过: 错误处理或排障",
+      ],
+    },
+  ));
+});
+
 test("judge configuration accepts only supported provider keys", () => {
   assert.equal(hasJudgeConfiguration({ DEEPSEEK_API_KEY: "configured" }), true);
   assert.equal(hasJudgeConfiguration({ OPENAI_API_KEY: "configured" }), true);

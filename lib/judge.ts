@@ -31,7 +31,7 @@ const judgeResponseSchema = z.object({
   evidence: z.array(z.string().trim().min(1).max(160)).min(2).max(5),
 });
 
-const RUBRIC_VERSION = "3.0.0";
+const RUBRIC_VERSION = "3.1.0";
 const MAX_README_CHARACTERS = 30_000;
 const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reusability", "design", "documentation"];
 
@@ -90,6 +90,21 @@ export function validateJudgeCalibration(scores: QualitySubScores, input: JudgeI
 
   if (missingCount >= 4 && total > 72) throw new Error("LLM Judge 评分与缺失证据不一致");
   if (input.readme.trim().length < 500 && scores.documentation > 10) throw new Error("LLM Judge 文档评分与证据不一致");
+  const missingReusabilityEvidence = [
+    /(?:缺失|未通过):.*(?:安装|接入|install|setup)/i,
+    /(?:缺失|未通过):.*(?:示例|example|demo)/i,
+    /(?:缺失|未通过):.*(?:输入|参数|工具|input|parameter|tool)/i,
+  ].filter((pattern) => pattern.test(evidence)).length;
+  if (missingReusabilityEvidence >= 2 && scores.reusability > 12) {
+    throw new Error("LLM Judge 复用性评分与安装、示例或输入证据不一致");
+  }
+  const missingDesignEvidence = [
+    /(?:缺失|未通过):.*(?:限制|权限|安全|边界|limit|permission|security)/i,
+    /(?:缺失|未通过):.*(?:错误|排障|失败|error|troubleshoot|failure)/i,
+  ].filter((pattern) => pattern.test(evidence)).length;
+  if (missingDesignEvidence >= 2 && scores.design > 12) {
+    throw new Error("LLM Judge 设计评分与边界及失败处理证据不一致");
+  }
   if (spread === 0 && total >= 60) throw new Error("LLM Judge 五维评分缺少区分度");
 }
 

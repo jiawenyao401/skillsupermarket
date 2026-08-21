@@ -4,7 +4,14 @@ import { resolve } from "node:path";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../lib/db";
-import { buildSummary, clamp, EVALUATOR_VERSION, WEIGHTS } from "../lib/evaluator";
+import {
+  buildSummary,
+  calculateOverallScore,
+  clamp,
+  combineQualityScore,
+  EVALUATOR_VERSION,
+  WEIGHTS,
+} from "../lib/evaluation-scoring";
 import { getReadme } from "../lib/github";
 import { evaluations } from "../lib/schema";
 import type { JudgeResult } from "../lib/judge";
@@ -63,17 +70,16 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
   if (report.version !== EVALUATOR_VERSION) throw new Error(`${entry.repository}: expected evaluator ${EVALUATOR_VERSION}`);
   const judgment = entry.judgment as unknown as JudgeResult;
   const deterministic = report.quality.deterministicScore ?? evaluation.qualityScore;
-  const qualityScore = clamp(deterministic * 0.45 + judgment.score * 0.55);
-  let overall = clamp(
-    evaluation.documentationScore * WEIGHTS.documentation +
-    evaluation.securityScore * WEIGHTS.security +
-    evaluation.popularityScore * WEIGHTS.popularity +
-    evaluation.activityScore * WEIGHTS.activity +
-    qualityScore * WEIGHTS.quality
-  );
+  const qualityScore = combineQualityScore(deterministic, judgment.score);
   const risk = (report.security.riskLevel ?? report.summary?.riskLevel ?? "low") as RiskLevel;
-  if (risk === "critical") overall = Math.min(overall, 39);
-  if (risk === "high") overall = Math.min(overall, 59);
+  const overall = calculateOverallScore({
+    documentation: evaluation.documentationScore,
+    security: evaluation.securityScore,
+    popularity: evaluation.popularityScore,
+    activity: evaluation.activityScore,
+    quality: qualityScore,
+    riskLevel: risk,
+  });
   const confidence = clamp((report.summary?.confidence ?? 50) + (report.methodology?.aiJudgeUsed ? 0 : 15));
 
   report.overall = overall;
