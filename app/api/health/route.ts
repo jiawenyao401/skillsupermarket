@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { EVALUATOR_VERSION } from "@/lib/evaluation-scoring";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       service: "skill-supermarket",
-      evaluator: "3.0.0",
+      evaluator: EVALUATOR_VERSION,
       database: "ready",
       latencyMs: Date.now() - startedAt,
       timestamp: new Date().toISOString(),
