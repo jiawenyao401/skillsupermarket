@@ -87,3 +87,72 @@ test("risk caps remain policy invariants across raw score changes", () => {
   assert.equal(calculateOverallScore({ ...base, riskLevel: "high" }), 59);
   assert.equal(calculateOverallScore({ ...base, riskLevel: "critical" }), 39);
 });
+
+test("documentation scoring rejects keyword-packed checklist gaming without executable evidence", () => {
+  const readme = `# Keyword-rich Agent
+
+This agent claims to solve every automation problem for every team with reliable reusable production quality and complete documentation.
+
+## Install example parameters outputs security limitations errors
+
+Installation setup example input parameters tools output response result security permissions limitations errors troubleshooting FAQ license. These words are repeated to satisfy superficial keyword checks, but no usable installation command, parameter contract, permission boundary, failure behavior, or real example is provided.
+
+\`\`\`text
+installation example parameters outputs security limitations errors
+\`\`\`
+
+## Usage
+
+Use the agent for automation. This section intentionally avoids a concrete command, input schema, output schema, or verifiable result while padding the README beyond a simple length threshold.
+
+## License
+
+License information is mentioned without supplying an actual license file or recognized license identifier.
+`;
+  const result = scoreDocumentation(
+    readme,
+    "A deliberately keyword-stuffed README with no reproducible adoption or safety evidence.",
+    ["README.md"],
+  );
+
+  assert.equal(result.score, 30);
+  assert.match(result.details, /反关键词堆砌保护/);
+  assert.ok(result.checks
+    .filter((check) => ["install", "example", "inputs", "outputs", "limitations", "errors"].includes(check.id))
+    .every((check) => !check.passed));
+});
+
+test("documentation anti-gaming guard preserves actionable compact guides", () => {
+  const readme = `# Compact Agent Guide
+
+This production agent automates repository diagnostics for engineering teams and returns structured, read-only results for failed jobs.
+
+## Install, parameters, outputs, security, errors
+
+The quick start uses a scoped token. The inspect tool accepts a required job parameter, returns a status object, is read-only, and reports authentication errors without exposing credentials.
+
+\`\`\`bash
+npx @example/compact-agent --token-env COMPACT_AGENT_TOKEN
+\`\`\`
+
+## Usage example
+
+Call inspect with a job identifier and check the returned status before retrying a failed request. This example documents the main input and output contract.
+
+## Limitations and troubleshooting
+
+The agent never writes repository state. Confirm the token scope and retry after rate limits. Private networks require an operator-managed proxy.
+
+## License
+
+Apache-2.0.
+`;
+  const result = scoreDocumentation(
+    readme,
+    "A compact, read-only repository diagnostics agent with an executable setup path.",
+    ["README.md", "LICENSE"],
+  );
+
+  assert.doesNotMatch(result.details, /反关键词堆砌保护/);
+  assert.ok(result.score >= 80);
+});

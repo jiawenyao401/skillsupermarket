@@ -7,7 +7,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.1.0";
+export const EVALUATOR_VERSION = "3.2.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -34,6 +34,61 @@ export interface OverallScoreInput {
   riskLevel: RiskLevel;
 }
 
+const DOCUMENTATION_EVIDENCE_CHECK_IDS = new Set([
+  "install",
+  "example",
+  "inputs",
+  "outputs",
+  "limitations",
+  "errors",
+]);
+
+const DOCUMENTATION_SIGNAL_PATTERNS = [
+  /install|installation|setup|quick\s*start|getting\s*started|安装|配置|快速开始/i,
+  /parameters?|arguments?|inputs?|tools?|参数|输入|工具/i,
+  /outputs?|returns?|response|results?|输出|返回|结果/i,
+  /limitations?|caveats?|permissions?|security|限制|注意|权限|安全|边界/i,
+  /errors?|troubleshoot|faq|failure|错误|排障|常见问题|失败/i,
+];
+
+function hasActionableAdoptionEvidence(readme: string): boolean {
+  const codeBlocks = [...readme.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1]);
+  return codeBlocks.some((block) => [
+    /(?:^|\n)\s*(?:\$\s*)?(?:npm|pnpm|yarn|bun)\s+(?:i|install|add|exec|dlx)\s+\S+/im,
+    /(?:^|\n)\s*(?:\$\s*)?(?:npx|bunx)\s+\S+/im,
+    /(?:^|\n)\s*(?:\$\s*)?(?:(?:python\s+-m\s+)?pip3?|pipx)\s+install\s+\S+/im,
+    /(?:^|\n)\s*(?:\$\s*)?uv\s+(?:add|run|tool\s+install)\s+\S+/im,
+    /(?:^|\n)\s*(?:\$\s*)?docker\s+(?:run|compose)\b/im,
+    /(?:^|\n)\s*(?:\$\s*)?(?:brew|cargo|go)\s+install\s+\S+/im,
+    /["']command["']\s*:\s*["'][^"']+["']/i,
+  ].some((pattern) => pattern.test(block)));
+}
+
+function hasPackedChecklistLanguage(readme: string): boolean {
+  let insideFence = false;
+  return readme.split(/\r?\n/).some((line) => {
+    if (/^\s*```/.test(line)) {
+      insideFence = !insideFence;
+      return false;
+    }
+    if (insideFence || /^\s*\|/.test(line)) return false;
+    const normalized = line.replace(/^#{1,6}\s+/, "").trim();
+    if (!normalized || normalized.length > 500) return false;
+    if ((normalized.match(/\[[^\]]+\]\([^)]+\)/g) ?? []).length >= 3) return false;
+    const matchedSignals = DOCUMENTATION_SIGNAL_PATTERNS.filter((pattern) => pattern.test(normalized)).length;
+    return matchedSignals >= 4;
+  });
+}
+
+/**
+ * High-precision anti-gaming guard. It only trips when a nominally strong README
+ * packs most checklist terms into one line and provides no executable adoption
+ * evidence. Legitimate documents keep the existing, intentionally broad checks.
+ */
+function isDocumentationChecklistGaming(readme: string, rawScore: number): boolean {
+  return rawScore >= 80 && hasPackedChecklistLanguage(readme) && !hasActionableAdoptionEvidence(readme);
+}
+
 export function clamp(value: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, Math.round(value)));
 }
@@ -45,7 +100,7 @@ export function scoreDocumentation(
 ): DocumentationResult {
   const normalized = readme.toLowerCase();
   const has = (pattern: RegExp) => pattern.test(normalized);
-  const checks: EvaluationCheck[] = [
+  let checks: EvaluationCheck[] = [
     { id: "description", label: "问题与用途描述", passed: Boolean(description && description.trim().length >= 40), weight: 10 },
     { id: "readme", label: "有效 README", passed: readme.trim().length >= 500, weight: 12, evidence: `${readme.trim().length} 字符` },
     { id: "install", label: "安装或接入步骤", passed: has(/install|安装|setup|配置|quick\s*start|getting\s*started/), weight: 14 },
@@ -57,15 +112,26 @@ export function scoreDocumentation(
     { id: "license", label: "许可证信息", passed: has(/license|许可证/) || filePaths.some((path) => /license/i.test(path)), weight: 5 },
     { id: "structure", label: "结构化章节", passed: (readme.match(/^#{1,4}\s+/gm) ?? []).length >= 3, weight: 3 },
   ];
+  const rawScore = checks.reduce((sum, check) => sum + (check.passed ? check.weight : 0), 0);
+  const checklistGamingDetected = isDocumentationChecklistGaming(readme, rawScore);
+  if (checklistGamingDetected) {
+    checks = checks.map((check) => DOCUMENTATION_EVIDENCE_CHECK_IDS.has(check.id)
+      ? { ...check, passed: false, evidence: "关键词集中但缺少可执行、可核对的采用证据" }
+      : check);
+  }
   const score = checks.reduce((sum, check) => sum + (check.passed ? check.weight : 0), 0);
   const passed = checks.filter((check) => check.passed).map((check) => check.label);
   const missing = checks.filter((check) => !check.passed).map((check) => check.label);
   return {
     score: clamp(score),
-    details: `${passed.length}/${checks.length} 项文档检查通过`,
+    details: checklistGamingDetected
+      ? `${passed.length}/${checks.length} 项文档检查通过 · 已触发反关键词堆砌保护`
+      : `${passed.length}/${checks.length} 项文档检查通过`,
     checks,
     strengths: passed.slice(0, 4),
-    improvements: missing.slice(0, 5),
+    improvements: checklistGamingDetected
+      ? ["提供可执行、可核对的接入与边界证据", ...missing].slice(0, 5)
+      : missing.slice(0, 5),
   };
 }
 
