@@ -8,6 +8,7 @@ import {
   calculateConfidence,
   calculateOverallScore,
   combineQualityScore,
+  countIndependentEvidenceSources,
   deterministicQualityScore,
   EVALUATOR_VERSION,
   scoreActivity,
@@ -163,7 +164,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
 
     const confidence = calculateConfidence({
       readmeLength: readme.length,
-      fileCount: documents.length,
+      evidenceSourceCount: countIndependentEvidenceSources(documents),
       aiJudgeUsed: Boolean(aiResult),
       hasRepoMetadata: Boolean(repo),
       hasActivity: Boolean(lastCommit),

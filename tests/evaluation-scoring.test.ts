@@ -9,6 +9,7 @@ import {
   calculateConfidence,
   calculateOverallScore,
   combineQualityScore,
+  countIndependentEvidenceSources,
   deterministicQualityScore,
   EVALUATOR_VERSION,
   scoreActivity,
@@ -41,9 +42,13 @@ test(`evaluation scoring golden set ${SCORING_GOLDEN_SET_VERSION} matches evalua
       FIXED_NOW,
     );
     const quality = combineQualityScore(deterministicQuality, fixture.aiScore);
+    const evidenceDocuments = fixture.filePaths.map((path) => ({
+      path,
+      content: path.toLowerCase().endsWith("readme.md") ? fixture.readme : "x".repeat(80),
+    }));
     const confidence = calculateConfidence({
       readmeLength: fixture.readme.length,
-      fileCount: fixture.filePaths.length,
+      evidenceSourceCount: countIndependentEvidenceSources(evidenceDocuments),
       aiJudgeUsed: fixture.aiScore !== null,
       hasRepoMetadata: fixture.hasRepo,
       hasActivity: lastCommit !== null,
@@ -86,6 +91,38 @@ test("risk caps remain policy invariants across raw score changes", () => {
   };
   assert.equal(calculateOverallScore({ ...base, riskLevel: "high" }), 59);
   assert.equal(calculateOverallScore({ ...base, riskLevel: "critical" }), 39);
+});
+
+test("confidence rewards independent evidence families instead of duplicate files", () => {
+  const documents = [
+    { path: "README.md", content: "A".repeat(500) },
+    { path: "packages/a/package.json", content: "A".repeat(80) },
+    { path: "packages/b/package.json", content: "A".repeat(80) },
+    { path: "packages/c/package.json", content: "A".repeat(80) },
+    { path: "SECURITY.md", content: "short" },
+  ];
+  assert.equal(countIndependentEvidenceSources(documents), 2);
+
+  const base = {
+    readmeLength: 500,
+    aiJudgeUsed: false,
+    hasRepoMetadata: true,
+    hasActivity: true,
+  };
+  const oneManifest = calculateConfidence({ ...base, evidenceSourceCount: 2 });
+  const manyDuplicateManifests = calculateConfidence({
+    ...base,
+    evidenceSourceCount: countIndependentEvidenceSources(documents),
+  });
+  assert.equal(oneManifest, 49);
+  assert.equal(manyDuplicateManifests, oneManifest);
+
+  assert.equal(countIndependentEvidenceSources([
+    documents[0],
+    { path: "packages/a/package.json", content: "A".repeat(80) },
+    { path: "packages/b/package.json", content: "B".repeat(80) },
+    { path: "packages/c/package.json", content: "C".repeat(80) },
+  ]), 3, "manifest evidence receives bounded credit even when contents differ");
 });
 
 test("documentation scoring rejects keyword-packed checklist gaming without executable evidence", () => {

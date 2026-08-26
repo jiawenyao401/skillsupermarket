@@ -1,6 +1,6 @@
 import type { PopularityStats, RiskLevel, SkillType } from "../lib/types";
 
-export const SCORING_GOLDEN_SET_VERSION = "1.1.0";
+export const SCORING_GOLDEN_SET_VERSION = "1.2.0";
 
 export interface ScoringGoldenCase {
   id: string;
@@ -71,7 +71,7 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
     id: "mature-mcp-with-ai-review",
     description: "A read-only MCP server for inspecting deployment metadata and diagnosing failed engineering jobs.",
     readme: completeReadme,
-    filePaths: ["README.md", "SKILL.md", "package.json", "LICENSE"],
+    filePaths: ["README.md", "SKILL.md", "package.json"],
     type: "mcp-server",
     hasLicense: true,
     hasRepo: true,
@@ -92,7 +92,7 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
       quality: 93,
       popularity: 73,
       activity: 100,
-      confidence: 75,
+      confidence: 71,
       overall: 95,
       grade: "A+",
       verdict: "recommended",
@@ -123,7 +123,7 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
       quality: 30,
       popularity: 0,
       activity: 15,
-      confidence: 39,
+      confidence: 35,
       overall: 36,
       grade: "F",
       verdict: "caution",
@@ -133,7 +133,7 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
     id: "strong-project-blocked-by-critical-risk",
     description: "A read-only MCP server for inspecting deployment metadata and diagnosing failed engineering jobs.",
     readme: completeReadme,
-    filePaths: ["README.md", "SKILL.md", "package.json", "LICENSE"],
+    filePaths: ["README.md", "SKILL.md", "package.json"],
     type: "mcp-server",
     hasLicense: true,
     hasRepo: true,
@@ -154,7 +154,7 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
       quality: 100,
       popularity: 73,
       activity: 100,
-      confidence: 60,
+      confidence: 56,
       overall: 39,
       grade: "F",
       verdict: "blocked",

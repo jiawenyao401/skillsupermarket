@@ -7,7 +7,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.2.0";
+export const EVALUATOR_VERSION = "3.3.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -32,6 +32,11 @@ export interface OverallScoreInput {
   activity: number;
   quality: number;
   riskLevel: RiskLevel;
+}
+
+export interface EvidenceDocument {
+  path: string;
+  content: string;
 }
 
 const DOCUMENTATION_EVIDENCE_CHECK_IDS = new Set([
@@ -179,16 +184,56 @@ export function deterministicQualityScore(
   return clamp(score);
 }
 
+function evidenceSourceKind(path: string): string {
+  const basename = path.toLowerCase().split("/").at(-1) ?? "";
+  if (/^readme(?:\.|$)/.test(basename)) return "readme";
+  if (basename === "skill.md") return "instruction";
+  if (basename === "security.md") return "security";
+  if (basename === ".env.example") return "configuration";
+  if (/^dockerfile|^docker-compose\.ya?ml$/.test(basename)) return "runtime";
+  if (/^(?:package\.json|pyproject\.toml|requirements\.txt|mcp\.json)$/.test(basename)) return "manifest";
+  if (/^licen[cs]e(?:\.|$)/.test(basename)) return "license";
+  return "other";
+}
+
+const EVIDENCE_SOURCE_CAPS: Readonly<Record<string, number>> = {
+  readme: 1,
+  instruction: 4,
+  manifest: 2,
+  security: 1,
+  configuration: 1,
+  runtime: 1,
+  license: 1,
+  other: 1,
+};
+
+/** Count distinct, non-trivial evidence with bounded credit per file family. */
+export function countIndependentEvidenceSources(documents: readonly EvidenceDocument[]): number {
+  const evidenceByKind = new Map<string, Set<string>>();
+  for (const document of documents) {
+    const normalizedContent = document.content.replace(/\s+/g, " ").trim();
+    if (normalizedContent.length < 40) continue;
+    const kind = evidenceSourceKind(document.path);
+    const contents = evidenceByKind.get(kind) ?? new Set<string>();
+    contents.add(normalizedContent);
+    evidenceByKind.set(kind, contents);
+  }
+  return [...evidenceByKind.entries()].reduce(
+    (sum, [kind, contents]) => sum + Math.min(EVIDENCE_SOURCE_CAPS[kind] ?? 1, contents.size),
+    0,
+  );
+}
+
 export function calculateConfidence(input: {
   readmeLength: number;
-  fileCount: number;
+  evidenceSourceCount: number;
   aiJudgeUsed: boolean;
   hasRepoMetadata: boolean;
   hasActivity: boolean;
 }): number {
   let score = 25;
   score += Math.min(25, input.readmeLength / 400);
-  score += Math.min(20, input.fileCount * 4);
+  score += Math.min(20, Math.max(0, input.evidenceSourceCount) * 4);
   if (input.aiJudgeUsed) score += 15;
   if (input.hasRepoMetadata) score += 10;
   if (input.hasActivity) score += 5;
