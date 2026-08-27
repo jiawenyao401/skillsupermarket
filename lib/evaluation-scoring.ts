@@ -447,3 +447,15 @@ export function buildSummary(score: number, riskLevel: RiskLevel, confidence: nu
     headline,
   };
 }
+
+/**
+ * Legacy reports predate persisted confidence evidence. Treat that absence as
+ * unknown confidence instead of inventing a midpoint or issuing a high-trust
+ * recommendation that the stored report cannot substantiate.
+ */
+export function buildLegacySummary(score: number, riskLevel: RiskLevel): EvaluationSummary {
+  return {
+    ...buildSummary(score, riskLevel, 0),
+    headline: "这是历史评测报告，缺少可核对的置信度证据；请重新评测后再决定是否采用。",
+  };
+}

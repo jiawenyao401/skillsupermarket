@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import type { EvaluationReport as EvaluationReportType, RiskLevel, SecurityFinding } from "@/lib/types";
+import { buildLegacySummary } from "@/lib/evaluation-scoring";
 import { cn } from "@/lib/utils";
 import { EvaluationRadar } from "./EvaluationRadar";
 
@@ -47,15 +48,7 @@ const CONFIDENCE_STATUS_STYLES = {
 
 function legacySummary(evaluation: EvaluationRecord, report: EvaluationReportType) {
   const risk: RiskLevel = report.security.findings.some((finding) => finding.level === "danger") ? "high" : report.security.findings.length ? "medium" : "low";
-  return {
-    grade: evaluation.overallScore >= 85 ? "A" : evaluation.overallScore >= 75 ? "B" : evaluation.overallScore >= 65 ? "C" : evaluation.overallScore >= 50 ? "D" : "F",
-    verdict: evaluation.overallScore >= 80 ? "recommended" : evaluation.overallScore >= 65 ? "promising" : "needs-work",
-    verdictLabel: evaluation.overallScore >= 80 ? "值得推荐" : evaluation.overallScore >= 65 ? "值得试用" : "需要完善",
-    riskLevel: risk,
-    confidence: 55,
-    confidenceLabel: "中" as const,
-    headline: "这是历史评测报告，建议重新提交以获得完整证据与置信度。",
-  };
+  return buildLegacySummary(evaluation.overallScore, risk);
 }
 
 function FindingIcon({ finding }: { finding: SecurityFinding }) {

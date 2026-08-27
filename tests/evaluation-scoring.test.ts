@@ -6,6 +6,7 @@ import {
 } from "../data/evaluation-golden-cases";
 import {
   buildSummary,
+  buildLegacySummary,
   calculateConfidence,
   calculateConfidenceBreakdown,
   calculateEffectiveReadmeEvidenceCharacters,
@@ -113,6 +114,19 @@ test("recommendations are capped by evidence confidence without changing the sco
 test("security risk verdicts take precedence over confidence calibration", () => {
   assert.equal(buildSummary(95, "high", 100).verdict, "caution");
   assert.equal(buildSummary(95, "critical", 100).verdict, "blocked");
+});
+
+test("legacy reports never invent confidence or a high-trust recommendation", () => {
+  const legacy = buildLegacySummary(97, "low");
+  assert.equal(legacy.grade, "A+");
+  assert.equal(legacy.confidence, 0);
+  assert.equal(legacy.confidenceLabel, "低");
+  assert.equal(legacy.verdict, "caution");
+  assert.match(legacy.headline, /历史评测报告/);
+  assert.match(legacy.headline, /重新评测/);
+
+  assert.equal(buildLegacySummary(97, "high").verdict, "caution");
+  assert.equal(buildLegacySummary(97, "critical").verdict, "blocked");
 });
 
 test("confidence rewards independent evidence families instead of duplicate files", () => {
