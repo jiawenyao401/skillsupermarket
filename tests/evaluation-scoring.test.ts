@@ -95,6 +95,26 @@ test("risk caps remain policy invariants across raw score changes", () => {
   assert.equal(calculateOverallScore({ ...base, riskLevel: "critical" }), 39);
 });
 
+test("recommendations are capped by evidence confidence without changing the score grade", () => {
+  const lowConfidence = buildSummary(97, "low", 56);
+  assert.equal(lowConfidence.grade, "A+");
+  assert.equal(lowConfidence.verdict, "promising");
+  assert.match(lowConfidence.headline, /置信度不足/);
+
+  const sufficientConfidence = buildSummary(97, "low", 60);
+  assert.equal(sufficientConfidence.verdict, "recommended");
+  assert.match(sufficientConfidence.headline, /证据充分/);
+
+  const severelyInsufficientEvidence = buildSummary(90, "low", 39);
+  assert.equal(severelyInsufficientEvidence.verdict, "caution");
+  assert.match(severelyInsufficientEvidence.headline, /证据严重不足/);
+});
+
+test("security risk verdicts take precedence over confidence calibration", () => {
+  assert.equal(buildSummary(95, "high", 100).verdict, "caution");
+  assert.equal(buildSummary(95, "critical", 100).verdict, "blocked");
+});
+
 test("confidence rewards independent evidence families instead of duplicate files", () => {
   const documents = [
     { path: "README.md", content: "A".repeat(500) },

@@ -1,6 +1,6 @@
 import type { PopularityStats, RiskLevel, SkillType } from "../lib/types";
 
-export const SCORING_GOLDEN_SET_VERSION = "1.4.0";
+export const SCORING_GOLDEN_SET_VERSION = "1.5.0";
 
 export interface ScoringGoldenCase {
   id: string;
@@ -195,6 +195,37 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
       overall: 66,
       grade: "C",
       verdict: "needs-work",
+    },
+  },
+  {
+    id: "strong-project-with-low-confidence",
+    description: "A read-only MCP server for inspecting deployment metadata and diagnosing failed engineering jobs.",
+    readme: completeReadme,
+    filePaths: ["README.md", "SKILL.md", "package.json"],
+    type: "mcp-server",
+    hasLicense: true,
+    hasRepo: true,
+    popularity: {
+      stars: 1_000,
+      forks: 100,
+      downloadsWeekly: 10_000,
+      starsGrowth7d: 30,
+      starsGrowth30d: 100,
+    },
+    activity: { daysSinceLastCommit: 5, openIssues: 20, stars: 1_000 },
+    aiScore: null,
+    securityScore: 100,
+    riskLevel: "low",
+    expected: {
+      documentation: 100,
+      deterministicQuality: 100,
+      quality: 100,
+      popularity: 73,
+      activity: 100,
+      confidence: 56,
+      overall: 97,
+      grade: "A+",
+      verdict: "promising",
     },
   },
   {

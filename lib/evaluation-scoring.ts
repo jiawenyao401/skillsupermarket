@@ -8,7 +8,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.6.0";
+export const EVALUATOR_VERSION = "3.7.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -398,13 +398,19 @@ function gradeFor(score: number): EvaluationSummary["grade"] {
   return "F";
 }
 
-function verdictFor(score: number, risk: RiskLevel): EvaluationVerdict {
+function verdictFor(score: number, risk: RiskLevel, confidence: number): EvaluationVerdict {
   if (risk === "critical") return "blocked";
   if (risk === "high") return "caution";
-  if (score >= 82) return "recommended";
-  if (score >= 68) return "promising";
-  if (score >= 50) return "needs-work";
-  return "caution";
+  const scoreVerdict = score >= 82
+    ? "recommended"
+    : score >= 68
+      ? "promising"
+      : score >= 50
+        ? "needs-work"
+        : "caution";
+  if (confidence < 40 && (scoreVerdict === "recommended" || scoreVerdict === "promising")) return "caution";
+  if (confidence < 60 && scoreVerdict === "recommended") return "promising";
+  return scoreVerdict;
 }
 
 const VERDICT_LABELS: Record<EvaluationVerdict, string> = {
@@ -416,10 +422,14 @@ const VERDICT_LABELS: Record<EvaluationVerdict, string> = {
 };
 
 export function buildSummary(score: number, riskLevel: RiskLevel, confidence: number): EvaluationSummary {
-  const verdict = verdictFor(score, riskLevel);
+  const verdict = verdictFor(score, riskLevel, confidence);
   const confidenceLabel = confidence >= 80 ? "高" : confidence >= 60 ? "中" : "低";
   const headline = riskLevel === "critical"
     ? "检测到关键风险，修复前不建议接入"
+    : confidence < 40 && score >= 68
+      ? "评分较高但证据严重不足，需要补充材料后复核"
+      : confidence < 60 && score >= 82
+        ? "评分表现优秀但置信度不足，建议先在受控范围试用"
     : verdict === "recommended"
       ? "证据充分，整体质量与安全表现优秀"
       : verdict === "promising"
