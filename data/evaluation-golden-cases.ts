@@ -1,6 +1,6 @@
 import type { PopularityStats, RiskLevel, SkillType } from "../lib/types";
 
-export const SCORING_GOLDEN_SET_VERSION = "1.3.0";
+export const SCORING_GOLDEN_SET_VERSION = "1.4.0";
 
 export interface ScoringGoldenCase {
   id: string;
@@ -66,6 +66,43 @@ Authentication errors return an actionable message without echoing credentials. 
 Released under the Apache-2.0 license. Contributions require tests and must preserve the read-only security boundary.
 `;
 
+const dispersedKeywordGamingReadme = `# Universal Agent
+
+This agent claims production-ready automation for every team with reliable results and detailed documentation.
+
+## Installation
+
+Installation is available for this tool. Follow setup before use.
+
+## Example
+
+\`\`\`text
+example placeholder output that is not executable
+\`\`\`
+
+## Inputs
+
+Parameters and inputs are supported by the tools.
+
+## Outputs
+
+Outputs and returned results are documented.
+
+## Security
+
+Permissions, security limitations, and caveats apply.
+
+## Errors
+
+Errors, troubleshooting, and FAQ are available.
+
+## License
+
+License information.
+
+${"Marketing claims without verifiable adoption evidence. ".repeat(20)}
+`;
+
 export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
   {
     id: "mature-mcp-with-ai-review",
@@ -127,6 +164,37 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
       overall: 36,
       grade: "F",
       verdict: "caution",
+    },
+  },
+  {
+    id: "dispersed-documentation-keyword-gaming",
+    description: "A generic production automation agent with a padded description long enough to pass.",
+    readme: dispersedKeywordGamingReadme,
+    filePaths: ["README.md", "SKILL.md", "package.json"],
+    type: "mcp-server",
+    hasLicense: true,
+    hasRepo: true,
+    popularity: {
+      stars: 0,
+      forks: 0,
+      downloadsWeekly: 0,
+      starsGrowth7d: 0,
+      starsGrowth30d: 0,
+    },
+    activity: { daysSinceLastCommit: 5, openIssues: 0, stars: 0 },
+    aiScore: null,
+    securityScore: 100,
+    riskLevel: "low",
+    expected: {
+      documentation: 30,
+      deterministicQuality: 70,
+      quality: 70,
+      popularity: 0,
+      activity: 100,
+      confidence: 54,
+      overall: 66,
+      grade: "C",
+      verdict: "needs-work",
     },
   },
   {

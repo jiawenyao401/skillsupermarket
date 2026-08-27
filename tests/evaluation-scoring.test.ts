@@ -248,3 +248,97 @@ Apache-2.0.
   assert.doesNotMatch(result.details, /反关键词堆砌保护/);
   assert.ok(result.score >= 80);
 });
+
+test("documentation scoring rejects dispersed generic claims and text-only examples", () => {
+  const readme = `# Universal Agent
+
+This agent claims production-ready automation for every team with reliable results and detailed documentation.
+
+## Installation
+
+Installation is available for this tool. Follow setup before use.
+
+## Example
+
+\`\`\`text
+example placeholder output that is not executable
+\`\`\`
+
+## Inputs
+
+Parameters and inputs are supported by the tools.
+
+## Outputs
+
+Outputs and returned results are documented.
+
+## Security
+
+Permissions, security limitations, and caveats apply.
+
+## Errors
+
+Errors, troubleshooting, and FAQ are available.
+
+## License
+
+License information.
+
+${"Marketing claims without verifiable adoption evidence. ".repeat(20)}
+`;
+  const result = scoreDocumentation(
+    readme,
+    "A generic production automation agent with a padded description long enough to pass.",
+    ["README.md", "SKILL.md", "package.json"],
+  );
+
+  assert.equal(result.score, 30);
+  assert.match(result.details, /反关键词堆砌保护/);
+  assert.ok(result.checks
+    .filter((check) => ["install", "example", "inputs", "outputs", "limitations", "errors"].includes(check.id))
+    .every((check) => !check.passed));
+});
+
+test("documentation scoring accepts a structured MCP client configuration", () => {
+  const readme = `# Structured MCP setup
+
+This MCP server exposes read-only repository metadata for deployment diagnostics and documents its operational boundary.
+
+## Installation and configuration
+
+Add the following server entry to the client configuration.
+
+\`\`\`json
+{
+  "command": "npx",
+  "args": ["-y", "@example/read-only-mcp"]
+}
+\`\`\`
+
+## Inputs and outputs
+
+The inspect tool accepts a repository input and returns a structured status response with redacted evidence.
+
+## Security limitations
+
+Use a read-only token. Private repositories require explicit access and the server never modifies repository state.
+
+## Errors and troubleshooting
+
+Authentication failures return an error code. Verify token scope before retrying a failed request.
+
+## License
+
+Apache-2.0. ${"The configuration is intentionally concise and reproducible. ".repeat(8)}
+`;
+  const result = scoreDocumentation(
+    readme,
+    "A read-only MCP server for inspecting repository deployment metadata safely.",
+    ["README.md", "package.json", "LICENSE"],
+  );
+
+  assert.doesNotMatch(result.details, /反关键词堆砌保护/);
+  assert.equal(result.checks.find((check) => check.id === "install")?.passed, true);
+  assert.equal(result.checks.find((check) => check.id === "example")?.passed, true);
+  assert.ok(result.score >= 80);
+});
