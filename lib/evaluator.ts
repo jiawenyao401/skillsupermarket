@@ -6,6 +6,7 @@ import { hasJudgeConfiguration, judgeSkill, type JudgeResult } from "./judge";
 import {
   buildSummary,
   calculateConfidence,
+  calculateEffectiveReadmeEvidenceCharacters,
   calculateOverallScore,
   combineQualityScore,
   countIndependentEvidenceSources,
@@ -163,7 +164,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
     });
 
     const confidence = calculateConfidence({
-      readmeLength: readme.length,
+      readmeEvidenceCharacters: calculateEffectiveReadmeEvidenceCharacters(readme),
       evidenceSourceCount: countIndependentEvidenceSources(documents),
       aiJudgeUsed: Boolean(aiResult),
       hasRepoMetadata: Boolean(repo),

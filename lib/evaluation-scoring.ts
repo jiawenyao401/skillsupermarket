@@ -7,7 +7,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.3.0";
+export const EVALUATOR_VERSION = "3.4.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -224,15 +224,26 @@ export function countIndependentEvidenceSources(documents: readonly EvidenceDocu
   );
 }
 
+/** Ignore empty, badge-only and repeated lines when measuring README evidence. */
+export function calculateEffectiveReadmeEvidenceCharacters(readme: string): number {
+  const uniqueLines = new Set<string>();
+  for (const line of readme.split(/\r?\n/)) {
+    const normalized = line.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    if (!normalized || /^!\[[^\]]*\]\([^)]+\)$/.test(normalized)) continue;
+    uniqueLines.add(normalized);
+  }
+  return [...uniqueLines].reduce((sum, line) => sum + Math.min(400, line.length), 0);
+}
+
 export function calculateConfidence(input: {
-  readmeLength: number;
+  readmeEvidenceCharacters: number;
   evidenceSourceCount: number;
   aiJudgeUsed: boolean;
   hasRepoMetadata: boolean;
   hasActivity: boolean;
 }): number {
   let score = 25;
-  score += Math.min(25, input.readmeLength / 400);
+  score += Math.min(25, Math.max(0, input.readmeEvidenceCharacters) / 400);
   score += Math.min(20, Math.max(0, input.evidenceSourceCount) * 4);
   if (input.aiJudgeUsed) score += 15;
   if (input.hasRepoMetadata) score += 10;

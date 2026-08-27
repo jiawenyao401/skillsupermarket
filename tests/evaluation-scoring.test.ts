@@ -7,6 +7,7 @@ import {
 import {
   buildSummary,
   calculateConfidence,
+  calculateEffectiveReadmeEvidenceCharacters,
   calculateOverallScore,
   combineQualityScore,
   countIndependentEvidenceSources,
@@ -47,7 +48,7 @@ test(`evaluation scoring golden set ${SCORING_GOLDEN_SET_VERSION} matches evalua
       content: path.toLowerCase().endsWith("readme.md") ? fixture.readme : "x".repeat(80),
     }));
     const confidence = calculateConfidence({
-      readmeLength: fixture.readme.length,
+      readmeEvidenceCharacters: calculateEffectiveReadmeEvidenceCharacters(fixture.readme),
       evidenceSourceCount: countIndependentEvidenceSources(evidenceDocuments),
       aiJudgeUsed: fixture.aiScore !== null,
       hasRepoMetadata: fixture.hasRepo,
@@ -104,7 +105,7 @@ test("confidence rewards independent evidence families instead of duplicate file
   assert.equal(countIndependentEvidenceSources(documents), 2);
 
   const base = {
-    readmeLength: 500,
+    readmeEvidenceCharacters: 500,
     aiJudgeUsed: false,
     hasRepoMetadata: true,
     hasActivity: true,
@@ -123,6 +124,23 @@ test("confidence rewards independent evidence families instead of duplicate file
     { path: "packages/b/package.json", content: "B".repeat(80) },
     { path: "packages/c/package.json", content: "C".repeat(80) },
   ]), 3, "manifest evidence receives bounded credit even when contents differ");
+});
+
+test("confidence ignores repeated README filler while preserving unique evidence", () => {
+  const repeatedLine = "This repeated marketing sentence claims production quality without adding new evidence.";
+  const readme = `# Filler\n\n${Array.from({ length: 200 }, () => repeatedLine).join("\n")}`;
+  const effectiveCharacters = calculateEffectiveReadmeEvidenceCharacters(readme);
+  assert.ok(readme.length > 10_000);
+  assert.ok(effectiveCharacters < 200);
+
+  const confidence = calculateConfidence({
+    readmeEvidenceCharacters: effectiveCharacters,
+    evidenceSourceCount: 1,
+    aiJudgeUsed: false,
+    hasRepoMetadata: true,
+    hasActivity: true,
+  });
+  assert.equal(confidence, 44);
 });
 
 test("documentation scoring rejects keyword-packed checklist gaming without executable evidence", () => {
