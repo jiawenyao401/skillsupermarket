@@ -145,6 +145,23 @@ export interface EvaluationRecommendation {
   nextActions: string[];
 }
 
+export type EvaluationConfidenceFactorId =
+  | "evaluation-complete"
+  | "readme-evidence"
+  | "independent-sources"
+  | "repository-metadata"
+  | "activity"
+  | "ai-review";
+
+export interface EvaluationConfidenceFactor {
+  id: EvaluationConfidenceFactorId;
+  label: string;
+  status: "strong" | "partial" | "missing";
+  contribution: number;
+  maxContribution: number;
+  detail: string;
+}
+
 export interface EvaluationMethodology {
   evaluatorVersion: string;
   evaluatedAt: string;
@@ -156,6 +173,7 @@ export interface EvaluationMethodology {
   rubricVersion?: string;
   weights: Record<string, number>;
   limitations: string[];
+  confidenceFactors?: EvaluationConfidenceFactor[];
   caseStudy?: boolean;
 }
 

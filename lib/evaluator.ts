@@ -5,7 +5,7 @@ import { scanDocuments } from "./scanner";
 import { hasJudgeConfiguration, judgeSkill, type JudgeResult } from "./judge";
 import {
   buildSummary,
-  calculateConfidence,
+  calculateConfidenceBreakdown,
   calculateEffectiveReadmeEvidenceCharacters,
   calculateOverallScore,
   combineQualityScore,
@@ -163,13 +163,14 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
       riskLevel: security.riskLevel,
     });
 
-    const confidence = calculateConfidence({
+    const confidenceBreakdown = calculateConfidenceBreakdown({
       readmeEvidenceCharacters: calculateEffectiveReadmeEvidenceCharacters(readme),
       evidenceSourceCount: countIndependentEvidenceSources(documents),
       aiJudgeUsed: Boolean(aiResult),
       hasRepoMetadata: Boolean(repo),
       hasActivity: Boolean(lastCommit),
     });
+    const confidence = confidenceBreakdown.score;
     const summary = buildSummary(overall, security.riskLevel, confidence);
     const concerns = [
       ...security.findings.slice(0, 3).map((finding) => finding.message),
@@ -234,6 +235,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
         aiJudgeModel: aiResult?.model,
         rubricVersion: aiResult?.rubricVersion,
         weights: WEIGHTS,
+        confidenceFactors: confidenceBreakdown.factors,
         limitations: [
           "静态评测不会安装或执行项目代码",
           "安全扫描基于高信号文件与已知模式，不能替代人工审计",

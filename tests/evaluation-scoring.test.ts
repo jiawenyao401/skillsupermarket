@@ -7,6 +7,7 @@ import {
 import {
   buildSummary,
   calculateConfidence,
+  calculateConfidenceBreakdown,
   calculateEffectiveReadmeEvidenceCharacters,
   calculateOverallScore,
   combineQualityScore,
@@ -141,6 +142,42 @@ test("confidence ignores repeated README filler while preserving unique evidence
     hasActivity: true,
   });
   assert.equal(confidence, 44);
+});
+
+test("confidence breakdown explains the exact score without changing calibration", () => {
+  const input = {
+    readmeEvidenceCharacters: 3_200,
+    evidenceSourceCount: 3,
+    aiJudgeUsed: false,
+    hasRepoMetadata: true,
+    hasActivity: true,
+  };
+  const breakdown = calculateConfidenceBreakdown(input);
+
+  assert.equal(breakdown.score, calculateConfidence(input));
+  assert.equal(
+    breakdown.factors.reduce((sum, factor) => sum + factor.contribution, 0),
+    breakdown.score,
+  );
+  assert.deepEqual(breakdown.factors.map((factor) => factor.id), [
+    "evaluation-complete",
+    "readme-evidence",
+    "independent-sources",
+    "repository-metadata",
+    "activity",
+    "ai-review",
+  ]);
+  assert.deepEqual(
+    breakdown.factors.find((factor) => factor.id === "ai-review"),
+    {
+      id: "ai-review",
+      label: "AI 复核",
+      status: "missing",
+      contribution: 0,
+      maxContribution: 15,
+      detail: "未启用 AI 复核，本项不加分",
+    },
+  );
 });
 
 test("documentation scoring rejects keyword-packed checklist gaming without executable evidence", () => {

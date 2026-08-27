@@ -80,7 +80,17 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
     quality: qualityScore,
     riskLevel: risk,
   });
-  const confidence = clamp((report.summary?.confidence ?? 50) + (report.methodology?.aiJudgeUsed ? 0 : 15));
+  const confidenceFactors = report.methodology?.confidenceFactors?.map((factor) => factor.id === "ai-review"
+    ? {
+        ...factor,
+        status: "strong" as const,
+        contribution: 15,
+        detail: "已完成结构化 AI 证据复核",
+      }
+    : factor);
+  const confidence = confidenceFactors?.length
+    ? clamp(confidenceFactors.reduce((sum, factor) => sum + factor.contribution, 0))
+    : clamp((report.summary?.confidence ?? 50) + (report.methodology?.aiJudgeUsed ? 0 : 15));
 
   report.overall = overall;
   report.summary = buildSummary(overall, risk, confidence);
@@ -114,6 +124,7 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
     aiJudgeUsed: true,
     aiJudgeModel: judgment.model,
     rubricVersion: judgment.rubricVersion,
+    confidenceFactors,
     caseStudy: true,
   };
 

@@ -39,6 +39,11 @@ const RISK_STYLES = {
   high: "bg-orange-500/10 text-orange-700 border-orange-500/20",
   critical: "bg-destructive/10 text-destructive border-destructive/20",
 } as const;
+const CONFIDENCE_STATUS_STYLES = {
+  strong: "bg-emerald-500/10 text-emerald-700",
+  partial: "bg-amber-500/10 text-amber-700",
+  missing: "bg-muted text-muted-foreground",
+} as const;
 
 function legacySummary(evaluation: EvaluationRecord, report: EvaluationReportType) {
   const risk: RiskLevel = report.security.findings.some((finding) => finding.level === "danger") ? "high" : report.security.findings.length ? "medium" : "low";
@@ -65,6 +70,7 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
   const recommendation = report.recommendation;
   const checks = report.documentation.checks ?? [];
   const findings = report.security.findings ?? [];
+  const confidenceFactors = report.methodology?.confidenceFactors ?? [];
   const scoreDimensions = [
     ["文档", evaluation.documentationScore, "22%"],
     ["安全", evaluation.securityScore, "25%"],
@@ -118,7 +124,23 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
             <div className="mt-7 h-2 overflow-hidden rounded-full bg-muted" aria-label={`评测置信度 ${summary.confidence}%`}>
               <div className="h-full rounded-full bg-primary" style={{ width: `${summary.confidence}%` }} />
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">置信度由证据长度、扫描文件、仓库元数据、活跃记录与 AI 复核可用性共同决定。</p>
+            {confidenceFactors.length > 0 ? (
+              <ul className="mt-4 grid gap-2 sm:grid-cols-2" aria-label="置信度构成">
+                {confidenceFactors.map((factor) => (
+                  <li key={factor.id} className="flex items-start gap-2 rounded-xl border bg-background p-3">
+                    <span className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full", CONFIDENCE_STATUS_STYLES[factor.status])}>
+                      {factor.status === "strong" ? <Check className="h-3 w-3" /> : factor.status === "partial" ? <CircleAlert className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2 text-xs font-bold"><span>{factor.label}</span><span className="font-mono text-[10px] text-muted-foreground">+{factor.contribution}/{factor.maxContribution}</span></span>
+                      <span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{factor.detail}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">历史报告未保存置信度明细；重新评测后可查看各项证据贡献。</p>
+            )}
           </div>
         </div>
       </div>

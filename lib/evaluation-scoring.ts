@@ -1,5 +1,6 @@
 import type {
   EvaluationCheck,
+  EvaluationConfidenceFactor,
   EvaluationSummary,
   EvaluationVerdict,
   PopularityStats,
@@ -7,7 +8,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.4.0";
+export const EVALUATOR_VERSION = "3.5.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -235,20 +236,88 @@ export function calculateEffectiveReadmeEvidenceCharacters(readme: string): numb
   return [...uniqueLines].reduce((sum, line) => sum + Math.min(400, line.length), 0);
 }
 
-export function calculateConfidence(input: {
+export interface ConfidenceInput {
   readmeEvidenceCharacters: number;
   evidenceSourceCount: number;
   aiJudgeUsed: boolean;
   hasRepoMetadata: boolean;
   hasActivity: boolean;
-}): number {
-  let score = 25;
-  score += Math.min(25, Math.max(0, input.readmeEvidenceCharacters) / 400);
-  score += Math.min(20, Math.max(0, input.evidenceSourceCount) * 4);
-  if (input.aiJudgeUsed) score += 15;
-  if (input.hasRepoMetadata) score += 10;
-  if (input.hasActivity) score += 5;
-  return clamp(score);
+}
+
+export interface ConfidenceBreakdown {
+  score: number;
+  factors: EvaluationConfidenceFactor[];
+}
+
+function factorStatus(contribution: number, maxContribution: number): EvaluationConfidenceFactor["status"] {
+  if (contribution <= 0) return "missing";
+  return contribution >= maxContribution * 0.6 ? "strong" : "partial";
+}
+
+export function calculateConfidenceBreakdown(input: ConfidenceInput): ConfidenceBreakdown {
+  const readmeEvidenceCharacters = Math.max(0, Math.round(input.readmeEvidenceCharacters));
+  const evidenceSourceCount = Math.max(0, Math.floor(input.evidenceSourceCount));
+  const readmeContribution = clamp(readmeEvidenceCharacters / 400, 0, 25);
+  const sourceContribution = clamp(evidenceSourceCount * 4, 0, 20);
+  const factors: EvaluationConfidenceFactor[] = [
+    {
+      id: "evaluation-complete",
+      label: "基础评测完成",
+      status: "strong",
+      contribution: 25,
+      maxContribution: 25,
+      detail: "确定性评分与静态安全扫描已完成",
+    },
+    {
+      id: "readme-evidence",
+      label: "README 有效证据",
+      status: factorStatus(readmeContribution, 25),
+      contribution: readmeContribution,
+      maxContribution: 25,
+      detail: `${readmeEvidenceCharacters.toLocaleString("zh-CN")} 个去重后的有效字符`,
+    },
+    {
+      id: "independent-sources",
+      label: "独立证据来源",
+      status: factorStatus(sourceContribution, 20),
+      contribution: sourceContribution,
+      maxContribution: 20,
+      detail: `${evidenceSourceCount} 类非重复证据，重复文件不叠加`,
+    },
+    {
+      id: "repository-metadata",
+      label: "仓库元数据",
+      status: input.hasRepoMetadata ? "strong" : "missing",
+      contribution: input.hasRepoMetadata ? 10 : 0,
+      maxContribution: 10,
+      detail: input.hasRepoMetadata ? "已取得仓库状态与采用数据" : "未取得可验证的仓库元数据",
+    },
+    {
+      id: "activity",
+      label: "活跃记录",
+      status: input.hasActivity ? "strong" : "missing",
+      contribution: input.hasActivity ? 5 : 0,
+      maxContribution: 5,
+      detail: input.hasActivity ? "已取得最近提交时间" : "未取得有效提交记录",
+    },
+    {
+      id: "ai-review",
+      label: "AI 复核",
+      status: input.aiJudgeUsed ? "strong" : "missing",
+      contribution: input.aiJudgeUsed ? 15 : 0,
+      maxContribution: 15,
+      detail: input.aiJudgeUsed ? "已完成结构化 AI 证据复核" : "未启用 AI 复核，本项不加分",
+    },
+  ];
+
+  return {
+    score: clamp(factors.reduce((sum, factor) => sum + factor.contribution, 0)),
+    factors,
+  };
+}
+
+export function calculateConfidence(input: ConfidenceInput): number {
+  return calculateConfidenceBreakdown(input).score;
 }
 
 export function combineQualityScore(deterministicScore: number, aiScore: number | null): number {
