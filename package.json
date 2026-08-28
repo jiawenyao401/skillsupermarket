@@ -17,6 +17,7 @@
     "test:rankings": "tsx --test tests/ranker.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:baseline:legacy": "tsx scripts/baseline-legacy-migrations.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "collect": "tsx scripts/collect.ts",

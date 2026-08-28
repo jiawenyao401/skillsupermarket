@@ -241,6 +241,13 @@ collect -> rank -> IndexNow -> snapshot
 5. 验证 `/api/health`、首页、榜单、至少一个报告详情页、登录、评测、个人中心和后台权限。
 6. 失败时切回上一 release 并重新加载 PM2；不可逆 migration 必须准备独立回滚方案。
 
+历史数据库若已手工执行 `0000`–`0004`、但 Drizzle 账本为空，禁止直接重跑迁移或手工插入账本。先完成可恢复备份，再使用受保护的校验命令；它会逐项核对所需表、列、索引、枚举和约束，仅在账本为空且 42 个对象全部存在时登记基线：
+
+```bash
+MIGRATION_BASELINE_APPROVED=1 npm run db:baseline:legacy
+npm run db:migrate
+```
+
 安装定时流水线后可用以下命令核对：
 
 ```bash
