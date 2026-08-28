@@ -107,13 +107,24 @@ async function main() {
       throw new Error(`迁移账本已有 ${ledgerCount} 条较早记录；拒绝猜测部分迁移状态`);
     }
 
-    const [tables, columns, indexes, types, constraints] = await Promise.all([
-      client.query<{ table_name: string }>("select table_name from information_schema.tables where table_schema = current_schema()"),
-      client.query<{ table_name: string; column_name: string }>("select table_name, column_name from information_schema.columns where table_schema = current_schema()"),
-      client.query<{ indexname: string }>("select indexname from pg_indexes where schemaname = current_schema()"),
-      client.query<{ typname: string }>(`select typname from pg_type join pg_namespace on pg_namespace.oid = pg_type.typnamespace where nspname = current_schema()`),
-      client.query<{ constraint_name: string }>("select constraint_name from information_schema.table_constraints where constraint_schema = current_schema()"),
-    ]);
+    // A single pg Client executes one query at a time. Keep these sequential so
+    // this safety gate remains compatible with pg 9, which rejects overlapping
+    // client.query() calls instead of queueing them.
+    const tables = await client.query<{ table_name: string }>(
+      "select table_name from information_schema.tables where table_schema = current_schema()",
+    );
+    const columns = await client.query<{ table_name: string; column_name: string }>(
+      "select table_name, column_name from information_schema.columns where table_schema = current_schema()",
+    );
+    const indexes = await client.query<{ indexname: string }>(
+      "select indexname from pg_indexes where schemaname = current_schema()",
+    );
+    const types = await client.query<{ typname: string }>(
+      "select typname from pg_type join pg_namespace on pg_namespace.oid = pg_type.typnamespace where nspname = current_schema()",
+    );
+    const constraints = await client.query<{ constraint_name: string }>(
+      "select constraint_name from information_schema.table_constraints where constraint_schema = current_schema()",
+    );
     const absent = {
       tables: missing(REQUIRED_TABLES, new Set(tables.rows.map((row) => row.table_name))),
       columns: missing(
