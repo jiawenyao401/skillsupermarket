@@ -141,7 +141,7 @@ check_runtime() {
   local process_list
   if ! process_list="$(ps -eo pid=,user=,comm=,args= 2>/dev/null)"; then
     alert "PROCESS_LIST_UNAVAILABLE"
-  elif grep -Eai '[x]mrig|[m]inerd|[k]insing|[k]devtmpfsi|[c]rypto.?miner|[s]ocat .*exec:|[n]c .*-[el]' <<<"$process_list" >/dev/null; then
+  elif printf '%s\n' "$process_list" | grep -Eai '[x]mrig|[m]inerd|[k]insing|[k]devtmpfsi|[c]rypto.?miner|[s]ocat .*exec:|[n]c .*-[el]' >/dev/null; then
     alert "SUSPICIOUS_PROCESS_PATTERN"
   fi
 
