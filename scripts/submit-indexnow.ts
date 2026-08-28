@@ -20,6 +20,7 @@ async function main() {
   const urlList = Array.from(new Set([
     absoluteUrl("/"),
     absoluteUrl("/evaluation"),
+    absoluteUrl("/mcp-server-security-scan"),
     absoluteUrl("/guides"),
     ...GUIDES.map((guide) => absoluteUrl(`/guides/${guide.slug}`)),
     absoluteUrl("/sitemap.xml"),
