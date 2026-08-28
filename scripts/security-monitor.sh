@@ -154,6 +154,24 @@ check_runtime() {
   [[ "$disk_usage" =~ ^[0-9]+$ ]] && ((disk_usage < 90)) || alert "ROOT_DISK_PRESSURE percent=${disk_usage:-unknown}"
 }
 
+check_judge_configuration() {
+  local env_file="$PROJECT_DIR/.env"
+  if [[ ! -r "$env_file" ]]; then
+    alert "LLM_JUDGE_ENV_UNREADABLE"
+    return
+  fi
+  if ! command -v node >/dev/null 2>&1; then
+    alert "NODE_RUNTIME_MISSING"
+    return
+  fi
+  if ! (
+    cd "$PROJECT_DIR"
+    node -e 'require("dotenv").config({ path: ".env", quiet: true }); const names = ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"]; process.exit(names.some((name) => process.env[name]?.trim()) ? 0 : 1);'
+  ) >/dev/null 2>&1; then
+    alert "LLM_JUDGE_UNCONFIGURED"
+  fi
+}
+
 check_recent_logs() {
   if command -v journalctl >/dev/null 2>&1; then
     local ssh_failures
@@ -209,6 +227,7 @@ main() {
   TEMP_DIR_TO_CLEAN="$temp_dir"
   check_baselines "$temp_dir"
   check_runtime
+  check_judge_configuration
   check_recent_logs
   run_daily_tools_if_available
 

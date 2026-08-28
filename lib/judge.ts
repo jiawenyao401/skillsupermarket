@@ -8,10 +8,18 @@ interface JudgeConfig {
   provider: "deepseek" | "openai" | "anthropic";
 }
 
+function configuredKey(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
 export function hasJudgeConfiguration(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): boolean {
-  return Boolean(env.DEEPSEEK_API_KEY || env.OPENAI_API_KEY || env.ANTHROPIC_API_KEY);
+  return Boolean(
+    configuredKey(env.DEEPSEEK_API_KEY)
+    || configuredKey(env.OPENAI_API_KEY)
+    || configuredKey(env.ANTHROPIC_API_KEY)
+  );
 }
 
 const scoreSchema = z.number().int().min(0).max(20);
@@ -156,25 +164,28 @@ export function validateJudgeCalibration(scores: QualitySubScores, input: JudgeI
 }
 
 function getConfig(): JudgeConfig {
-  if (process.env.DEEPSEEK_API_KEY) {
+  const deepseekApiKey = configuredKey(process.env.DEEPSEEK_API_KEY);
+  const openaiApiKey = configuredKey(process.env.OPENAI_API_KEY);
+  const anthropicApiKey = configuredKey(process.env.ANTHROPIC_API_KEY);
+  if (deepseekApiKey) {
     return {
-      apiKey: process.env.DEEPSEEK_API_KEY,
+      apiKey: deepseekApiKey,
       baseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
       model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
       provider: "deepseek",
     };
   }
-  if (process.env.OPENAI_API_KEY) {
+  if (openaiApiKey) {
     return {
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: openaiApiKey,
       baseUrl: "https://api.openai.com/v1",
       model: process.env.OPENAI_JUDGE_MODEL || "gpt-4.1-mini",
       provider: "openai",
     };
   }
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (anthropicApiKey) {
     return {
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey: anthropicApiKey,
       baseUrl: "https://api.anthropic.com",
       model: process.env.ANTHROPIC_JUDGE_MODEL || "claude-haiku-4-5",
       provider: "anthropic",

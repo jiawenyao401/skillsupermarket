@@ -86,9 +86,12 @@ async function main() {
 
   const healthData = recordFromJson(health.body);
   checks.push({
-    name: "应用与数据库健康",
-    ok: health.status === 200 && healthData?.ok === true && healthData.database === "ready",
-    detail: `HTTP ${health.status} · ${String(healthData?.database ?? "unknown")}`,
+    name: "应用、数据库与 Judge 健康",
+    ok: health.status === 200
+      && healthData?.ok === true
+      && healthData.database === "ready"
+      && healthData.judge === "ready",
+    detail: `HTTP ${health.status} · database=${String(healthData?.database ?? "unknown")} · judge=${String(healthData?.judge ?? "unknown")}`,
   });
 
   checks.push({ name: "首页可访问", ok: home.status === 200, detail: `HTTP ${home.status}` });

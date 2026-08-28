@@ -125,8 +125,10 @@ test("judge calibration accepts differentiated scores supported by complete evid
 
 test("judge configuration accepts only supported provider keys", () => {
   assert.equal(hasJudgeConfiguration({ DEEPSEEK_API_KEY: "configured" }), true);
+  assert.equal(hasJudgeConfiguration({ DEEPSEEK_API_KEY: " configured " }), true);
   assert.equal(hasJudgeConfiguration({ OPENAI_API_KEY: "configured" }), true);
   assert.equal(hasJudgeConfiguration({ ANTHROPIC_API_KEY: "configured" }), true);
+  assert.equal(hasJudgeConfiguration({ DEEPSEEK_API_KEY: "   " }), false);
   assert.equal(hasJudgeConfiguration({ AI_JUDGE_KEY: "unsupported-name" }), false);
   assert.equal(hasJudgeConfiguration({}), false);
 });
