@@ -201,6 +201,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {categories.map(([label, href]) => <Link key={href} href={href} className="footer-link">{label}</Link>)}
                 <Link href="/search" className="footer-link">全部技能</Link>
                 <Link href="/evaluation" className="footer-link">评测服务</Link>
+                <Link href="/mcp-server-security-scan" className="footer-link">MCP 安全扫描</Link>
                 <Link href="/guides" className="footer-link">实战指南</Link>
                 <Link href="/evaluate" className="footer-link">提交评测</Link>
               </div>

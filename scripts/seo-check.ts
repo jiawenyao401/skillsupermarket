@@ -50,6 +50,7 @@ async function main() {
     health,
     home,
     evaluation,
+    mcpSecurityScan,
     guides,
     guide,
     privacy,
@@ -64,6 +65,7 @@ async function main() {
     request("/api/health"),
     request("/"),
     request("/evaluation"),
+    request("/mcp-server-security-scan"),
     request("/guides"),
     request("/guides/mcp-server-security-checklist-2026"),
     request("/privacy"),
@@ -118,6 +120,15 @@ async function main() {
     detail: "Service + FAQPage",
   });
   checks.push({
+    name: "MCP 安全扫描落地页",
+    ok: mcpSecurityScan.status === 200
+      && mcpSecurityScan.body.includes("MCP security evaluator")
+      && mcpSecurityScan.body.includes(`${SITE_URL}/mcp-server-security-scan`)
+      && mcpSecurityScan.body.includes("FAQPage")
+      && mcpSecurityScan.body.includes("Service"),
+    detail: `HTTP ${mcpSecurityScan.status} · Service + FAQPage + canonical`,
+  });
+  checks.push({
     name: "高意图指南入口",
     ok: guides.status === 200 && guides.body.includes("Builder guides") && guides.body.includes("CollectionPage"),
     detail: `HTTP ${guides.status}`,
@@ -143,6 +154,7 @@ async function main() {
       && sitemap.body.includes("<urlset")
       && sitemap.body.includes("/skill/")
       && sitemap.body.includes("/evaluation")
+      && sitemap.body.includes("/mcp-server-security-scan")
       && sitemap.body.includes("/guides/mcp-server-security-checklist-2026"),
     detail: `HTTP ${sitemap.status} · ${(sitemap.body.match(/<loc>/g) ?? []).length} URLs`,
   });

@@ -1,6 +1,14 @@
 export type TrafficSource = "direct" | "internal" | "organic" | "github" | "community" | "referral";
 
-const EXACT_TRACKED_PATHS = new Set(["/", "/evaluation", "/evaluate", "/login", "/search", "/guides"]);
+const EXACT_TRACKED_PATHS = new Set([
+  "/",
+  "/evaluation",
+  "/mcp-server-security-scan",
+  "/evaluate",
+  "/login",
+  "/search",
+  "/guides",
+]);
 const DYNAMIC_TRACKED_PATH = /^\/(?:skill|category|guides)\/[a-zA-Z0-9._~%-]+$/;
 const COMMUNITY_HOSTS = [
   "v2ex.com",

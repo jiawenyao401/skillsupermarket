@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 const staticEntries: MetadataRoute.Sitemap = [
   { url: absoluteUrl("/"), changeFrequency: "daily", priority: 1 },
   { url: absoluteUrl("/evaluation"), changeFrequency: "weekly", priority: 0.9 },
+  { url: absoluteUrl("/mcp-server-security-scan"), changeFrequency: "weekly", priority: 0.9 },
   { url: absoluteUrl("/guides"), changeFrequency: "weekly", priority: 0.8 },
   ...GUIDES.map((guide) => ({
     url: absoluteUrl(`/guides/${guide.slug}`),
