@@ -57,6 +57,15 @@ interface SummaryRow extends Record<string, unknown> {
   active_evaluators_1d: number;
   active_evaluators_7d: number;
   active_evaluators_30d: number;
+  first_evaluations_1d: number;
+  first_evaluations_7d: number;
+  first_evaluations_30d: number;
+  repeat_evaluators_1d: number;
+  repeat_evaluators_7d: number;
+  repeat_evaluators_30d: number;
+  operational_jobs_1d: number;
+  operational_jobs_7d: number;
+  operational_jobs_30d: number;
   free_quota_used: number;
   exhausted_free_users: number;
   page_views_1d: number;
@@ -146,18 +155,45 @@ async function getSummary(): Promise<SummaryRow> {
       (select count(distinct skill_id)::int from metrics_daily where date = timezone('Asia/Shanghai', now())::date) as collected_skills_today,
       (select count(distinct skill_id)::int from evaluations) as evaluated_skills,
       (select count(*)::int from evaluations) as total_evaluations,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '1 day') as jobs_1d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '7 days') as jobs_7d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '30 days') as jobs_30d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '1 day' and status = 'done') as completed_jobs_1d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '7 days' and status = 'done') as completed_jobs_7d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '30 days' and status = 'done') as completed_jobs_30d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '1 day' and status = 'failed') as failed_jobs_1d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '7 days' and status = 'failed') as failed_jobs_7d,
-      (select count(*)::int from evaluation_jobs where created_at >= now() - interval '30 days' and status = 'failed') as failed_jobs_30d,
-      (select count(distinct user_id)::int from evaluation_jobs where created_at >= now() - interval '1 day' and user_id is not null) as active_evaluators_1d,
-      (select count(distinct user_id)::int from evaluation_jobs where created_at >= now() - interval '7 days' and user_id is not null) as active_evaluators_7d,
-      (select count(distinct user_id)::int from evaluation_jobs where created_at >= now() - interval '30 days' and user_id is not null) as active_evaluators_30d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day') as jobs_1d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days') as jobs_7d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days') as jobs_30d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day' and status = 'done') as completed_jobs_1d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days' and status = 'done') as completed_jobs_7d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days' and status = 'done') as completed_jobs_30d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day' and status = 'failed') as failed_jobs_1d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days' and status = 'failed') as failed_jobs_7d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days' and status = 'failed') as failed_jobs_30d,
+      (select count(distinct user_id)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day') as active_evaluators_1d,
+      (select count(distinct user_id)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days') as active_evaluators_7d,
+      (select count(distinct user_id)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days') as active_evaluators_30d,
+      (select count(*)::int from (
+        select user_id, min(created_at) as first_at from evaluation_jobs
+        where user_id is not null and triggered_by = 'authenticated-user' and status = 'done' group by user_id
+      ) firsts where first_at >= now() - interval '1 day') as first_evaluations_1d,
+      (select count(*)::int from (
+        select user_id, min(created_at) as first_at from evaluation_jobs
+        where user_id is not null and triggered_by = 'authenticated-user' and status = 'done' group by user_id
+      ) firsts where first_at >= now() - interval '7 days') as first_evaluations_7d,
+      (select count(*)::int from (
+        select user_id, min(created_at) as first_at from evaluation_jobs
+        where user_id is not null and triggered_by = 'authenticated-user' and status = 'done' group by user_id
+      ) firsts where first_at >= now() - interval '30 days') as first_evaluations_30d,
+      (select count(distinct current_job.user_id)::int from evaluation_jobs current_job
+        where current_job.user_id is not null and current_job.triggered_by = 'authenticated-user' and current_job.status = 'done'
+          and current_job.created_at >= now() - interval '1 day'
+          and exists (select 1 from evaluation_jobs prior where prior.user_id = current_job.user_id and prior.triggered_by = 'authenticated-user' and prior.status = 'done' and prior.created_at < current_job.created_at)) as repeat_evaluators_1d,
+      (select count(distinct current_job.user_id)::int from evaluation_jobs current_job
+        where current_job.user_id is not null and current_job.triggered_by = 'authenticated-user' and current_job.status = 'done'
+          and current_job.created_at >= now() - interval '7 days'
+          and exists (select 1 from evaluation_jobs prior where prior.user_id = current_job.user_id and prior.triggered_by = 'authenticated-user' and prior.status = 'done' and prior.created_at < current_job.created_at)) as repeat_evaluators_7d,
+      (select count(distinct current_job.user_id)::int from evaluation_jobs current_job
+        where current_job.user_id is not null and current_job.triggered_by = 'authenticated-user' and current_job.status = 'done'
+          and current_job.created_at >= now() - interval '30 days'
+          and exists (select 1 from evaluation_jobs prior where prior.user_id = current_job.user_id and prior.triggered_by = 'authenticated-user' and prior.status = 'done' and prior.created_at < current_job.created_at)) as repeat_evaluators_30d,
+      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '1 day') as operational_jobs_1d,
+      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '7 days') as operational_jobs_7d,
+      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '30 days') as operational_jobs_30d,
       (select coalesce(sum(q.used), 0)::int from evaluation_quota_usage q
         where q.subject_type = 'user' and q.period_end > now()
           and not exists (select 1 from subscriptions s where s.user_id = q.subject_key and s.status = 'active' and (s.current_period_end is null or s.current_period_end > now()))) as free_quota_used,
@@ -299,7 +335,7 @@ export default async function AdminPage({
     { label: "用户总数", value: summary.total_users, detail: `D1 +${summary.new_users_1d} · D7 +${summary.new_users_7d} · D30 +${summary.new_users_30d}`, icon: UsersRound },
     { label: "7 日页面浏览", value: summary.page_views_7d, detail: `D1 ${summary.page_views_1d} · D30 ${summary.page_views_30d}`, icon: Activity },
     { label: "评测页访问", value: summary.evaluation_views_7d, detail: `近 7 天 CTA ${summary.cta_clicks_7d} 次`, icon: Gauge },
-    { label: "7 日活跃评测用户", value: summary.active_evaluators_7d, detail: `用户激活率 ${activationRate}`, icon: UserRoundCheck },
+    { label: "7 日活跃评测用户", value: summary.active_evaluators_7d, detail: `首评 ${summary.first_evaluations_7d} · 复评 ${summary.repeat_evaluators_7d} · 激活率 ${activationRate}`, icon: UserRoundCheck },
     { label: "有效订阅", value: summary.active_subscriptions, detail: `免费额度已用 ${summary.free_quota_used} 次 · 耗尽 ${summary.exhausted_free_users} 人`, icon: CircleDollarSign },
     { label: "Skill 库存", value: summary.active_skills, detail: `今日新增 ${summary.new_skills_today}`, icon: Database },
     { label: "今日采集覆盖", value: summary.collected_skills_today, detail: collectionIsCurrent ? "今日采集已写入" : "今日采集尚未写入", icon: RefreshCcw },
@@ -325,7 +361,7 @@ export default async function AdminPage({
       <section className="surface-card overflow-hidden">
         <div className="border-b px-5 py-5 sm:px-7">
           <div className="flex items-center gap-2 font-bold"><Gauge className="h-4 w-4 text-primary" />增长漏斗 D1 / D7 / D30</div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">页面浏览使用无 Cookie 日聚合统计，不保存 IP、用户代理、完整来源 URL 或跨日访客标识。</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">页面浏览使用无 Cookie 日聚合统计；用户漏斗仅统计登录用户主动发起的评测，案例、重评与发布冒烟任务不计入增长。</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-left text-sm">
@@ -336,8 +372,11 @@ export default async function AdminPage({
                 ["评测落地页访问", summary.evaluation_views_1d, summary.evaluation_views_7d, summary.evaluation_views_30d],
                 ["评测 CTA 点击", summary.cta_clicks_1d, summary.cta_clicks_7d, summary.cta_clicks_30d],
                 ["新增用户", summary.new_users_1d, summary.new_users_7d, summary.new_users_30d],
+                ["首次成功评测", summary.first_evaluations_1d, summary.first_evaluations_7d, summary.first_evaluations_30d],
+                ["重复评测用户", summary.repeat_evaluators_1d, summary.repeat_evaluators_7d, summary.repeat_evaluators_30d],
                 ["活跃评测用户", summary.active_evaluators_1d, summary.active_evaluators_7d, summary.active_evaluators_30d],
-                ["评测任务", summary.jobs_1d, summary.jobs_7d, summary.jobs_30d],
+                ["用户评测任务", summary.jobs_1d, summary.jobs_7d, summary.jobs_30d],
+                ["运维评测（已排除）", summary.operational_jobs_1d, summary.operational_jobs_7d, summary.operational_jobs_30d],
               ].map(([label, d1, d7, d30]) => <tr key={String(label)}><td className="px-5 py-3 font-semibold sm:px-7">{label}</td><td className="px-4 py-3 text-right font-bold">{d1}</td><td className="px-4 py-3 text-right font-bold">{d7}</td><td className="px-5 py-3 text-right font-bold sm:pr-7">{d30}</td></tr>)}
             </tbody>
           </table>

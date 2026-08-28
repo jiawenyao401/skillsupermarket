@@ -35,6 +35,15 @@ interface JobRow extends Record<string, unknown> {
   evaluators_1d: number;
   evaluators_7d: number;
   evaluators_30d: number;
+  first_evaluations_1d: number;
+  first_evaluations_7d: number;
+  first_evaluations_30d: number;
+  repeat_evaluators_1d: number;
+  repeat_evaluators_7d: number;
+  repeat_evaluators_30d: number;
+  operational_jobs_1d: number;
+  operational_jobs_7d: number;
+  operational_jobs_30d: number;
 }
 
 interface MonetizationRow extends Record<string, unknown> {
@@ -97,10 +106,11 @@ async function main() {
   const content = contentResult[0];
   if (!content) throw new Error("增长报表内容查询未返回数据");
 
-  const [hasUsers, hasJobs, hasJobUsers, hasSubscriptions, hasQuota, hasTraffic] = await Promise.all([
+  const [hasUsers, hasJobs, hasJobUsers, hasJobSources, hasSubscriptions, hasQuota, hasTraffic] = await Promise.all([
     tableExists("user"),
     tableExists("evaluation_jobs"),
     columnExists("evaluation_jobs", "user_id"),
+    columnExists("evaluation_jobs", "triggered_by"),
     tableExists("subscriptions"),
     tableExists("evaluation_quota_usage"),
     tableExists("traffic_daily"),
@@ -115,21 +125,47 @@ async function main() {
     from "user"
   `))[0] : undefined;
 
-  const jobs = hasJobs && hasJobUsers ? (await db.execute<JobRow>(sql`
+  const jobs = hasJobs && hasJobUsers && hasJobSources ? (await db.execute<JobRow>(sql`
     select
-      count(*) filter (where created_at >= now() - interval '1 day')::int as jobs_1d,
-      count(*) filter (where created_at >= now() - interval '7 days')::int as jobs_7d,
-      count(*) filter (where created_at >= now() - interval '30 days')::int as jobs_30d,
-      count(*) filter (where created_at >= now() - interval '1 day' and status = 'done')::int as completed_1d,
-      count(*) filter (where created_at >= now() - interval '7 days' and status = 'done')::int as completed_7d,
-      count(*) filter (where created_at >= now() - interval '30 days' and status = 'done')::int as completed_30d,
-      count(*) filter (where created_at >= now() - interval '1 day' and status = 'failed')::int as failed_1d,
-      count(*) filter (where created_at >= now() - interval '7 days' and status = 'failed')::int as failed_7d,
-      count(*) filter (where created_at >= now() - interval '30 days' and status = 'failed')::int as failed_30d,
-      count(distinct user_id) filter (where created_at >= now() - interval '1 day' and user_id is not null)::int as evaluators_1d,
-      count(distinct user_id) filter (where created_at >= now() - interval '7 days' and user_id is not null)::int as evaluators_7d,
-      count(distinct user_id) filter (where created_at >= now() - interval '30 days' and user_id is not null)::int as evaluators_30d
-    from evaluation_jobs
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day') as jobs_1d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days') as jobs_7d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days') as jobs_30d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day' and status = 'done') as completed_1d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days' and status = 'done') as completed_7d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days' and status = 'done') as completed_30d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day' and status = 'failed') as failed_1d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days' and status = 'failed') as failed_7d,
+      (select count(*)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days' and status = 'failed') as failed_30d,
+      (select count(distinct user_id)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '1 day') as evaluators_1d,
+      (select count(distinct user_id)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '7 days') as evaluators_7d,
+      (select count(distinct user_id)::int from evaluation_jobs where user_id is not null and triggered_by = 'authenticated-user' and created_at >= now() - interval '30 days') as evaluators_30d,
+      (select count(*)::int from (
+        select user_id, min(created_at) as first_at from evaluation_jobs
+        where user_id is not null and triggered_by = 'authenticated-user' and status = 'done' group by user_id
+      ) firsts where first_at >= now() - interval '1 day') as first_evaluations_1d,
+      (select count(*)::int from (
+        select user_id, min(created_at) as first_at from evaluation_jobs
+        where user_id is not null and triggered_by = 'authenticated-user' and status = 'done' group by user_id
+      ) firsts where first_at >= now() - interval '7 days') as first_evaluations_7d,
+      (select count(*)::int from (
+        select user_id, min(created_at) as first_at from evaluation_jobs
+        where user_id is not null and triggered_by = 'authenticated-user' and status = 'done' group by user_id
+      ) firsts where first_at >= now() - interval '30 days') as first_evaluations_30d,
+      (select count(distinct current_job.user_id)::int from evaluation_jobs current_job
+        where current_job.user_id is not null and current_job.triggered_by = 'authenticated-user' and current_job.status = 'done'
+          and current_job.created_at >= now() - interval '1 day'
+          and exists (select 1 from evaluation_jobs prior where prior.user_id = current_job.user_id and prior.triggered_by = 'authenticated-user' and prior.status = 'done' and prior.created_at < current_job.created_at)) as repeat_evaluators_1d,
+      (select count(distinct current_job.user_id)::int from evaluation_jobs current_job
+        where current_job.user_id is not null and current_job.triggered_by = 'authenticated-user' and current_job.status = 'done'
+          and current_job.created_at >= now() - interval '7 days'
+          and exists (select 1 from evaluation_jobs prior where prior.user_id = current_job.user_id and prior.triggered_by = 'authenticated-user' and prior.status = 'done' and prior.created_at < current_job.created_at)) as repeat_evaluators_7d,
+      (select count(distinct current_job.user_id)::int from evaluation_jobs current_job
+        where current_job.user_id is not null and current_job.triggered_by = 'authenticated-user' and current_job.status = 'done'
+          and current_job.created_at >= now() - interval '30 days'
+          and exists (select 1 from evaluation_jobs prior where prior.user_id = current_job.user_id and prior.triggered_by = 'authenticated-user' and prior.status = 'done' and prior.created_at < current_job.created_at)) as repeat_evaluators_30d,
+      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '1 day') as operational_jobs_1d,
+      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '7 days') as operational_jobs_7d,
+      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '30 days') as operational_jobs_30d
   `))[0] : hasJobs ? (await db.execute<JobRow>(sql`
     select
       count(*) filter (where created_at >= now() - interval '1 day')::int as jobs_1d,
@@ -143,7 +179,16 @@ async function main() {
       count(*) filter (where created_at >= now() - interval '30 days' and status = 'failed')::int as failed_30d,
       0::int as evaluators_1d,
       0::int as evaluators_7d,
-      0::int as evaluators_30d
+      0::int as evaluators_30d,
+      0::int as first_evaluations_1d,
+      0::int as first_evaluations_7d,
+      0::int as first_evaluations_30d,
+      0::int as repeat_evaluators_1d,
+      0::int as repeat_evaluators_7d,
+      0::int as repeat_evaluators_30d,
+      count(*) filter (where created_at >= now() - interval '1 day')::int as operational_jobs_1d,
+      count(*) filter (where created_at >= now() - interval '7 days')::int as operational_jobs_7d,
+      count(*) filter (where created_at >= now() - interval '30 days')::int as operational_jobs_30d
     from evaluation_jobs
   `))[0] : undefined;
 
@@ -210,6 +255,7 @@ async function main() {
     activation: {
       available: hasJobs,
       userAttributionAvailable: hasJobUsers,
+      operationsExcluded: hasJobUsers && hasJobSources,
       evaluationJobs1d: jobs1d,
       evaluationJobs7d: jobs7d,
       evaluationJobs30d: jobs30d,
@@ -222,12 +268,22 @@ async function main() {
       uniqueEvaluators1d: jobs?.evaluators_1d ?? 0,
       uniqueEvaluators7d: jobs?.evaluators_7d ?? 0,
       uniqueEvaluators30d: jobs?.evaluators_30d ?? 0,
+      firstEvaluations1d: jobs?.first_evaluations_1d ?? 0,
+      firstEvaluations7d: jobs?.first_evaluations_7d ?? 0,
+      firstEvaluations30d: jobs?.first_evaluations_30d ?? 0,
+      repeatEvaluators1d: jobs?.repeat_evaluators_1d ?? 0,
+      repeatEvaluators7d: jobs?.repeat_evaluators_7d ?? 0,
+      repeatEvaluators30d: jobs?.repeat_evaluators_30d ?? 0,
+      operationalJobs1d: jobs?.operational_jobs_1d ?? 0,
+      operationalJobs7d: jobs?.operational_jobs_7d ?? 0,
+      operationalJobs30d: jobs?.operational_jobs_30d ?? 0,
       completionRate1d: percentage(jobs?.completed_1d ?? 0, jobs1d),
       completionRate7d: percentage(jobs?.completed_7d ?? 0, jobs7d),
       completionRate30d: percentage(jobs?.completed_30d ?? 0, jobs30d),
     },
     monetization: {
       available: hasSubscriptions && hasQuota,
+      upgradeTrackingAvailable: false,
       activeSubscriptions: monetization?.active_subscriptions ?? 0,
       freeQuotaUsers: monetization?.free_quota_users ?? 0,
       freeQuotaUsed: monetization?.free_quota_used ?? 0,
@@ -261,7 +317,7 @@ async function main() {
     ? `[growth] 访问: D1 ${report.acquisition.pageViews1d} / D7 ${report.acquisition.pageViews7d} / D30 ${report.acquisition.pageViews30d} 次页面浏览；评测页 D7 ${report.acquisition.evaluationViews7d}，CTA D7 ${report.acquisition.evaluationCtaClicks7d}`
     : "[growth] 访问: 数据不可用（隐私友好流量表尚未部署）");
   console.log(hasJobs
-    ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次任务，D7 ${report.activation.uniqueEvaluators7d} 位评测用户，完成率 ${report.activation.completionRate7d}`
+    ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次用户任务；D7 首评 ${report.activation.firstEvaluations7d} 人、复评 ${report.activation.repeatEvaluators7d} 人、完成率 ${report.activation.completionRate7d}；另排除运维任务 ${report.activation.operationalJobs7d} 次`
     : "[growth] 激活: 数据不可用（评测任务表尚未部署）");
   console.log(report.monetization.available
     ? `[growth] 变现: ${report.monetization.activeSubscriptions} 个有效订阅，${report.monetization.freeQuotaUsers} 位免费用户本周已用 ${report.monetization.freeQuotaUsed} 次，${report.monetization.exhaustedFreeUsers} 位已耗尽额度`
