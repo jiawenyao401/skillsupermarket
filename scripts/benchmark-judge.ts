@@ -48,6 +48,7 @@ async function evaluateRepository(fullName: string) {
     bestFor: result.bestFor,
     avoidFor: result.avoidFor,
     evidence: result.evidence,
+    diagram: result.diagram,
     readmeCharacters: readme.length,
     evidenceFiles: files.length,
     repeatScore: repeat?.score ?? null,

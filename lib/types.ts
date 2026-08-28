@@ -61,6 +61,7 @@ export interface Evaluation {
 export interface EvaluationReport {
   version?: string;
   summary?: EvaluationSummary;
+  diagram?: EvaluationDiagram;
   documentation: {
     score: number;
     details: string;
@@ -90,6 +91,29 @@ export interface EvaluationReport {
   recommendation?: EvaluationRecommendation;
   methodology?: EvaluationMethodology;
   overall: number;
+}
+
+export type EvaluationDiagramType = "flow" | "sequence" | "architecture";
+
+export interface EvaluationDiagramNode {
+  id: string;
+  label: string;
+  role?: string;
+}
+
+export interface EvaluationDiagramEdge {
+  from: string;
+  to: string;
+  label: string;
+}
+
+export interface EvaluationDiagram {
+  type: EvaluationDiagramType;
+  title: string;
+  rationale: string;
+  nodes: EvaluationDiagramNode[];
+  edges: EvaluationDiagramEdge[];
+  evidence: string[];
 }
 
 export interface SecurityFinding {

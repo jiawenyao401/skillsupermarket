@@ -3,22 +3,41 @@ import { judgeSkill } from "../lib/judge";
 
 async function main() {
   const result = await judgeSkill({
-  name: "Judge connectivity probe",
-  type: "claude-skill",
-  description: "A diagnostic sample used only to verify the configured AI judge and its structured output.",
-  readme: `# Install
+  name: "Repository issue assistant",
+  type: "mcp-server",
+  description: "A diagnostic MCP server that lets an AI client inspect repository issues.",
+  readme: `# Repository issue assistant
 
-Run npm install.
+This MCP server lets an AI client inspect repository issues without granting write access.
 
-## Usage
+## Install
+
+Run npm install and configure the MCP client to start the issue server.
+
+## Request flow
+
+1. A user asks the AI client to review open issues.
+2. The AI client calls the server's list_issues tool.
+3. The server reads issue metadata from the repository provider.
+4. The server returns issue titles and labels to the AI client.
+
+## Tool
+
+list_issues accepts owner, repository, and state parameters. It returns issue titles, labels, and update times.
+
+## Usage example
 
 \`\`\`bash
-npx probe
+npx repository-issue-assistant
 \`\`\`
 
-## Limitations
+## Security and limitations
 
-No network access.
+Use a read-only provider token. The server does not create, edit, or close issues.
+
+## Errors
+
+Authentication failures return an explicit authorization error. Rate limits return a retry-after value.
 
 ## License
 
@@ -27,9 +46,13 @@ MIT`,
     "通过: 有 README",
     "通过: 安装步骤",
     "通过: 示例",
-    "通过: 限制说明",
+    "通过: 输入、参数或工具说明",
+    "通过: 限制、权限或边界",
+    "通过: 错误处理或排障",
   ],
   });
+
+  if (!result.diagram) throw new Error("LLM Judge 未返回可验证的 Skill 图示");
 
   console.log(JSON.stringify({
     ok: true,
@@ -40,6 +63,7 @@ MIT`,
     strengths: result.strengths,
     concerns: result.concerns,
     evidence: result.evidence,
+    diagram: result.diagram,
   }, null, 2));
 }
 

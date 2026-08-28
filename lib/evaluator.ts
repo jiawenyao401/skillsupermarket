@@ -187,6 +187,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
     const report: EvaluationReport = {
       version: EVALUATOR_VERSION,
       summary,
+      diagram: aiResult?.diagram,
       documentation,
       security: {
         score: security.score,

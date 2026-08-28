@@ -14,7 +14,7 @@ import {
 } from "../lib/evaluation-scoring";
 import { getReadme } from "../lib/github";
 import { evaluations } from "../lib/schema";
-import type { JudgeResult } from "../lib/judge";
+import { normalizeEvaluationDiagram, type JudgeResult } from "../lib/judge";
 import type { EvaluationReport, RiskLevel } from "../lib/types";
 import { findSkillByEvaluationSource } from "../lib/skill-upsert";
 
@@ -35,6 +35,7 @@ const judgmentSchema = z.object({
   bestFor: z.array(z.string().min(1).max(80)).max(4),
   avoidFor: z.array(z.string().min(1).max(80)).max(4),
   evidence: z.array(z.string().min(1).max(160)).min(2).max(5),
+  diagram: z.unknown().optional().nullable(),
   model: z.string().min(1).max(100),
   rubricVersion: z.string().min(1).max(30),
 });
@@ -94,6 +95,7 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
 
   report.overall = overall;
   report.summary = buildSummary(overall, risk, confidence);
+  report.diagram = normalizeEvaluationDiagram(judgment.diagram);
   report.quality = {
     ...report.quality,
     score: qualityScore,

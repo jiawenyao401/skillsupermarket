@@ -1,6 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hasJudgeConfiguration, selectReadmeEvidence, validateJudgeCalibration } from "../lib/judge";
+import { hasJudgeConfiguration, normalizeEvaluationDiagram, selectReadmeEvidence, validateJudgeCalibration } from "../lib/judge";
+
+test("evaluation diagram accepts a bounded evidence-backed graph", () => {
+  assert.deepEqual(normalizeEvaluationDiagram({
+    type: "sequence",
+    title: "  请求处理时序  ",
+    rationale: "README 描述了客户端、服务端和模型的交互。",
+    nodes: [
+      { id: "client", label: "客户端" },
+      { id: "server", label: "MCP 服务", role: "工具提供方" },
+    ],
+    edges: [{ from: "client", to: "server", label: "  调用工具  " }],
+    evidence: ["README Usage: client 调用 server tool"],
+  }), {
+    type: "sequence",
+    title: "请求处理时序",
+    rationale: "README 描述了客户端、服务端和模型的交互。",
+    nodes: [
+      { id: "client", label: "客户端", role: undefined },
+      { id: "server", label: "MCP 服务", role: "工具提供方" },
+    ],
+    edges: [{ from: "client", to: "server", label: "调用工具" }],
+    evidence: ["README Usage: client 调用 server tool"],
+  });
+});
+
+test("evaluation diagram fails closed for invented or malformed relationships", () => {
+  assert.equal(normalizeEvaluationDiagram({
+    type: "flow",
+    title: "错误流程",
+    rationale: "无可核验证据",
+    nodes: [{ id: "input", label: "输入" }, { id: "output", label: "输出" }],
+    edges: [{ from: "input", to: "missing", label: "调用未知节点" }],
+    evidence: ["README 未提及 missing"],
+  }), undefined);
+});
 
 test("long README evidence selection keeps late safety and troubleshooting sections", () => {
   const readme = [

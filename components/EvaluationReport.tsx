@@ -17,6 +17,7 @@ import type { EvaluationReport as EvaluationReportType, SecurityFinding } from "
 import { buildLegacySummary, deriveRiskLevel } from "@/lib/evaluation-scoring";
 import { cn } from "@/lib/utils";
 import { EvaluationRadar } from "./EvaluationRadar";
+import { EvaluationDiagram } from "./EvaluationDiagram";
 
 interface EvaluationRecord {
   overallScore: number;
@@ -137,6 +138,8 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
           </div>
         </div>
       </div>
+
+      {report.diagram ? <EvaluationDiagram diagram={report.diagram} /> : null}
 
       <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="surface-card p-5 sm:p-6">

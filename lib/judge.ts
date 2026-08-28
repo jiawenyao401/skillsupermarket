@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { QualitySubScores } from "./types";
+import type { EvaluationDiagram, QualitySubScores } from "./types";
 
 interface JudgeConfig {
   apiKey: string;
@@ -15,6 +15,35 @@ export function hasJudgeConfiguration(
 }
 
 const scoreSchema = z.number().int().min(0).max(20);
+const diagramSchema = z.object({
+  type: z.enum(["flow", "sequence", "architecture"]),
+  title: z.string().trim().min(1).max(60),
+  rationale: z.string().trim().min(1).max(160),
+  nodes: z.array(z.object({
+    id: z.string().regex(/^[a-z][a-z0-9-]{0,23}$/),
+    label: z.string().trim().min(1).max(24),
+    role: z.string().trim().min(1).max(30).optional(),
+  })).min(2).max(6),
+  edges: z.array(z.object({
+    from: z.string(),
+    to: z.string(),
+    label: z.string().trim().min(1).max(40),
+  })).min(1).max(8),
+  evidence: z.array(z.string().trim().min(1).max(160)).min(1).max(3),
+}).superRefine((diagram, context) => {
+  const nodeIds = new Set(diagram.nodes.map((node) => node.id));
+  if (nodeIds.size !== diagram.nodes.length) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["nodes"], message: "节点 ID 必须唯一" });
+  }
+  diagram.edges.forEach((edge, index) => {
+    if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["edges", index], message: "连线必须引用已有节点" });
+    }
+    if (edge.from === edge.to) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["edges", index], message: "不允许自环" });
+    }
+  });
+});
 const judgeResponseSchema = z.object({
   scores: z.object({
     utility: scoreSchema,
@@ -29,14 +58,32 @@ const judgeResponseSchema = z.object({
   bestFor: z.array(z.string().trim().min(1).max(80)).max(4).default([]),
   avoidFor: z.array(z.string().trim().min(1).max(80)).max(4).default([]),
   evidence: z.array(z.string().trim().min(1).max(160)).min(2).max(5),
+  diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.1.0";
+const RUBRIC_VERSION = "3.2.0";
 const MAX_README_CHARACTERS = 30_000;
 const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reusability", "design", "documentation"];
 
 function normalizeSentence(value: string): string {
   return value.replace(/\s+/g, " ").trim();
+}
+
+export function normalizeEvaluationDiagram(value: unknown): EvaluationDiagram | undefined {
+  const parsed = diagramSchema.safeParse(value);
+  if (!parsed.success) return undefined;
+  return {
+    ...parsed.data,
+    title: normalizeSentence(parsed.data.title),
+    rationale: normalizeSentence(parsed.data.rationale),
+    nodes: parsed.data.nodes.map((node) => ({
+      ...node,
+      label: normalizeSentence(node.label),
+      role: node.role ? normalizeSentence(node.role) : undefined,
+    })),
+    edges: parsed.data.edges.map((edge) => ({ ...edge, label: normalizeSentence(edge.label) })),
+    evidence: parsed.data.evidence.map(normalizeSentence),
+  };
 }
 
 function splitReadmeSections(readme: string): string[] {
@@ -154,6 +201,7 @@ export interface JudgeResult {
   bestFor: string[];
   avoidFor: string[];
   evidence: string[];
+  diagram?: EvaluationDiagram;
   model: string;
   rubricVersion: string;
 }
@@ -182,7 +230,7 @@ function buildPrompt(input: JudgeInput): string {
 - 19-20：接近标杆，关键主张均有直接证据，限制与失败路径也完整。
 
 输出结构：
-{"scores":{"utility":0,"clarity":0,"reusability":0,"design":0,"documentation":0},"comment":"不超过100字的判断","strengths":["最多4项"],"concerns":["最多4项"],"bestFor":["最多4项"],"avoidFor":["最多4项"],"evidence":["2-5条带章节名/命令/参数/限制的具体证据"]}
+{"scores":{"utility":0,"clarity":0,"reusability":0,"design":0,"documentation":0},"comment":"不超过100字的判断","strengths":["最多4项"],"concerns":["最多4项"],"bestFor":["最多4项"],"avoidFor":["最多4项"],"evidence":["2-5条带章节名/命令/参数/限制的具体证据"],"diagram":{"type":"flow|sequence|architecture","title":"图标题","rationale":"选图理由","nodes":[],"edges":[],"evidence":[]}}
 
 输出要求：
 - comment 必须同时说明最关键的采用价值和最大缺口。
@@ -190,6 +238,10 @@ function buildPrompt(input: JudgeInput): string {
 - evidence 必须引用可核对的具体内容，例如章节名、安装命令、工具/参数名、限制声明；不得只写抽象评价。
 - avoidFor 只写有证据支持的真实不适用场景；没有则返回空数组。
 - 不要把“缺少 SKILL.md”当作 MCP Server、SDK、Agent 工具包的缺点。
+- diagram 用于解释 Skill 的真实工作方式。只有 README 能核实至少 2 个步骤或组件及 1 条关系时才返回上述对象，否则 diagram 必须返回 null。
+- diagram.type 自动选择：两个及以上参与方存在请求、响应或回调时优先选 sequence（即使文档把章节叫 flow）；单一任务的连续处理步骤选 flow；没有明确时间顺序、以组件及依赖关系为主时选 architecture。
+- diagram 对象格式为 {"type":"flow|sequence|architecture","title":"不超过30字","rationale":"选择该图的证据理由","nodes":[{"id":"小写英文ID","label":"不超过12个汉字","role":"可选角色"}],"edges":[{"from":"节点ID","to":"节点ID","label":"关系或动作"}],"evidence":["1-3条README具体证据"]}。节点 2-6 个、连线 1-8 条；flow 与 sequence 的节点和连线按执行顺序排列。
+- 图中不得臆测未公开的内部组件，不得放入密钥、完整 URL 或可执行命令。
 
 确定性检查证据：
 ${input.deterministicEvidence.map((item) => `- ${item}`).join("\n") || "- 无"}
@@ -235,7 +287,7 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
       },
       body: JSON.stringify({
         model: config.model,
-        max_tokens: 1200,
+        max_tokens: 1800,
         temperature: 0,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: prompt }],
@@ -250,7 +302,7 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
       },
       body: JSON.stringify({
         model: config.model,
-        max_tokens: 1200,
+        max_tokens: 1800,
         temperature: 0,
         response_format: { type: "json_object" },
         messages: [
@@ -294,6 +346,7 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
     bestFor: parsed.bestFor.map(normalizeSentence),
     avoidFor: parsed.avoidFor.map(normalizeSentence),
     evidence: parsed.evidence.map(normalizeSentence),
+    diagram: normalizeEvaluationDiagram(parsed.diagram),
     model: config.model,
     rubricVersion: RUBRIC_VERSION,
   };
