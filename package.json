@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "AI Skill 超市 - 发现、评测、跟踪 Claude Skills / MCP Servers / Agent Packs",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
