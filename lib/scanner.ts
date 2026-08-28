@@ -1,4 +1,5 @@
 import type { RiskLevel, SecurityFinding } from "./types";
+import { deriveRiskLevel } from "./evaluation-scoring";
 
 interface ScanDocument {
   path: string;
@@ -148,16 +149,6 @@ function redactEvidence(value: string): string {
     .slice(0, 180);
 }
 
-function getRiskLevel(findings: SecurityFinding[]): RiskLevel {
-  const dangers = findings.filter((finding) => finding.level === "danger").length;
-  const warnings = findings.filter((finding) => finding.level === "warning").length;
-  const hasSecret = findings.some((finding) => finding.category === "secret");
-  if (hasSecret || dangers >= 3) return "critical";
-  if (dangers >= 1 || warnings >= 4) return "high";
-  if (warnings >= 1) return "medium";
-  return "low";
-}
-
 function isDefensivePromptExample(line: string, injectionIndex: number): boolean {
   const prefix = line.slice(0, Math.max(0, injectionIndex));
   if (/(?:do not|don't|never)\s+(?:detect|block|prevent|avoid|reject)/i.test(prefix)) return false;
@@ -208,7 +199,7 @@ export function scanDocuments(documents: ScanDocument[]): ScanResult {
   const warningCount = findings.filter((finding) => finding.level === "warning").length;
   const mediumConfidencePenalty = findings.filter((finding) => finding.confidence === "medium").length * 2;
   const score = Math.max(0, 100 - dangerCount * 22 - warningCount * 7 - mediumConfidencePenalty);
-  const riskLevel = getRiskLevel(findings);
+  const riskLevel = deriveRiskLevel(findings);
   const details = findings.length === 0
     ? "未发现已知高风险模式"
     : `${dangerCount} 个高风险 · ${warningCount} 个需复核项`;

@@ -5,6 +5,7 @@ import type {
   EvaluationVerdict,
   PopularityStats,
   RiskLevel,
+  SecurityFinding,
   SkillType,
 } from "./types";
 
@@ -387,6 +388,19 @@ export function calculateOverallScore(input: OverallScoreInput): number {
   if (input.riskLevel === "critical") overall = Math.min(overall, 39);
   if (input.riskLevel === "high") overall = Math.min(overall, 59);
   return overall;
+}
+
+/** Keep stored and reconstructed reports on the same security policy. */
+export function deriveRiskLevel(
+  findings: readonly Pick<SecurityFinding, "level" | "category">[],
+): RiskLevel {
+  const dangers = findings.filter((finding) => finding.level === "danger").length;
+  const warnings = findings.filter((finding) => finding.level === "warning").length;
+  const hasSecret = findings.some((finding) => finding.category === "secret");
+  if (hasSecret || dangers >= 3) return "critical";
+  if (dangers >= 1 || warnings >= 4) return "high";
+  if (warnings >= 1) return "medium";
+  return "low";
 }
 
 function gradeFor(score: number): EvaluationSummary["grade"] {

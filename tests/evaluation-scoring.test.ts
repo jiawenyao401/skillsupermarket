@@ -13,6 +13,7 @@ import {
   calculateOverallScore,
   combineQualityScore,
   countIndependentEvidenceSources,
+  deriveRiskLevel,
   deterministicQualityScore,
   EVALUATOR_VERSION,
   scoreActivity,
@@ -127,6 +128,15 @@ test("legacy reports never invent confidence or a high-trust recommendation", ()
 
   assert.equal(buildLegacySummary(97, "high").verdict, "caution");
   assert.equal(buildLegacySummary(97, "critical").verdict, "blocked");
+});
+
+test("legacy security risk reconstruction uses the current scanner policy", () => {
+  assert.equal(deriveRiskLevel([{ level: "info" }]), "low");
+  assert.equal(deriveRiskLevel([{ level: "warning" }]), "medium");
+  assert.equal(deriveRiskLevel(Array.from({ length: 4 }, () => ({ level: "warning" as const }))), "high");
+  assert.equal(deriveRiskLevel([{ level: "danger" }]), "high");
+  assert.equal(deriveRiskLevel(Array.from({ length: 3 }, () => ({ level: "danger" as const }))), "critical");
+  assert.equal(deriveRiskLevel([{ level: "warning", category: "secret" }]), "critical");
 });
 
 test("confidence rewards independent evidence families instead of duplicate files", () => {

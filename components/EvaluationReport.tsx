@@ -13,8 +13,8 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import type { EvaluationReport as EvaluationReportType, RiskLevel, SecurityFinding } from "@/lib/types";
-import { buildLegacySummary } from "@/lib/evaluation-scoring";
+import type { EvaluationReport as EvaluationReportType, SecurityFinding } from "@/lib/types";
+import { buildLegacySummary, deriveRiskLevel } from "@/lib/evaluation-scoring";
 import { cn } from "@/lib/utils";
 import { EvaluationRadar } from "./EvaluationRadar";
 
@@ -47,7 +47,7 @@ const CONFIDENCE_STATUS_STYLES = {
 } as const;
 
 function legacySummary(evaluation: EvaluationRecord, report: EvaluationReportType) {
-  const risk: RiskLevel = report.security.findings.some((finding) => finding.level === "danger") ? "high" : report.security.findings.length ? "medium" : "low";
+  const risk = report.security.riskLevel ?? deriveRiskLevel(report.security.findings);
   return buildLegacySummary(evaluation.overallScore, risk);
 }
 
