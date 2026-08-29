@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 服务器侧数据流水线（由 systemd timer 每 6 小时触发）
-# 流程: collect -> rank -> IndexNow -> snapshot
+# 流程: collect -> rank -> IndexNow -> snapshot -> bounded evaluation coverage
 # 不 push 到 GitHub (服务器网络封了, 改为导出快照, 本地拉)
 # 服务器路径: /opt/skillsupermarket/scripts/daily-pipeline.sh
 
@@ -52,5 +52,10 @@ if SNAPSHOT_STAMP=$(npm run --silent snapshot 2>&1 | tail -1); then
 else
   log "⚠️ 快照导出失败，榜单仍已成功生成"
 fi
+
+# 5. 有界补齐无报告项目。常驻 Worker 会优先处理用户任务，再处理这些后台任务。
+log "--- 5. coverage ---"
+npm run coverage:enqueue 2>&1 | tee -a "$LOG_FILE"
+log "✅ coverage 调度完成"
 
 log "========== 每日流水线完成 =========="

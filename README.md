@@ -121,6 +121,7 @@ npm run dev
 | `ABUSE_HASH_SECRET` | 生产必填 | 对网络来源标识做不可逆 HMAC，必须与认证密钥不同 |
 | `FREE_NETWORK_WEEKLY_LIMIT` | 可选 | 免费账号共享网络周额度，默认 20 |
 | `DEEPSEEK_API_KEY` | 三选一 | DeepSeek Judge |
+| `EVALUATION_COVERAGE_BATCH` | 否 | 每轮后台补齐的无报告项目数，默认 3、最大 5；设为 0 可暂停 |
 | `OPENAI_API_KEY` | 三选一 | OpenAI Judge |
 | `ANTHROPIC_API_KEY` | 三选一 | Anthropic Judge |
 

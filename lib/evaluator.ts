@@ -20,6 +20,7 @@ import {
 import { getEvaluationFiles, getReadme, getRepo } from "./github";
 import { getNpmWeeklyDownloads } from "./npm";
 import { getPypiWeeklyDownloads } from "./pypi";
+import { EVALUATION_QUEUE_PRIORITY, SCHEDULED_COVERAGE_TRIGGER } from "./evaluation-queue-policy";
 import type {
   EvaluationReport,
   PopularityStats,
@@ -316,13 +317,27 @@ async function recoverStaleJobs(): Promise<void> {
 
 export async function processEvaluationQueue(batchSize = 5): Promise<number> {
   await recoverStaleJobs();
-  const pending = await db.select().from(evaluationJobs)
-    .where(eq(evaluationJobs.status, "pending"))
-    .orderBy(asc(evaluationJobs.createdAt))
-    .limit(Math.max(1, Math.min(batchSize, 20)));
-
+  const limit = Math.max(1, Math.min(batchSize, 20));
   let processed = 0;
-  for (const candidate of pending) {
+  for (let index = 0; index < limit; index += 1) {
+    // Re-select before every claim so a user submission that arrives while a
+    // background evaluation is running moves ahead of the remaining batch.
+    const [candidate] = await db.select().from(evaluationJobs)
+      .where(eq(evaluationJobs.status, "pending"))
+      .orderBy(
+        sql<number>`case
+          when ${evaluationJobs.userId} is not null and ${evaluationJobs.triggeredBy} = 'authenticated-user'
+            then ${EVALUATION_QUEUE_PRIORITY.authenticatedUser}
+          when ${evaluationJobs.userId} is not null then ${EVALUATION_QUEUE_PRIORITY.attributedUser}
+          when ${evaluationJobs.triggeredBy} = 'case-study' then ${EVALUATION_QUEUE_PRIORITY.caseStudy}
+          when ${evaluationJobs.triggeredBy} = ${SCHEDULED_COVERAGE_TRIGGER}
+            then ${EVALUATION_QUEUE_PRIORITY.scheduledCoverage}
+          else ${EVALUATION_QUEUE_PRIORITY.operations}
+        end`,
+        asc(evaluationJobs.createdAt),
+      )
+      .limit(1);
+    if (!candidate) break;
     const [claimed] = await db.update(evaluationJobs).set({
       status: "running",
       stage: "metadata",

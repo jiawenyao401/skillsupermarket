@@ -44,6 +44,10 @@ interface JobRow extends Record<string, unknown> {
   operational_jobs_1d: number;
   operational_jobs_7d: number;
   operational_jobs_30d: number;
+  coverage_jobs_1d: number;
+  coverage_jobs_7d: number;
+  coverage_completed_7d: number;
+  coverage_failed_7d: number;
 }
 
 interface MonetizationRow extends Record<string, unknown> {
@@ -165,7 +169,11 @@ async function main() {
           and exists (select 1 from evaluation_jobs prior where prior.user_id = current_job.user_id and prior.triggered_by = 'authenticated-user' and prior.status = 'done' and prior.created_at < current_job.created_at)) as repeat_evaluators_30d,
       (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '1 day') as operational_jobs_1d,
       (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '7 days') as operational_jobs_7d,
-      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '30 days') as operational_jobs_30d
+      (select count(*)::int from evaluation_jobs where (user_id is null or triggered_by is distinct from 'authenticated-user') and created_at >= now() - interval '30 days') as operational_jobs_30d,
+      (select count(*)::int from evaluation_jobs where triggered_by = 'scheduled-coverage' and created_at >= now() - interval '1 day') as coverage_jobs_1d,
+      (select count(*)::int from evaluation_jobs where triggered_by = 'scheduled-coverage' and created_at >= now() - interval '7 days') as coverage_jobs_7d,
+      (select count(*)::int from evaluation_jobs where triggered_by = 'scheduled-coverage' and created_at >= now() - interval '7 days' and status = 'done') as coverage_completed_7d,
+      (select count(*)::int from evaluation_jobs where triggered_by = 'scheduled-coverage' and created_at >= now() - interval '7 days' and status = 'failed') as coverage_failed_7d
   `))[0] : hasJobs ? (await db.execute<JobRow>(sql`
     select
       count(*) filter (where created_at >= now() - interval '1 day')::int as jobs_1d,
@@ -188,7 +196,11 @@ async function main() {
       0::int as repeat_evaluators_30d,
       count(*) filter (where created_at >= now() - interval '1 day')::int as operational_jobs_1d,
       count(*) filter (where created_at >= now() - interval '7 days')::int as operational_jobs_7d,
-      count(*) filter (where created_at >= now() - interval '30 days')::int as operational_jobs_30d
+      count(*) filter (where created_at >= now() - interval '30 days')::int as operational_jobs_30d,
+      0::int as coverage_jobs_1d,
+      0::int as coverage_jobs_7d,
+      0::int as coverage_completed_7d,
+      0::int as coverage_failed_7d
     from evaluation_jobs
   `))[0] : undefined;
 
@@ -277,6 +289,11 @@ async function main() {
       operationalJobs1d: jobs?.operational_jobs_1d ?? 0,
       operationalJobs7d: jobs?.operational_jobs_7d ?? 0,
       operationalJobs30d: jobs?.operational_jobs_30d ?? 0,
+      coverageJobs1d: jobs?.coverage_jobs_1d ?? 0,
+      coverageJobs7d: jobs?.coverage_jobs_7d ?? 0,
+      coverageCompleted7d: jobs?.coverage_completed_7d ?? 0,
+      coverageFailed7d: jobs?.coverage_failed_7d ?? 0,
+      coverageCompletionRate7d: percentage(jobs?.coverage_completed_7d ?? 0, jobs?.coverage_jobs_7d ?? 0),
       completionRate1d: percentage(jobs?.completed_1d ?? 0, jobs1d),
       completionRate7d: percentage(jobs?.completed_7d ?? 0, jobs7d),
       completionRate30d: percentage(jobs?.completed_30d ?? 0, jobs30d),
@@ -319,6 +336,9 @@ async function main() {
   console.log(hasJobs
     ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次用户任务；D7 首评 ${report.activation.firstEvaluations7d} 人、复评 ${report.activation.repeatEvaluators7d} 人、完成率 ${report.activation.completionRate7d}；另排除运维任务 ${report.activation.operationalJobs7d} 次`
     : "[growth] 激活: 数据不可用（评测任务表尚未部署）");
+  if (hasJobs && hasJobSources) {
+    console.log(`[growth] 覆盖调度: D1 ${report.activation.coverageJobs1d} / D7 ${report.activation.coverageJobs7d} 个任务；D7 完成率 ${report.activation.coverageCompletionRate7d}，失败 ${report.activation.coverageFailed7d}`);
+  }
   console.log(report.monetization.available
     ? `[growth] 变现: ${report.monetization.activeSubscriptions} 个有效订阅，${report.monetization.freeQuotaUsers} 位免费用户本周已用 ${report.monetization.freeQuotaUsed} 次，${report.monetization.exhaustedFreeUsers} 位已耗尽额度`
     : "[growth] 变现: 数据不可用（订阅或额度表尚未部署）");
