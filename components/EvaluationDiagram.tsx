@@ -180,3 +180,26 @@ export function EvaluationDiagram({ diagram }: { diagram: EvaluationDiagramType 
     </section>
   );
 }
+
+export function EvaluationDiagramUnavailable({ aiJudgeUsed }: { aiJudgeUsed: boolean }) {
+  return (
+    <section className="surface-card overflow-hidden" aria-labelledby="skill-diagram-unavailable-title">
+      <div className="border-b p-5 sm:p-6">
+        <div className="section-eyebrow">How it works · 未生成图示</div>
+        <h3 id="skill-diagram-unavailable-title" className="mt-2 text-lg font-extrabold">
+          {aiJudgeUsed ? "公开证据不足，暂不绘图" : "本次报告未完成图示提取"}
+        </h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+          {aiJudgeUsed
+            ? "当前材料不足以同时核实至少 2 个步骤或组件及 1 条关系。为避免臆测，报告保留文字证据，不生成流程图、时序图或架构图。"
+            : "本次评测未完成 AI 证据提取；确定性评分与安全扫描仍然有效。重新评测后，证据充分时会自动选择合适图型。"}
+        </p>
+      </div>
+      <div className="grid gap-3 bg-muted/20 p-5 text-xs sm:grid-cols-3 sm:p-6">
+        <div className="rounded-xl border bg-background p-3"><strong className="block">补充参与方或组件</strong><span className="mt-1 block leading-5 text-muted-foreground">说明谁参与、各自负责什么</span></div>
+        <div className="rounded-xl border bg-background p-3"><strong className="block">说明关系与顺序</strong><span className="mt-1 block leading-5 text-muted-foreground">提供输入输出、调用或依赖证据</span></div>
+        <div className="rounded-xl border bg-background p-3"><strong className="block">重新评测自动选图</strong><span className="mt-1 block leading-5 text-muted-foreground">按证据选择流程、时序或架构图</span></div>
+      </div>
+    </section>
+  );
+}

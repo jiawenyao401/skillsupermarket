@@ -17,7 +17,7 @@ import type { EvaluationReport as EvaluationReportType, SecurityFinding } from "
 import { buildLegacySummary, deriveRiskLevel } from "@/lib/evaluation-scoring";
 import { cn } from "@/lib/utils";
 import { EvaluationRadar } from "./EvaluationRadar";
-import { EvaluationDiagram } from "./EvaluationDiagram";
+import { EvaluationDiagram, EvaluationDiagramUnavailable } from "./EvaluationDiagram";
 
 interface EvaluationRecord {
   overallScore: number;
@@ -139,7 +139,9 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
         </div>
       </div>
 
-      {report.diagram ? <EvaluationDiagram diagram={report.diagram} /> : null}
+      {report.diagram
+        ? <EvaluationDiagram diagram={report.diagram} />
+        : <EvaluationDiagramUnavailable aiJudgeUsed={Boolean(report.methodology?.aiJudgeUsed)} />}
 
       <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="surface-card p-5 sm:p-6">
