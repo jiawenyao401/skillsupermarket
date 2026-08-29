@@ -1,6 +1,6 @@
 import type { PopularityStats, RiskLevel, SkillType } from "../lib/types";
 
-export const SCORING_GOLDEN_SET_VERSION = "1.5.0";
+export const SCORING_GOLDEN_SET_VERSION = "1.5.1";
 
 export interface ScoringGoldenCase {
   id: string;

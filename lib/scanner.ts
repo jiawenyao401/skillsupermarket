@@ -1,5 +1,6 @@
 import type { RiskLevel, SecurityFinding } from "./types";
 import { deriveRiskLevel } from "./evaluation-scoring";
+import { redactKnownSecrets } from "./redaction";
 
 interface ScanDocument {
   path: string;
@@ -138,12 +139,7 @@ export interface ScanResult {
 }
 
 function redactEvidence(value: string): string {
-  return value
-    .replace(/sk-[a-zA-Z0-9_-]{8,}/g, "sk-***redacted***")
-    .replace(/gh[opusr]_[a-zA-Z0-9]{8,}/g, "gh*_***redacted***")
-    .replace(/AKIA[0-9A-Z]{16}/g, "AKIA***redacted***")
-    .replace(/AIza[0-9A-Za-z_-]{20,}/g, "AIza***redacted***")
-    .replace(/xox[baprs]-[0-9a-zA-Z-]{8,}/g, "xox*-***redacted***")
+  return redactKnownSecrets(value)
     .replace(/(["'][^"'\n]{2})[^"'\n]{4,}([^"'\n]{2}["'])/g, "$1***$2")
     .trim()
     .slice(0, 180);

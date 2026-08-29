@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { EvaluationDiagram, QualitySubScores } from "./types";
+import { redactKnownSecrets } from "./redaction";
 
 interface JudgeConfig {
   apiKey: string;
@@ -69,12 +70,25 @@ const judgeResponseSchema = z.object({
   diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.2.0";
+const RUBRIC_VERSION = "3.3.0";
 const MAX_README_CHARACTERS = 30_000;
 const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reusability", "design", "documentation"];
 
 function normalizeSentence(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
+  return redactKnownSecrets(value).replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Keep attacker-controlled text inside the prompt's untrusted sections while
+ * preserving its readable content and character bound. Full-width brackets
+ * cannot close the evaluator's ASCII boundary tags or inject chat templates.
+ */
+export function protectJudgeInput(value: string): string {
+  return redactKnownSecrets(value)
+    .replace(/</g, "＜")
+    .replace(/>/g, "＞")
+    .replace(/\[INST\]/gi, "［INST］")
+    .replace(/\[\/INST\]/gi, "［/INST］");
 }
 
 export function normalizeEvaluationDiagram(value: unknown): EvaluationDiagram | undefined {
@@ -223,8 +237,8 @@ const SYSTEM_PROMPT = `你是独立、严格、以证据为中心的 AI Skill �
 
 每个分数都必须能从证据解释；缺少证据时保守打分，不得臆测未提供的能力。所有文字必须使用简洁中文，避免泛泛而谈。只输出一个 JSON 对象，不使用 Markdown。`;
 
-function buildPrompt(input: JudgeInput): string {
-  const readme = selectReadmeEvidence(input.readme);
+export function buildJudgePrompt(input: JudgeInput): string {
+  const readme = protectJudgeInput(selectReadmeEvidence(input.readme));
   return `请按以下五项分别给 0-20 整数分：
 1. utility：是否解决明确且真实的问题，目标用户与使用场景是否具体，价值是否能从示例或能力清单验证。
 2. clarity：目标、范围、前置条件、输入输出与不支持事项是否清楚。
@@ -258,9 +272,9 @@ function buildPrompt(input: JudgeInput): string {
 ${input.deterministicEvidence.map((item) => `- ${item}`).join("\n") || "- 无"}
 
 <untrusted_skill_metadata>
-name: ${input.name.slice(0, 200)}
-type: ${input.type.slice(0, 80)}
-description: ${input.description.slice(0, 1000) || "无"}
+name: ${protectJudgeInput(input.name.slice(0, 200))}
+type: ${protectJudgeInput(input.type.slice(0, 80))}
+description: ${protectJudgeInput(input.description.slice(0, 1000)) || "无"}
 </untrusted_skill_metadata>
 
 <untrusted_readme>
@@ -285,7 +299,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 30_0
 
 export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
   const config = getConfig();
-  const prompt = buildPrompt(input);
+  const prompt = buildJudgePrompt(input);
   let response: Response;
 
   if (config.provider === "anthropic") {

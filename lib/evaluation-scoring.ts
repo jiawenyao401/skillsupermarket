@@ -9,7 +9,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.8.0";
+export const EVALUATOR_VERSION = "3.9.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
