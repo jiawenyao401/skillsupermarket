@@ -5,10 +5,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { rankingDateKey } from "@/lib/ranker";
 import { trafficDaily } from "@/lib/schema";
-import { SITE_URL } from "@/lib/site";
+import { SITE_ORIGINS } from "@/lib/site";
 import {
   classifyTrafficSource,
   isAutomatedUserAgent,
+  isTrustedTrafficFetchSite,
   isTrustedTrafficOrigin,
   normalizeTrafficPath,
 } from "@/lib/traffic";
@@ -59,8 +60,8 @@ export async function POST(request: Request) {
   const userAgent = request.headers.get("user-agent");
   const fetchSite = request.headers.get("sec-fetch-site");
   if (
-    !isTrustedTrafficOrigin(request.headers.get("origin"), request.url, SITE_URL)
-    || (fetchSite && fetchSite !== "same-origin")
+    !isTrustedTrafficOrigin(request.headers.get("origin"), request.url, SITE_ORIGINS)
+    || !isTrustedTrafficFetchSite(fetchSite)
     || isAutomatedUserAgent(userAgent)
   ) {
     return new NextResponse(null, { status: 204, headers: { "Cache-Control": "no-store" } });

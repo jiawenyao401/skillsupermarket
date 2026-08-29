@@ -13,6 +13,12 @@ function normalizeSiteUrl(value: string | undefined): string {
 }
 export const SITE_NAME = "Skill Supermarket";
 export const SITE_URL = normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+export const SITE_ORIGINS = [
+  SITE_URL,
+  ...(new URL(SITE_URL).hostname === "skillsupermarket.com"
+    ? ["https://www.skillsupermarket.com"]
+    : []),
+] as const;
 
 export function absoluteUrl(path = "/"): string {
   return new URL(path, `${SITE_URL}/`).toString();

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   classifyTrafficSource,
   isAutomatedUserAgent,
+  isTrustedTrafficFetchSite,
   isTrustedTrafficOrigin,
   normalizeTrafficPath,
 } from "../lib/traffic";
@@ -37,20 +38,33 @@ test("traffic origin accepts the canonical site behind a reverse proxy", () => {
   assert.equal(isTrustedTrafficOrigin(
     "https://skillsupermarket.com",
     "http://127.0.0.1:3000/api/events",
-    "https://skillsupermarket.com",
+    ["https://skillsupermarket.com", "https://www.skillsupermarket.com"],
+  ), true);
+  assert.equal(isTrustedTrafficOrigin(
+    "https://www.skillsupermarket.com",
+    "http://127.0.0.1:3000/api/events",
+    ["https://skillsupermarket.com", "https://www.skillsupermarket.com"],
   ), true);
   assert.equal(isTrustedTrafficOrigin(
     "http://localhost:3000",
     "http://localhost:3000/api/events",
-    "https://skillsupermarket.com",
+    ["https://skillsupermarket.com"],
   ), true);
 });
 
 test("traffic origin rejects missing, opaque, malformed, and foreign origins", () => {
   const requestUrl = "http://127.0.0.1:3000/api/events";
-  const siteUrl = "https://skillsupermarket.com";
-  assert.equal(isTrustedTrafficOrigin(null, requestUrl, siteUrl), false);
-  assert.equal(isTrustedTrafficOrigin("null", requestUrl, siteUrl), false);
-  assert.equal(isTrustedTrafficOrigin("not a url", requestUrl, siteUrl), false);
-  assert.equal(isTrustedTrafficOrigin("https://attacker.example", requestUrl, siteUrl), false);
+  const siteUrls = ["https://skillsupermarket.com", "https://www.skillsupermarket.com"];
+  assert.equal(isTrustedTrafficOrigin(null, requestUrl, siteUrls), false);
+  assert.equal(isTrustedTrafficOrigin("null", requestUrl, siteUrls), false);
+  assert.equal(isTrustedTrafficOrigin("not a url", requestUrl, siteUrls), false);
+  assert.equal(isTrustedTrafficOrigin("https://attacker.example", requestUrl, siteUrls), false);
+});
+
+test("traffic fetch metadata permits only same-origin and explicit same-site aliases", () => {
+  assert.equal(isTrustedTrafficFetchSite(null), true);
+  assert.equal(isTrustedTrafficFetchSite("same-origin"), true);
+  assert.equal(isTrustedTrafficFetchSite("same-site"), true);
+  assert.equal(isTrustedTrafficFetchSite("cross-site"), false);
+  assert.equal(isTrustedTrafficFetchSite("none"), false);
 });

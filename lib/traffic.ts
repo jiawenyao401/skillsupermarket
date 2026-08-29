@@ -70,14 +70,19 @@ export function isAutomatedUserAgent(userAgent: string | null): boolean {
 export function isTrustedTrafficOrigin(
   originHeader: string | null,
   requestUrl: string,
-  canonicalSiteUrl: string,
+  trustedSiteUrls: readonly string[],
 ): boolean {
   if (!originHeader || originHeader === "null") return false;
 
   try {
     const origin = new URL(originHeader).origin;
-    return origin === new URL(requestUrl).origin || origin === new URL(canonicalSiteUrl).origin;
+    return origin === new URL(requestUrl).origin
+      || trustedSiteUrls.some((siteUrl) => origin === new URL(siteUrl).origin);
   } catch {
     return false;
   }
+}
+
+export function isTrustedTrafficFetchSite(fetchSite: string | null): boolean {
+  return !fetchSite || fetchSite === "same-origin" || fetchSite === "same-site";
 }
