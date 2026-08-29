@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyTrafficSource, isAutomatedUserAgent, normalizeTrafficPath } from "../lib/traffic";
+import {
+  classifyTrafficSource,
+  isAutomatedUserAgent,
+  isTrustedTrafficOrigin,
+  normalizeTrafficPath,
+} from "../lib/traffic";
 
 test("traffic paths keep only public funnel routes without query data", () => {
   assert.equal(normalizeTrafficPath("/"), "/");
@@ -26,4 +31,26 @@ test("known automation is excluded while normal browsers remain countable", () =
   assert.equal(isAutomatedUserAgent("curl/8.0"), true);
   assert.equal(isAutomatedUserAgent("Googlebot/2.1"), true);
   assert.equal(isAutomatedUserAgent("Mozilla/5.0 Chrome/140 Safari/537.36"), false);
+});
+
+test("traffic origin accepts the canonical site behind a reverse proxy", () => {
+  assert.equal(isTrustedTrafficOrigin(
+    "https://skillsupermarket.com",
+    "http://127.0.0.1:3000/api/events",
+    "https://skillsupermarket.com",
+  ), true);
+  assert.equal(isTrustedTrafficOrigin(
+    "http://localhost:3000",
+    "http://localhost:3000/api/events",
+    "https://skillsupermarket.com",
+  ), true);
+});
+
+test("traffic origin rejects missing, opaque, malformed, and foreign origins", () => {
+  const requestUrl = "http://127.0.0.1:3000/api/events";
+  const siteUrl = "https://skillsupermarket.com";
+  assert.equal(isTrustedTrafficOrigin(null, requestUrl, siteUrl), false);
+  assert.equal(isTrustedTrafficOrigin("null", requestUrl, siteUrl), false);
+  assert.equal(isTrustedTrafficOrigin("not a url", requestUrl, siteUrl), false);
+  assert.equal(isTrustedTrafficOrigin("https://attacker.example", requestUrl, siteUrl), false);
 });

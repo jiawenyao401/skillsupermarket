@@ -5,7 +5,13 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { rankingDateKey } from "@/lib/ranker";
 import { trafficDaily } from "@/lib/schema";
-import { classifyTrafficSource, isAutomatedUserAgent, normalizeTrafficPath } from "@/lib/traffic";
+import { SITE_URL } from "@/lib/site";
+import {
+  classifyTrafficSource,
+  isAutomatedUserAgent,
+  isTrustedTrafficOrigin,
+  normalizeTrafficPath,
+} from "@/lib/traffic";
 
 export const dynamic = "force-dynamic";
 
@@ -49,20 +55,14 @@ function rateLimitAllows(key: string): boolean {
   return true;
 }
 
-function isSameOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  if (!origin) return false;
-  try {
-    return new URL(origin).origin === new URL(request.url).origin;
-  } catch {
-    return false;
-  }
-}
-
 export async function POST(request: Request) {
   const userAgent = request.headers.get("user-agent");
   const fetchSite = request.headers.get("sec-fetch-site");
-  if (!isSameOrigin(request) || (fetchSite && fetchSite !== "same-origin") || isAutomatedUserAgent(userAgent)) {
+  if (
+    !isTrustedTrafficOrigin(request.headers.get("origin"), request.url, SITE_URL)
+    || (fetchSite && fetchSite !== "same-origin")
+    || isAutomatedUserAgent(userAgent)
+  ) {
     return new NextResponse(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   }
   if (Number(request.headers.get("content-length") ?? 0) > 1024 || !rateLimitAllows(getClientKey(request))) {

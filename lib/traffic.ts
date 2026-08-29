@@ -66,3 +66,18 @@ export function isAutomatedUserAgent(userAgent: string | null): boolean {
   if (!userAgent) return true;
   return /(?:bot\b|crawler|spider|slurp|headlesschrome|lighthouse|pagespeed|curl\/|wget\/|python-requests|go-http-client|seohealth)/i.test(userAgent);
 }
+
+export function isTrustedTrafficOrigin(
+  originHeader: string | null,
+  requestUrl: string,
+  canonicalSiteUrl: string,
+): boolean {
+  if (!originHeader || originHeader === "null") return false;
+
+  try {
+    const origin = new URL(originHeader).origin;
+    return origin === new URL(requestUrl).origin || origin === new URL(canonicalSiteUrl).origin;
+  } catch {
+    return false;
+  }
+}
