@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint app components lib scripts data --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test:evaluation": "tsx --test tests/evaluation.test.ts tests/evaluation-scoring.test.ts tests/evaluation-queue.test.ts tests/judge.test.ts tests/evaluation-diagram.test.tsx tests/auth.test.ts tests/admin.test.ts tests/proxy.test.ts tests/quota.test.ts tests/skill-evaluation-source.test.ts tests/skill-source-identity.test.ts tests/traffic.test.ts",
+    "test:evaluation": "tsx --test tests/evaluation.test.ts tests/evaluation-scoring.test.ts tests/evaluation-queue.test.ts tests/judge.test.ts tests/evaluation-diagram.test.tsx tests/auth.test.ts tests/admin.test.ts tests/proxy.test.ts tests/quota.test.ts tests/skill-evaluation-source.test.ts tests/skill-source-identity.test.ts tests/traffic.test.ts tests/sitemap.test.ts",
     "test:scoring": "tsx --test tests/evaluation-scoring.test.ts tests/judge.test.ts",
     "evaluate:cases": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/evaluate-cases.ts",
     "prepare:case-judgments": "tsx scripts/prepare-case-judgments.ts",

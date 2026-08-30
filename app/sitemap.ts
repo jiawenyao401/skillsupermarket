@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, max } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { skills } from "@/lib/schema";
+import { evaluations, skills } from "@/lib/schema";
 import { absoluteUrl } from "@/lib/site";
+import { skillSitemapEntry } from "@/lib/sitemap-entry";
 import { GUIDES } from "@/lib/guides";
 
 // Avoid freezing a partial sitemap when the database is temporarily unavailable
@@ -34,20 +35,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         slug: skills.slug,
         lastUpdatedAt: skills.lastUpdatedAt,
         createdAt: skills.createdAt,
+        lastEvaluatedAt: max(evaluations.evaluatedAt),
       })
       .from(skills)
+      .leftJoin(evaluations, eq(skills.id, evaluations.skillId))
       .where(eq(skills.status, "active"))
+      .groupBy(skills.id, skills.slug, skills.lastUpdatedAt, skills.createdAt)
       .orderBy(asc(skills.slug))
       .limit(50_000 - staticEntries.length);
 
     return [
       ...staticEntries,
-      ...list.map((skill) => ({
-        url: absoluteUrl(`/skill/${encodeURIComponent(skill.slug)}`),
-        lastModified: skill.lastUpdatedAt ?? skill.createdAt ?? undefined,
-        changeFrequency: "weekly" as const,
-        priority: 0.7,
-      })),
+      ...list.map(skillSitemapEntry),
     ];
   } catch (error) {
     console.error("[sitemap] 无法读取 Skill 列表，返回静态入口", error);
