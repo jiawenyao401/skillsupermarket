@@ -72,6 +72,17 @@ interface TrafficRow extends Record<string, unknown> {
   github_views_7d: number;
 }
 
+interface DiagramRow extends Record<string, unknown> {
+  latest_reports: number;
+  ai_judged_reports: number;
+  ai_judged_diagram_reports: number;
+  ai_judged_reports_1d: number;
+  ai_judged_diagram_reports_1d: number;
+  flow_diagrams: number;
+  sequence_diagrams: number;
+  architecture_diagrams: number;
+}
+
 function percentage(value: number, total: number): string {
   return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "0.0%";
 }
@@ -109,6 +120,36 @@ async function main() {
   `);
   const content = contentResult[0];
   if (!content) throw new Error("增长报表内容查询未返回数据");
+
+  const diagramResult = await db.execute<DiagramRow>(sql`
+    with latest_reports as (
+      select distinct on (skill_id) report, evaluated_at
+      from evaluations
+      order by skill_id, evaluated_at desc nulls last, id desc
+    )
+    select
+      count(*)::int as latest_reports,
+      count(*) filter (where report #>> '{methodology,aiJudgeUsed}' = 'true')::int as ai_judged_reports,
+      count(*) filter (
+        where report #>> '{methodology,aiJudgeUsed}' = 'true'
+          and jsonb_typeof(report -> 'diagram') = 'object'
+      )::int as ai_judged_diagram_reports,
+      count(*) filter (
+        where evaluated_at >= now() - interval '1 day'
+          and report #>> '{methodology,aiJudgeUsed}' = 'true'
+      )::int as ai_judged_reports_1d,
+      count(*) filter (
+        where evaluated_at >= now() - interval '1 day'
+          and report #>> '{methodology,aiJudgeUsed}' = 'true'
+          and jsonb_typeof(report -> 'diagram') = 'object'
+      )::int as ai_judged_diagram_reports_1d,
+      count(*) filter (where report #>> '{diagram,type}' = 'flow')::int as flow_diagrams,
+      count(*) filter (where report #>> '{diagram,type}' = 'sequence')::int as sequence_diagrams,
+      count(*) filter (where report #>> '{diagram,type}' = 'architecture')::int as architecture_diagrams
+    from latest_reports
+  `);
+  const diagrams = diagramResult[0];
+  if (!diagrams) throw new Error("增长报表图示查询未返回数据");
 
   const [hasUsers, hasJobs, hasJobUsers, hasJobSources, hasSubscriptions, hasQuota, hasTraffic] = await Promise.all([
     tableExists("user"),
@@ -319,6 +360,20 @@ async function main() {
       thinDescriptions: content.missing_descriptions,
       staleSkills30d: content.stale_skills,
     },
+    evaluationQuality: {
+      latestReports: diagrams.latest_reports,
+      aiJudgedReports: diagrams.ai_judged_reports,
+      diagramReports: diagrams.ai_judged_diagram_reports,
+      diagramCoverage: percentage(diagrams.ai_judged_diagram_reports, diagrams.ai_judged_reports),
+      aiJudgedReports1d: diagrams.ai_judged_reports_1d,
+      diagramReports1d: diagrams.ai_judged_diagram_reports_1d,
+      diagramCoverage1d: percentage(diagrams.ai_judged_diagram_reports_1d, diagrams.ai_judged_reports_1d),
+      diagramTypes: {
+        flow: diagrams.flow_diagrams,
+        sequence: diagrams.sequence_diagrams,
+        architecture: diagrams.architecture_diagrams,
+      },
+    },
   };
 
   if (process.argv.includes("--json")) {
@@ -344,6 +399,7 @@ async function main() {
     : "[growth] 变现: 数据不可用（订阅或额度表尚未部署）");
   console.log(`[growth] 库存: ${content.active_skills} 个有效项目，D1 +${content.new_skills_1d} / D7 +${content.new_skills_7d} / D30 +${content.new_skills_30d}，今日采集 ${content.collected_skills_today}，最近采集 ${content.last_collection_date ?? "暂无"}`);
   console.log(`[growth] 报告: ${content.evaluated_skills}/${content.active_skills} 个项目有报告，覆盖率 ${report.inventory.evaluationCoverage}，累计 ${content.total_evaluations} 份`);
+  console.log(`[growth] 图示: ${report.evaluationQuality.diagramReports}/${report.evaluationQuality.aiJudgedReports} 份 AI 复核报告有图，覆盖率 ${report.evaluationQuality.diagramCoverage}；D1 ${report.evaluationQuality.diagramReports1d}/${report.evaluationQuality.aiJudgedReports1d}（${report.evaluationQuality.diagramCoverage1d}）；流程 ${report.evaluationQuality.diagramTypes.flow} / 时序 ${report.evaluationQuality.diagramTypes.sequence} / 架构 ${report.evaluationQuality.diagramTypes.architecture}`);
 }
 
 main().catch((error) => {
