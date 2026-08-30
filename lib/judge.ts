@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { EvaluationDiagram, QualitySubScores } from "./types";
+import type { EvaluationDiagram, EvaluationDiagramStatus, QualitySubScores } from "./types";
 import { redactKnownSecrets } from "./redaction";
 
 interface JudgeConfig {
@@ -106,6 +106,15 @@ export function normalizeEvaluationDiagram(value: unknown): EvaluationDiagram | 
     edges: parsed.data.edges.map((edge) => ({ ...edge, label: normalizeSentence(edge.label) })),
     evidence: parsed.data.evidence.map(normalizeSentence),
   };
+}
+
+export function normalizeEvaluationDiagramResult(value: unknown): {
+  diagram?: EvaluationDiagram;
+  status: Extract<EvaluationDiagramStatus, "generated" | "insufficient-evidence" | "invalid-output">;
+} {
+  if (value === null || value === undefined) return { status: "insufficient-evidence" };
+  const diagram = normalizeEvaluationDiagram(value);
+  return diagram ? { diagram, status: "generated" } : { status: "invalid-output" };
 }
 
 function splitReadmeSections(readme: string): string[] {
@@ -227,6 +236,7 @@ export interface JudgeResult {
   avoidFor: string[];
   evidence: string[];
   diagram?: EvaluationDiagram;
+  diagramStatus: Extract<EvaluationDiagramStatus, "generated" | "insufficient-evidence" | "invalid-output">;
   model: string;
   rubricVersion: string;
 }
@@ -360,6 +370,7 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
   const scores = parsed.scores;
   validateJudgeCalibration(scores, input);
   const total = Object.values(scores).reduce((sum, score) => sum + score, 0);
+  const diagramResult = normalizeEvaluationDiagramResult(parsed.diagram);
 
   return {
     score: total,
@@ -371,7 +382,8 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
     bestFor: parsed.bestFor.map(normalizeSentence),
     avoidFor: parsed.avoidFor.map(normalizeSentence),
     evidence: parsed.evidence.map(normalizeSentence),
-    diagram: normalizeEvaluationDiagram(parsed.diagram),
+    diagram: diagramResult.diagram,
+    diagramStatus: diagramResult.status,
     model: config.model,
     rubricVersion: RUBRIC_VERSION,
   };

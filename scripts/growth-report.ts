@@ -81,6 +81,7 @@ interface DiagramRow extends Record<string, unknown> {
   flow_diagrams: number;
   sequence_diagrams: number;
   architecture_diagrams: number;
+  invalid_diagrams_1d: number;
 }
 
 function percentage(value: number, total: number): string {
@@ -145,7 +146,11 @@ async function main() {
       )::int as ai_judged_diagram_reports_1d,
       count(*) filter (where report #>> '{diagram,type}' = 'flow')::int as flow_diagrams,
       count(*) filter (where report #>> '{diagram,type}' = 'sequence')::int as sequence_diagrams,
-      count(*) filter (where report #>> '{diagram,type}' = 'architecture')::int as architecture_diagrams
+      count(*) filter (where report #>> '{diagram,type}' = 'architecture')::int as architecture_diagrams,
+      count(*) filter (
+        where evaluated_at >= now() - interval '1 day'
+          and report #>> '{methodology,diagramStatus}' = 'invalid-output'
+      )::int as invalid_diagrams_1d
     from latest_reports
   `);
   const diagrams = diagramResult[0];
@@ -373,6 +378,7 @@ async function main() {
         sequence: diagrams.sequence_diagrams,
         architecture: diagrams.architecture_diagrams,
       },
+      invalidDiagrams1d: diagrams.invalid_diagrams_1d,
     },
   };
 
@@ -399,7 +405,7 @@ async function main() {
     : "[growth] 变现: 数据不可用（订阅或额度表尚未部署）");
   console.log(`[growth] 库存: ${content.active_skills} 个有效项目，D1 +${content.new_skills_1d} / D7 +${content.new_skills_7d} / D30 +${content.new_skills_30d}，今日采集 ${content.collected_skills_today}，最近采集 ${content.last_collection_date ?? "暂无"}`);
   console.log(`[growth] 报告: ${content.evaluated_skills}/${content.active_skills} 个项目有报告，覆盖率 ${report.inventory.evaluationCoverage}，累计 ${content.total_evaluations} 份`);
-  console.log(`[growth] 图示: ${report.evaluationQuality.diagramReports}/${report.evaluationQuality.aiJudgedReports} 份 AI 复核报告有图，覆盖率 ${report.evaluationQuality.diagramCoverage}；D1 ${report.evaluationQuality.diagramReports1d}/${report.evaluationQuality.aiJudgedReports1d}（${report.evaluationQuality.diagramCoverage1d}）；流程 ${report.evaluationQuality.diagramTypes.flow} / 时序 ${report.evaluationQuality.diagramTypes.sequence} / 架构 ${report.evaluationQuality.diagramTypes.architecture}`);
+  console.log(`[growth] 图示: ${report.evaluationQuality.diagramReports}/${report.evaluationQuality.aiJudgedReports} 份 AI 复核报告有图，覆盖率 ${report.evaluationQuality.diagramCoverage}；D1 ${report.evaluationQuality.diagramReports1d}/${report.evaluationQuality.aiJudgedReports1d}（${report.evaluationQuality.diagramCoverage1d}），无效输出 ${report.evaluationQuality.invalidDiagrams1d}；流程 ${report.evaluationQuality.diagramTypes.flow} / 时序 ${report.evaluationQuality.diagramTypes.sequence} / 架构 ${report.evaluationQuality.diagramTypes.architecture}`);
 }
 
 main().catch((error) => {

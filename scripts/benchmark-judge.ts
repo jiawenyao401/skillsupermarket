@@ -49,10 +49,12 @@ async function evaluateRepository(fullName: string) {
     avoidFor: result.avoidFor,
     evidence: result.evidence,
     diagram: result.diagram,
+    diagramStatus: result.diagramStatus,
     readmeCharacters: readme.length,
     evidenceFiles: files.length,
     repeatScore: repeat?.score ?? null,
     scoreDrift: repeat ? Math.abs(result.score - repeat.score) : null,
+    diagramStatusDrift: repeat ? result.diagramStatus !== repeat.diagramStatus : null,
   };
 }
 

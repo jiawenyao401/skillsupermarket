@@ -65,6 +65,11 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
   const checks = report.documentation.checks ?? [];
   const findings = report.security.findings ?? [];
   const confidenceFactors = report.methodology?.confidenceFactors ?? [];
+  const missingDiagramStatus = report.methodology?.diagramStatus === "invalid-output"
+    ? "invalid-output"
+    : report.methodology?.diagramStatus === "insufficient-evidence" || report.methodology?.aiJudgeUsed
+      ? "insufficient-evidence"
+      : "judge-unavailable";
   const scoreDimensions = [
     ["文档", evaluation.documentationScore, "22%"],
     ["安全", evaluation.securityScore, "25%"],
@@ -141,7 +146,7 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
 
       {report.diagram
         ? <EvaluationDiagram diagram={report.diagram} />
-        : <EvaluationDiagramUnavailable aiJudgeUsed={Boolean(report.methodology?.aiJudgeUsed)} />}
+        : <EvaluationDiagramUnavailable status={missingDiagramStatus} />}
 
       <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="surface-card p-5 sm:p-6">

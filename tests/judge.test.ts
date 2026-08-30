@@ -4,6 +4,7 @@ import {
   buildJudgePrompt,
   hasJudgeConfiguration,
   normalizeEvaluationDiagram,
+  normalizeEvaluationDiagramResult,
   protectJudgeInput,
   selectReadmeEvidence,
   validateJudgeCalibration,
@@ -84,6 +85,21 @@ test("evaluation diagram fails closed for invented or malformed relationships", 
     edges: [{ from: "input", to: "missing", label: "调用未知节点" }],
     evidence: ["README 未提及 missing"],
   }), undefined);
+});
+
+test("diagram normalization records generated, insufficient, and invalid outcomes", () => {
+  const valid = {
+    type: "flow",
+    title: "请求流程",
+    rationale: "README 描述了输入到输出的处理顺序。",
+    nodes: [{ id: "input", label: "输入" }, { id: "output", label: "输出" }],
+    edges: [{ from: "input", to: "output", label: "处理" }],
+    evidence: ["README Usage 描述处理顺序"],
+  };
+
+  assert.equal(normalizeEvaluationDiagramResult(valid).status, "generated");
+  assert.deepEqual(normalizeEvaluationDiagramResult(null), { status: "insufficient-evidence" });
+  assert.deepEqual(normalizeEvaluationDiagramResult({ ...valid, edges: [] }), { status: "invalid-output" });
 });
 
 test("long README evidence selection keeps late safety and troubleshooting sections", () => {

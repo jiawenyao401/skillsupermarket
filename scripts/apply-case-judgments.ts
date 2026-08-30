@@ -14,7 +14,7 @@ import {
 } from "../lib/evaluation-scoring";
 import { getReadme } from "../lib/github";
 import { evaluations } from "../lib/schema";
-import { normalizeEvaluationDiagram, type JudgeResult } from "../lib/judge";
+import { normalizeEvaluationDiagramResult, type JudgeResult } from "../lib/judge";
 import type { EvaluationReport, RiskLevel } from "../lib/types";
 import { findSkillByEvaluationSource } from "../lib/skill-upsert";
 
@@ -95,7 +95,8 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
 
   report.overall = overall;
   report.summary = buildSummary(overall, risk, confidence);
-  report.diagram = normalizeEvaluationDiagram(judgment.diagram);
+  const diagramResult = normalizeEvaluationDiagramResult(judgment.diagram);
+  report.diagram = diagramResult.diagram;
   report.quality = {
     ...report.quality,
     score: qualityScore,
@@ -124,6 +125,7 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
       limitations: [],
     }),
     aiJudgeUsed: true,
+    diagramStatus: diagramResult.status,
     aiJudgeModel: judgment.model,
     rubricVersion: judgment.rubricVersion,
     confidenceFactors,

@@ -94,6 +94,11 @@ export interface EvaluationReport {
 }
 
 export type EvaluationDiagramType = "flow" | "sequence" | "architecture";
+export type EvaluationDiagramStatus =
+  | "generated"
+  | "insufficient-evidence"
+  | "invalid-output"
+  | "judge-unavailable";
 
 export interface EvaluationDiagramNode {
   id: string;
@@ -193,6 +198,7 @@ export interface EvaluationMethodology {
   scannedFiles: string[];
   scannedCharacters: number;
   aiJudgeUsed: boolean;
+  diagramStatus?: EvaluationDiagramStatus;
   aiJudgeModel?: string;
   rubricVersion?: string;
   weights: Record<string, number>;

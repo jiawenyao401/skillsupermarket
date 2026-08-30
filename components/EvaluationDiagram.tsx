@@ -1,4 +1,4 @@
-import type { EvaluationDiagram as EvaluationDiagramType, EvaluationDiagramNode } from "@/lib/types";
+import type { EvaluationDiagram as EvaluationDiagramType, EvaluationDiagramNode, EvaluationDiagramStatus } from "@/lib/types";
 
 const TYPE_LABELS = {
   flow: "流程图",
@@ -181,16 +181,22 @@ export function EvaluationDiagram({ diagram }: { diagram: EvaluationDiagramType 
   );
 }
 
-export function EvaluationDiagramUnavailable({ aiJudgeUsed }: { aiJudgeUsed: boolean }) {
+type MissingDiagramStatus = Exclude<EvaluationDiagramStatus, "generated">;
+
+export function EvaluationDiagramUnavailable({ status }: { status: MissingDiagramStatus }) {
+  const invalidOutput = status === "invalid-output";
+  const insufficientEvidence = status === "insufficient-evidence";
   return (
     <section className="surface-card overflow-hidden" aria-labelledby="skill-diagram-unavailable-title">
       <div className="border-b p-5 sm:p-6">
         <div className="section-eyebrow">How it works · 未生成图示</div>
         <h3 id="skill-diagram-unavailable-title" className="mt-2 text-lg font-extrabold">
-          {aiJudgeUsed ? "公开证据不足，暂不绘图" : "本次报告未完成图示提取"}
+          {invalidOutput ? "图示结构未通过校验" : insufficientEvidence ? "公开证据不足，暂不绘图" : "本次报告未完成图示提取"}
         </h3>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          {aiJudgeUsed
+          {invalidOutput
+            ? "AI 返回了图示候选，但节点、关系或证据未满足报告约束。为避免展示错误关系，本次仅保留已验证的文字证据；重新评测会再次尝试生成。"
+            : insufficientEvidence
             ? "当前材料不足以同时核实至少 2 个步骤或组件及 1 条关系。为避免臆测，报告保留文字证据，不生成流程图、时序图或架构图。"
             : "本次评测未完成 AI 证据提取；确定性评分与安全扫描仍然有效。重新评测后，证据充分时会自动选择合适图型。"}
         </p>
