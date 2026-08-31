@@ -103,7 +103,7 @@ const judgeResponseSchema = z.object({
   diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.3.1";
+const RUBRIC_VERSION = "3.3.2";
 const MAX_README_CHARACTERS = 30_000;
 const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reusability", "design", "documentation"];
 
@@ -219,6 +219,42 @@ export function validateJudgeCalibration(scores: QualitySubScores, input: JudgeI
   if (spread === 0 && total >= 60) throw new Error("LLM Judge 五维评分缺少区分度");
 }
 
+export function calibrateJudgeScores(scores: QualitySubScores, input: JudgeInput): {
+  scores: QualitySubScores;
+  notes: string[];
+} {
+  const calibrated = { ...scores };
+  const notes: string[] = [];
+  const evidence = input.deterministicEvidence.join("\n");
+  const cap = (dimension: keyof QualitySubScores, maximum: number, reason: string) => {
+    const original = calibrated[dimension];
+    if (original <= maximum) return;
+    calibrated[dimension] = maximum;
+    notes.push(`${reason}，由 ${original} 校准为 ${maximum}`);
+  };
+
+  if (input.readme.trim().length < 500) {
+    cap("documentation", 10, "文档分因 README 有效内容不足 500 字");
+  }
+  const missingReusabilityEvidence = [
+    /(?:缺失|未通过):.*(?:安装|接入|install|setup)/i,
+    /(?:缺失|未通过):.*(?:示例|example|demo)/i,
+    /(?:缺失|未通过):.*(?:输入|参数|工具|input|parameter|tool)/i,
+  ].filter((pattern) => pattern.test(evidence)).length;
+  if (missingReusabilityEvidence >= 2) {
+    cap("reusability", 12, "复用性分因安装、示例或输入证据缺失");
+  }
+  const missingDesignEvidence = [
+    /(?:缺失|未通过):.*(?:限制|权限|安全|边界|limit|permission|security)/i,
+    /(?:缺失|未通过):.*(?:错误|排障|失败|error|troubleshoot|failure)/i,
+  ].filter((pattern) => pattern.test(evidence)).length;
+  if (missingDesignEvidence >= 2) {
+    cap("design", 12, "设计分因边界与失败处理证据缺失");
+  }
+
+  return { scores: calibrated, notes };
+}
+
 function getConfig(): JudgeConfig {
   const deepseekApiKey = configuredKey(process.env.DEEPSEEK_API_KEY);
   const openaiApiKey = configuredKey(process.env.OPENAI_API_KEY);
@@ -268,6 +304,7 @@ export interface JudgeResult {
   bestFor: string[];
   avoidFor: string[];
   evidence: string[];
+  calibrationNotes: string[];
   diagram?: EvaluationDiagram;
   diagramStatus: Extract<EvaluationDiagramStatus, "generated" | "insufficient-evidence" | "invalid-output">;
   model: string;
@@ -401,7 +438,18 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
     throw new Error("LLM Judge 返回的 JSON 无法解析");
   }
   const parsed = judgeResponseSchema.parse(raw);
-  const scores = parsed.scores;
+  const rawScores = parsed.scores;
+  const rawValues = SCORE_LABELS.map((label) => rawScores[label]);
+  const rawTotal = rawValues.reduce((sum, value) => sum + value, 0);
+  const missingEvidenceCount = (input.deterministicEvidence.join("\n").match(/(?:缺失|未通过):/g) ?? []).length;
+  if (missingEvidenceCount >= 4 && rawTotal > 72) {
+    throw new Error("LLM Judge 评分与缺失证据不一致");
+  }
+  if (Math.max(...rawValues) - Math.min(...rawValues) === 0 && rawTotal >= 60) {
+    throw new Error("LLM Judge 五维评分缺少区分度");
+  }
+  const calibration = calibrateJudgeScores(rawScores, input);
+  const scores = calibration.scores;
   validateJudgeCalibration(scores, input);
   const total = Object.values(scores).reduce((sum, score) => sum + score, 0);
   const diagramResult = normalizeEvaluationDiagramResult(parsed.diagram);
@@ -412,10 +460,14 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
     comment: normalizeSentence(parsed.comment),
     scores,
     strengths: parsed.strengths.map(normalizeSentence),
-    concerns: parsed.concerns.map(normalizeSentence),
+    concerns: [
+      ...calibration.notes,
+      ...parsed.concerns.map(normalizeSentence),
+    ].filter((value, index, values) => values.indexOf(value) === index).slice(0, 4),
     bestFor: parsed.bestFor.map(normalizeSentence),
     avoidFor: parsed.avoidFor.map(normalizeSentence),
     evidence: parsed.evidence.map(normalizeSentence),
+    calibrationNotes: calibration.notes,
     diagram: diagramResult.diagram,
     diagramStatus: diagramResult.status,
     model: config.model,

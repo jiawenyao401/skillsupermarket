@@ -175,6 +175,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
     const summary = buildSummary(overall, security.riskLevel, confidence);
     const concerns = [
       ...security.findings.slice(0, 3).map((finding) => finding.message),
+      ...(aiResult?.calibrationNotes ?? []),
       ...documentation.improvements.slice(0, 3).map((item) => `缺少${item}`),
       ...(aiResult?.concerns ?? []),
     ].filter((value, index, values) => values.indexOf(value) === index).slice(0, 6);
@@ -237,6 +238,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
         diagramStatus: aiResult?.diagramStatus ?? "judge-unavailable",
         aiJudgeModel: aiResult?.model,
         rubricVersion: aiResult?.rubricVersion,
+        aiJudgeCalibration: aiResult?.calibrationNotes,
         weights: WEIGHTS,
         confidenceFactors: confidenceBreakdown.factors,
         limitations: [

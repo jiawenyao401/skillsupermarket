@@ -201,6 +201,7 @@ export interface EvaluationMethodology {
   diagramStatus?: EvaluationDiagramStatus;
   aiJudgeModel?: string;
   rubricVersion?: string;
+  aiJudgeCalibration?: string[];
   weights: Record<string, number>;
   limitations: string[];
   confidenceFactors?: EvaluationConfidenceFactor[];

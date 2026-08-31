@@ -6,6 +6,7 @@ import {
 } from "../data/evaluation-diagram-golden-cases";
 import {
   buildJudgePrompt,
+  calibrateJudgeScores,
   hasJudgeConfiguration,
   normalizeEvaluationDiagram,
   normalizeEvaluationDiagramResult,
@@ -181,6 +182,38 @@ test("judge calibration rejects inflated design when boundaries and failures are
       ],
     },
   ), /设计评分/);
+});
+
+test("judge calibration lowers unsupported dimensions without discarding valid evidence", () => {
+  const input = {
+    name: "Partially documented skill",
+    type: "mcp-server",
+    description: "A useful integration with incomplete adoption and safety evidence.",
+    readme: "Documented capability. ".repeat(40),
+    deterministicEvidence: [
+      "缺失: 安装或接入步骤",
+      "缺失: 可执行示例",
+      "通过: 输入、参数或工具说明",
+      "缺失: 限制、权限或边界",
+      "缺失: 错误处理或排障",
+    ],
+  };
+  const calibration = calibrateJudgeScores(
+    { utility: 14, clarity: 13, reusability: 16, design: 17, documentation: 13 },
+    input,
+  );
+
+  assert.deepEqual(calibration.scores, {
+    utility: 14,
+    clarity: 13,
+    reusability: 12,
+    design: 12,
+    documentation: 13,
+  });
+  assert.equal(calibration.notes.length, 2);
+  assert.match(calibration.notes[0], /复用性分.*16.*12/);
+  assert.match(calibration.notes[1], /设计分.*17.*12/);
+  assert.doesNotThrow(() => validateJudgeCalibration(calibration.scores, input));
 });
 
 test("judge calibration accepts differentiated scores supported by complete evidence", () => {

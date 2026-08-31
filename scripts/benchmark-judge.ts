@@ -48,6 +48,7 @@ async function evaluateRepository(fullName: string) {
     bestFor: result.bestFor,
     avoidFor: result.avoidFor,
     evidence: result.evidence,
+    calibrationNotes: result.calibrationNotes,
     diagram: result.diagram,
     diagramStatus: result.diagramStatus,
     readmeCharacters: readme.length,

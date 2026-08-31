@@ -65,6 +65,7 @@ MIT`,
     strengths: result.strengths,
     concerns: result.concerns,
     evidence: result.evidence,
+    calibrationNotes: result.calibrationNotes,
     diagram: result.diagram,
     diagramStatus: result.diagramStatus,
   }, null, 2));

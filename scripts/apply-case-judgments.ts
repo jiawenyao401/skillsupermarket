@@ -35,6 +35,7 @@ const judgmentSchema = z.object({
   bestFor: z.array(z.string().min(1).max(80)).max(4),
   avoidFor: z.array(z.string().min(1).max(80)).max(4),
   evidence: z.array(z.string().min(1).max(160)).min(2).max(5),
+  calibrationNotes: z.array(z.string().min(1).max(160)).max(3).default([]),
   diagram: z.unknown().optional().nullable(),
   model: z.string().min(1).max(100),
   rubricVersion: z.string().min(1).max(30),
@@ -109,7 +110,7 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
   };
   report.recommendation = {
     strengths: unique([...(report.documentation.strengths ?? []), ...(risk === "low" ? ["未发现已知高风险模式"] : []), ...judgment.strengths]),
-    concerns: unique([...(report.recommendation?.concerns ?? []), ...judgment.concerns]),
+    concerns: unique([...(report.recommendation?.concerns ?? []), ...judgment.calibrationNotes, ...judgment.concerns]),
     bestFor: judgment.bestFor,
     avoidFor: judgment.avoidFor,
     nextActions: report.recommendation?.nextActions ?? [],
@@ -128,6 +129,7 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
     diagramStatus: diagramResult.status,
     aiJudgeModel: judgment.model,
     rubricVersion: judgment.rubricVersion,
+    aiJudgeCalibration: judgment.calibrationNotes,
     confidenceFactors,
     caseStudy: true,
   };
