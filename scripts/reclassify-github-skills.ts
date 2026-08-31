@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "../lib/db";
+import { getRepo } from "../lib/github";
 import { SKILL_CLASSIFIER_VERSION } from "../lib/skill-classification";
 import {
   planGitHubSkillReclassification,
@@ -8,6 +9,7 @@ import {
   type ReclassifiableGitHubSkill,
 } from "../lib/skill-reclassification";
 import { evaluationJobs, skills } from "../lib/schema";
+import { parseEvaluationSource } from "../lib/source-parser";
 import type { SkillType } from "../lib/types";
 
 const DEFAULT_MAX_CHANGES = 20;
@@ -20,7 +22,12 @@ interface InventoryRow extends Record<string, unknown> {
   description: string | null;
   tags: string[] | null;
   type: SkillType;
+  repo_url: string | null;
   has_evaluation: boolean;
+}
+
+interface InventorySkill extends ReclassifiableGitHubSkill {
+  repoUrl: string | null;
 }
 
 function maxAllowedChanges(value: string | undefined): number {
@@ -32,7 +39,7 @@ function maxAllowedChanges(value: string | undefined): number {
   return parsed;
 }
 
-async function loadInventory(): Promise<ReclassifiableGitHubSkill[]> {
+async function loadInventory(): Promise<InventorySkill[]> {
   const rows = await db.execute<InventoryRow>(sql`
     select
       candidate.id,
@@ -40,6 +47,7 @@ async function loadInventory(): Promise<ReclassifiableGitHubSkill[]> {
       candidate.description,
       candidate.tags,
       candidate.type,
+      candidate.repo_url,
       exists (
         select 1 from evaluations report
         where report.skill_id = candidate.id
@@ -55,14 +63,44 @@ async function loadInventory(): Promise<ReclassifiableGitHubSkill[]> {
     description: row.description,
     tags: row.tags,
     type: row.type,
+    repoUrl: row.repo_url,
     hasEvaluation: row.has_evaluation,
   }));
+}
+
+async function verifyCandidatesWithGitHub(
+  inventory: InventorySkill[],
+): Promise<{ candidates: number; verified: ReclassifiableGitHubSkill[] }> {
+  const preliminary = planGitHubSkillReclassification(inventory);
+  const candidateIds = new Set(preliminary.map((change) => change.id));
+  const verified: ReclassifiableGitHubSkill[] = [];
+
+  for (const skill of inventory) {
+    if (!candidateIds.has(skill.id)) continue;
+    const source = parseEvaluationSource(skill.repoUrl ?? "");
+    if (source?.kind !== "github") {
+      throw new Error("A reclassification candidate has no canonical GitHub source");
+    }
+    const repo = await getRepo(source.fullName, true);
+    if (!repo) throw new Error("A reclassification candidate repository is unavailable");
+    verified.push({
+      id: skill.id,
+      name: repo.name,
+      description: repo.description,
+      tags: repo.topics,
+      type: skill.type,
+      hasEvaluation: skill.hasEvaluation,
+    });
+  }
+
+  return { candidates: preliminary.length, verified };
 }
 
 async function main() {
   const execute = process.argv.slice(2).includes("--execute");
   const inventory = await loadInventory();
-  const changes = planGitHubSkillReclassification(inventory);
+  const verification = await verifyCandidatesWithGitHub(inventory);
+  const changes = planGitHubSkillReclassification(verification.verified);
   const maxChanges = maxAllowedChanges(process.env.TYPE_RECLASSIFY_MAX_CHANGES);
 
   if (changes.length > maxChanges) {
@@ -106,6 +144,8 @@ async function main() {
     mode: execute ? "execute" : "dry-run",
     classifierVersion: SKILL_CLASSIFIER_VERSION,
     scanned: inventory.length,
+    candidates: verification.candidates,
+    verifiedWithGitHub: verification.verified.length,
     changes: changes.length,
     evaluatedChanges: changes.filter((change) => change.hasEvaluation).length,
     updated,
