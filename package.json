@@ -24,6 +24,7 @@
     "collect": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/collect.ts",
     "evaluate": "tsx scripts/evaluate.ts",
     "coverage:enqueue": "tsx scripts/enqueue-evaluation-coverage.ts",
+    "types:reclassify": "tsx scripts/reclassify-github-skills.ts",
     "worker:evaluate": "tsx scripts/evaluation-worker.ts",
     "rank": "tsx scripts/rank.ts",
     "indexnow": "tsx scripts/submit-indexnow.ts",

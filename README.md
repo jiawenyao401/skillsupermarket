@@ -149,6 +149,7 @@ API Key 只保存在部署环境的 `.env` 或密钥管理系统中，不得写�
 | `npm run worker:evaluate` | 启动常驻评测 Worker |
 | `npm run seo:check` | 检查正式站健康、评测转化页、真实案例、榜单、认证边界与 SEO |
 | `npm run growth:report` | 输出真实用户、评测、库存和报告覆盖数据 |
+| `npm run types:reclassify` | 只读预览 GitHub 项目类型迁移；加 `-- --execute` 才执行并为已有报告排队重评 |
 | `npm run indexnow` | 提交更新 URL |
 | `npm run admin:promote -- user@example.com` | 将已注册用户提升为超级管理员 |
 
@@ -167,6 +168,8 @@ npx tsx scripts/check-judge.ts
 5. 静态扫描与确定性评分运行；配置了服务端 Key 时调用 AI Judge。
 6. 报告写入后，任务变为 `done`；失败任务记录安全化错误并按策略重试。
 7. 详情页、个人中心、后台和公开评测案例使用同一份报告数据。
+
+分类器升级后先运行 `npm run types:reclassify` 查看汇总迁移量。脚本默认拒绝一次修改超过 20 个项目，且只输出聚合信息；确认在安全上限内后运行 `npm run types:reclassify -- --execute`。它仅更新公开 GitHub 项目的类型，并为已有报告创建强制刷新任务；活跃任务由数据库唯一索引避免重复。
 
 案例评测使用两阶段流程，避免把 API Key 或未审核内容带到生产服务器：
 
