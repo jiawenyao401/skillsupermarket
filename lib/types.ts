@@ -202,6 +202,8 @@ export interface EvaluationMethodology {
   aiJudgeModel?: string;
   rubricVersion?: string;
   aiJudgeCalibration?: string[];
+  evaluatedSkillType?: SkillType;
+  skillClassifierVersion?: string;
   weights: Record<string, number>;
   limitations: string[];
   confidenceFactors?: EvaluationConfidenceFactor[];

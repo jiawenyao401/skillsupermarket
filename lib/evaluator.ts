@@ -21,6 +21,7 @@ import { getEvaluationFiles, getReadme, getRepo } from "./github";
 import { getNpmWeeklyDownloads } from "./npm";
 import { getPypiWeeklyDownloads } from "./pypi";
 import { EVALUATION_QUEUE_PRIORITY, SCHEDULED_COVERAGE_TRIGGER } from "./evaluation-queue-policy";
+import { inferGitHubSkillType, SKILL_CLASSIFIER_VERSION } from "./skill-classification";
 import type {
   EvaluationReport,
   PopularityStats,
@@ -88,6 +89,9 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
     ]);
     const extraFiles = repoFullName ? await getEvaluationFiles(repoFullName, repo?.default_branch) : [];
     readme = readmeResult ?? skill.description ?? "";
+    const evaluationType = repo && skill.source === "github"
+      ? inferGitHubSkillType(repo)
+      : skill.type;
 
     const documents = [
       { path: "README.md", content: readme, kind: "documentation" as const },
@@ -130,7 +134,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
     const popularityScore = scorePopularity(popStats);
     const lastCommit = repo?.pushed_at ? new Date(repo.pushed_at) : skill.githubLastCommit;
     const activityScore = scoreActivity(lastCommit, repo?.open_issues_count ?? skill.githubOpenIssues ?? 0, popStats.stars);
-    const deterministicQuality = deterministicQualityScore(documentation, filePaths, Boolean(skill.license ?? repo?.license), Boolean(repoFullName), skill.type);
+    const deterministicQuality = deterministicQualityScore(documentation, filePaths, Boolean(skill.license ?? repo?.license), Boolean(repoFullName), evaluationType);
 
     await updateJob(job.id, { stage: "quality", progress: 66 });
     let aiResult: JudgeResult | null = null;
@@ -139,7 +143,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
       try {
         aiResult = await judgeSkill({
           name: skill.name,
-          type: skill.type,
+          type: evaluationType,
           description: skill.description ?? "",
           readme,
           deterministicEvidence: documentation.checks.map((check) => `${check.passed ? "通过" : "缺失"}: ${check.label}`),
@@ -239,6 +243,8 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
         aiJudgeModel: aiResult?.model,
         rubricVersion: aiResult?.rubricVersion,
         aiJudgeCalibration: aiResult?.calibrationNotes,
+        evaluatedSkillType: evaluationType,
+        skillClassifierVersion: skill.source === "github" ? SKILL_CLASSIFIER_VERSION : undefined,
         weights: WEIGHTS,
         confidenceFactors: confidenceBreakdown.factors,
         limitations: [
@@ -265,6 +271,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
     if (!evaluation) throw new Error("评测报告写入失败");
 
     await db.update(skills).set({
+      type: evaluationType,
       githubStars: popStats.stars,
       githubForks: popStats.forks,
       githubOpenIssues: repo?.open_issues_count ?? skill.githubOpenIssues,

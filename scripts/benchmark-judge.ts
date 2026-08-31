@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { getEvaluationFiles, getReadme, getRepo } from "../lib/github";
 import { judgeSkill } from "../lib/judge";
+import { inferGitHubSkillType } from "../lib/skill-classification";
 
 const repositories = process.argv.slice(2);
 if (repositories.length === 0) {
@@ -23,7 +24,7 @@ async function evaluateRepository(fullName: string) {
   ];
   const result = await judgeSkill({
     name: repo.name,
-    type: repo.topics.includes("mcp") ? "mcp-server" : repo.topics.includes("claude-skill") ? "claude-skill" : "agent-pack",
+    type: inferGitHubSkillType(repo),
     description: repo.description ?? "",
     readme,
     deterministicEvidence: evidence,
@@ -31,7 +32,7 @@ async function evaluateRepository(fullName: string) {
   const repeat = process.env.BENCHMARK_REPEAT === "1"
     ? await judgeSkill({
         name: repo.name,
-        type: repo.topics.includes("mcp") ? "mcp-server" : repo.topics.includes("claude-skill") ? "claude-skill" : "agent-pack",
+        type: inferGitHubSkillType(repo),
         description: repo.description ?? "",
         readme,
         deterministicEvidence: evidence,

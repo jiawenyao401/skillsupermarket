@@ -4,6 +4,7 @@ import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { getEvaluationFiles, getReadme, getRepo } from "../lib/github";
 import { judgeSkill } from "../lib/judge";
+import { inferGitHubSkillType } from "../lib/skill-classification";
 
 const DEFAULT_CASES = [
   "microsoft/playwright-mcp",
@@ -28,7 +29,7 @@ async function prepare(repository: string) {
   ];
   const judgment = await judgeSkill({
     name: repo.name,
-    type: repo.topics.includes("mcp") ? "mcp-server" : repo.topics.some((topic) => /skill/.test(topic)) ? "claude-skill" : "agent-pack",
+    type: inferGitHubSkillType(repo),
     description: repo.description ?? "",
     readme,
     deterministicEvidence: evidence,

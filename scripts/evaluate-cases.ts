@@ -4,6 +4,7 @@ import { evaluateSkill } from "../lib/evaluator";
 import { getRepo } from "../lib/github";
 import { evaluationJobs, evaluations } from "../lib/schema";
 import { upsertSkillByEvaluationSource } from "../lib/skill-upsert";
+import { inferGitHubSkillType } from "../lib/skill-classification";
 
 const DEFAULT_CASES = [
   "microsoft/playwright-mcp",
@@ -11,13 +12,6 @@ const DEFAULT_CASES = [
   "anthropics/skills",
   "openai/skills",
 ];
-
-function inferType(repo: { name: string; description: string | null; topics: string[] }) {
-  const text = `${repo.name} ${repo.description ?? ""} ${repo.topics.join(" ")}`.toLowerCase();
-  if (/\bmcp\b|model-context-protocol/.test(text)) return "mcp-server" as const;
-  if (/claude[- ]skill|agent[- ]skill|skills/.test(text)) return "claude-skill" as const;
-  return "agent-pack" as const;
-}
 
 function inferCategory(repo: { description: string | null; topics: string[] }) {
   const text = `${repo.description ?? ""} ${repo.topics.join(" ")}`.toLowerCase();
@@ -42,7 +36,7 @@ async function upsertCase(fullName: string) {
     githubForks: repo.forks_count,
     githubOpenIssues: repo.open_issues_count,
     githubLastCommit: new Date(repo.pushed_at),
-    type: inferType(repo),
+    type: inferGitHubSkillType(repo),
     category: inferCategory(repo),
     tags: (repo.topics ?? []).map((tag) => tag.toLowerCase().slice(0, 40)).filter(Boolean).slice(0, 8),
     status: "active" as const,

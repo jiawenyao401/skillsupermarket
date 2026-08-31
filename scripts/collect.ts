@@ -7,16 +7,9 @@ import { searchSkills, type GitHubRepo } from "../lib/github";
 import { getNpmPackage, getNpmWeeklyDownloads, searchNpmMcpPackages } from "../lib/npm";
 import { rankingDateKey } from "../lib/ranker";
 import { upsertSkillByEvaluationSource } from "../lib/skill-upsert";
+import { inferGitHubSkillType } from "../lib/skill-classification";
 
 const log = (...args: unknown[]) => console.log("[collect]", ...args);
-
-// 推断 type 和 category
-function inferType(repo: GitHubRepo): "claude-skill" | "mcp-server" | "agent-pack" {
-  const text = `${repo.name} ${repo.description ?? ""} ${repo.topics.join(" ")}`.toLowerCase();
-  if (text.includes("mcp") || text.includes("model-context-protocol")) return "mcp-server";
-  if (text.includes("claude-skill") || text.includes("claude skill")) return "claude-skill";
-  return "agent-pack";
-}
 
 function inferCategory(repo: GitHubRepo): string {
   const text = `${repo.description ?? ""} ${repo.topics.join(" ")}`.toLowerCase();
@@ -38,7 +31,7 @@ async function collectFromGitHub(): Promise<number> {
 
   let count = 0;
   for (const repo of repos) {
-    const type = inferType(repo);
+    const type = inferGitHubSkillType(repo);
     const category = inferCategory(repo);
     const skill = await upsertSkillByEvaluationSource(
       { kind: "github", fullName: repo.full_name },
