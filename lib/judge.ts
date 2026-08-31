@@ -103,8 +103,10 @@ const judgeResponseSchema = z.object({
   diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.3.2";
+const RUBRIC_VERSION = "3.3.3";
 const MAX_README_CHARACTERS = 30_000;
+const MISSING_EVIDENCE_TOTAL_CAP = 72;
+const EXTREME_INFLATION_TOTAL = 90;
 const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reusability", "design", "documentation"];
 
 function normalizeSentence(value: string): string {
@@ -251,8 +253,35 @@ export function calibrateJudgeScores(scores: QualitySubScores, input: JudgeInput
   if (missingDesignEvidence >= 2) {
     cap("design", 12, "设计分因边界与失败处理证据缺失");
   }
+  const missingEvidenceCount = (evidence.match(/(?:缺失|未通过):/g) ?? []).length;
+  const totalBeforeEvidenceCap = SCORE_LABELS.reduce((sum, label) => sum + calibrated[label], 0);
+  if (missingEvidenceCount >= 4 && totalBeforeEvidenceCap > MISSING_EVIDENCE_TOTAL_CAP) {
+    let currentTotal = totalBeforeEvidenceCap;
+    while (currentTotal > MISSING_EVIDENCE_TOTAL_CAP) {
+      const dimension = [...SCORE_LABELS].sort((left, right) => {
+        const scoreDelta = calibrated[right] - calibrated[left];
+        return scoreDelta || SCORE_LABELS.indexOf(left) - SCORE_LABELS.indexOf(right);
+      })[0];
+      calibrated[dimension] -= 1;
+      currentTotal -= 1;
+    }
+    notes.push(`总分因 ${missingEvidenceCount} 项确定性证据缺失，由 ${totalBeforeEvidenceCap} 校准为 ${currentTotal}`);
+  }
 
   return { scores: calibrated, notes };
+}
+
+export function getJudgeHardFailure(scores: QualitySubScores, input: JudgeInput): string | null {
+  const values = SCORE_LABELS.map((label) => scores[label]);
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const missingEvidenceCount = (input.deterministicEvidence.join("\n").match(/(?:缺失|未通过):/g) ?? []).length;
+  if (missingEvidenceCount >= 4 && total > EXTREME_INFLATION_TOTAL) {
+    return "LLM Judge 评分与缺失证据严重不一致";
+  }
+  if (Math.max(...values) - Math.min(...values) === 0 && total >= 60) {
+    return "LLM Judge 五维评分缺少区分度";
+  }
+  return null;
 }
 
 function getConfig(): JudgeConfig {
@@ -439,15 +468,8 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
   }
   const parsed = judgeResponseSchema.parse(raw);
   const rawScores = parsed.scores;
-  const rawValues = SCORE_LABELS.map((label) => rawScores[label]);
-  const rawTotal = rawValues.reduce((sum, value) => sum + value, 0);
-  const missingEvidenceCount = (input.deterministicEvidence.join("\n").match(/(?:缺失|未通过):/g) ?? []).length;
-  if (missingEvidenceCount >= 4 && rawTotal > 72) {
-    throw new Error("LLM Judge 评分与缺失证据不一致");
-  }
-  if (Math.max(...rawValues) - Math.min(...rawValues) === 0 && rawTotal >= 60) {
-    throw new Error("LLM Judge 五维评分缺少区分度");
-  }
+  const hardFailure = getJudgeHardFailure(rawScores, input);
+  if (hardFailure) throw new Error(hardFailure);
   const calibration = calibrateJudgeScores(rawScores, input);
   const scores = calibration.scores;
   validateJudgeCalibration(scores, input);

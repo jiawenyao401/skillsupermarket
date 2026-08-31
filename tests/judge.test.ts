@@ -7,6 +7,7 @@ import {
 import {
   buildJudgePrompt,
   calibrateJudgeScores,
+  getJudgeHardFailure,
   hasJudgeConfiguration,
   normalizeEvaluationDiagram,
   normalizeEvaluationDiagramResult,
@@ -214,6 +215,49 @@ test("judge calibration lowers unsupported dimensions without discarding valid e
   assert.match(calibration.notes[0], /复用性分.*16.*12/);
   assert.match(calibration.notes[1], /设计分.*17.*12/);
   assert.doesNotThrow(() => validateJudgeCalibration(calibration.scores, input));
+});
+
+test("judge calibration caps the aggregate score when many deterministic checks are missing", () => {
+  const input = {
+    name: "Learning collection",
+    type: "agent-pack",
+    description: "A structured learning collection with incomplete adoption evidence.",
+    readme: "Documented learning modules. ".repeat(40),
+    deterministicEvidence: [
+      "通过: 有效 README",
+      "缺失: 安装或接入步骤",
+      "缺失: 可执行示例",
+      "缺失: 输入、参数或工具说明",
+      "缺失: 输出或结果说明",
+      "缺失: 限制、权限或边界",
+      "缺失: 错误处理或排障",
+    ],
+  };
+  const rawScores = { utility: 17, clarity: 16, reusability: 15, design: 13, documentation: 17 };
+  const calibration = calibrateJudgeScores(rawScores, input);
+
+  assert.equal(Object.values(calibration.scores).reduce((sum, score) => sum + score, 0), 72);
+  assert.match(calibration.notes.at(-1) ?? "", /6 项确定性证据缺失.*72/);
+  assert.doesNotThrow(() => validateJudgeCalibration(calibration.scores, input));
+  assert.equal(getJudgeHardFailure(rawScores, input), null);
+});
+
+test("judge hard failure still rejects extreme or non-differentiated scores", () => {
+  const sparseInput = {
+    name: "Sparse project",
+    type: "agent-pack",
+    description: "",
+    readme: "short",
+    deterministicEvidence: ["缺失: 安装", "缺失: 示例", "缺失: 输入", "缺失: 边界"],
+  };
+  assert.match(
+    getJudgeHardFailure({ utility: 20, clarity: 19, reusability: 18, design: 18, documentation: 18 }, sparseInput) ?? "",
+    /严重不一致/,
+  );
+  assert.match(
+    getJudgeHardFailure({ utility: 12, clarity: 12, reusability: 12, design: 12, documentation: 12 }, sparseInput) ?? "",
+    /缺少区分度/,
+  );
 });
 
 test("judge calibration accepts differentiated scores supported by complete evidence", () => {
