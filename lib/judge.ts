@@ -44,6 +44,9 @@ const diagramSchema = z.object({
   if (nodeIds.size !== diagram.nodes.length) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ["nodes"], message: "节点 ID 必须唯一" });
   }
+  const connectedNodeIds = new Set<string>();
+  const adjacency = new Map(diagram.nodes.map((node) => [node.id, new Set<string>()]));
+  const edgeKeys = new Set<string>();
   diagram.edges.forEach((edge, index) => {
     if (!nodeIds.has(edge.from) || !nodeIds.has(edge.to)) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["edges", index], message: "连线必须引用已有节点" });
@@ -51,7 +54,37 @@ const diagramSchema = z.object({
     if (edge.from === edge.to) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: ["edges", index], message: "不允许自环" });
     }
+    const edgeKey = `${edge.from}\u0000${edge.to}\u0000${edge.label.trim()}`;
+    if (edgeKeys.has(edgeKey)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["edges", index], message: "不允许重复连线" });
+    }
+    edgeKeys.add(edgeKey);
+    if (nodeIds.has(edge.from) && nodeIds.has(edge.to) && edge.from !== edge.to) {
+      connectedNodeIds.add(edge.from);
+      connectedNodeIds.add(edge.to);
+      adjacency.get(edge.from)?.add(edge.to);
+      adjacency.get(edge.to)?.add(edge.from);
+    }
   });
+  if (connectedNodeIds.size !== nodeIds.size) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["nodes"], message: "每个节点必须参与至少一条关系" });
+  }
+  const firstNodeId = diagram.nodes[0]?.id;
+  if (firstNodeId && nodeIds.has(firstNodeId)) {
+    const visited = new Set([firstNodeId]);
+    const pending = [firstNodeId];
+    while (pending.length > 0) {
+      const nodeId = pending.pop()!;
+      for (const neighbor of adjacency.get(nodeId) ?? []) {
+        if (visited.has(neighbor)) continue;
+        visited.add(neighbor);
+        pending.push(neighbor);
+      }
+    }
+    if (visited.size !== nodeIds.size) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["edges"], message: "图示必须形成单一连通关系" });
+    }
+  }
 });
 const judgeResponseSchema = z.object({
   scores: z.object({
@@ -70,7 +103,7 @@ const judgeResponseSchema = z.object({
   diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.3.0";
+const RUBRIC_VERSION = "3.3.1";
 const MAX_README_CHARACTERS = 30_000;
 const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reusability", "design", "documentation"];
 
@@ -276,6 +309,7 @@ export function buildJudgePrompt(input: JudgeInput): string {
 - diagram 用于解释 Skill 的真实工作方式。只有 README 能核实至少 2 个步骤或组件及 1 条关系时才返回上述对象，否则 diagram 必须返回 null。
 - diagram.type 自动选择：两个及以上参与方存在请求、响应或回调时优先选 sequence（即使文档把章节叫 flow）；单一任务的连续处理步骤选 flow；没有明确时间顺序、以组件及依赖关系为主时选 architecture。
 - diagram 对象格式为 {"type":"flow|sequence|architecture","title":"不超过30字","rationale":"选择该图的证据理由","nodes":[{"id":"小写英文ID","label":"不超过12个汉字","role":"可选角色"}],"edges":[{"from":"节点ID","to":"节点ID","label":"关系或动作"}],"evidence":["1-3条README具体证据"]}。节点 2-6 个、连线 1-8 条；flow 与 sequence 的节点和连线按执行顺序排列。
+- 所有节点必须通过连线组成一个连通图，每个节点都要参与关系；不得添加孤立节点、自环或完全重复的连线。
 - 图中不得臆测未公开的内部组件，不得放入密钥、完整 URL 或可执行命令。
 
 确定性检查证据：

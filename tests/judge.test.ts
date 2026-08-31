@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  DIAGRAM_GOLDEN_CASES,
+  DIAGRAM_GOLDEN_SET_VERSION,
+} from "../data/evaluation-diagram-golden-cases";
+import {
   buildJudgePrompt,
   hasJudgeConfiguration,
   normalizeEvaluationDiagram,
@@ -11,6 +15,16 @@ import {
 } from "../lib/judge";
 
 const TRUST_BOUNDARY_CASE_SET_VERSION = "1.0.0";
+
+test(`diagram golden set ${DIAGRAM_GOLDEN_SET_VERSION} preserves evidence-graph invariants`, () => {
+  assert.ok(DIAGRAM_GOLDEN_CASES.length >= 8, "golden set must cover all diagram types and failure modes");
+
+  for (const fixture of DIAGRAM_GOLDEN_CASES) {
+    const result = normalizeEvaluationDiagramResult(fixture.candidate);
+    assert.equal(result.status, fixture.expectedStatus, `${fixture.id} status drifted`);
+    assert.equal(result.diagram?.type, fixture.expectedType, `${fixture.id} type drifted`);
+  }
+});
 
 test(`judge trust-boundary set ${TRUST_BOUNDARY_CASE_SET_VERSION} contains injected delimiters and credentials`, () => {
   const fakeKey = ["sk", "proj", "abcdefghijklmnopqrstuvwxyz123456"].join("-");
