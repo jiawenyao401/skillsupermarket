@@ -9,6 +9,8 @@ import {
 } from "../lib/evaluation-queue-policy";
 
 test("coverage batch is bounded and can be disabled without a deployment", () => {
+  assert.equal(DEFAULT_COVERAGE_BATCH_SIZE, 5);
+  assert.equal(MAX_COVERAGE_BATCH_SIZE, 5);
   assert.equal(normalizeCoverageBatchSize(undefined), DEFAULT_COVERAGE_BATCH_SIZE);
   assert.equal(normalizeCoverageBatchSize(""), DEFAULT_COVERAGE_BATCH_SIZE);
   assert.equal(normalizeCoverageBatchSize("invalid"), DEFAULT_COVERAGE_BATCH_SIZE);

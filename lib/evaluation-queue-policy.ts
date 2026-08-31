@@ -1,5 +1,5 @@
 export const SCHEDULED_COVERAGE_TRIGGER = "scheduled-coverage";
-export const DEFAULT_COVERAGE_BATCH_SIZE = 3;
+export const DEFAULT_COVERAGE_BATCH_SIZE = 5;
 export const MAX_COVERAGE_BATCH_SIZE = 5;
 export const EVALUATION_QUEUE_PRIORITY = {
   authenticatedUser: 0,
