@@ -64,6 +64,9 @@ interface TrafficRow extends Record<string, unknown> {
   evaluation_views_1d: number;
   evaluation_views_7d: number;
   evaluation_views_30d: number;
+  auth_views_1d: number;
+  auth_views_7d: number;
+  auth_views_30d: number;
   cta_clicks_1d: number;
   cta_clicks_7d: number;
   cta_clicks_30d: number;
@@ -273,6 +276,9 @@ async function main() {
       coalesce(sum(page_views) filter (where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as evaluation_views_1d,
       coalesce(sum(page_views) filter (where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as evaluation_views_7d,
       coalesce(sum(page_views) filter (where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as evaluation_views_30d,
+      coalesce(sum(page_views) filter (where path = '/login' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as auth_views_1d,
+      coalesce(sum(page_views) filter (where path = '/login' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as auth_views_7d,
+      coalesce(sum(page_views) filter (where path = '/login' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as auth_views_30d,
       coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date), 0)::int as cta_clicks_1d,
       coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as cta_clicks_7d,
       coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as cta_clicks_30d,
@@ -301,6 +307,9 @@ async function main() {
       evaluationViews1d: traffic?.evaluation_views_1d ?? 0,
       evaluationViews7d: traffic?.evaluation_views_7d ?? 0,
       evaluationViews30d: traffic?.evaluation_views_30d ?? 0,
+      authViews1d: traffic?.auth_views_1d ?? 0,
+      authViews7d: traffic?.auth_views_7d ?? 0,
+      authViews30d: traffic?.auth_views_30d ?? 0,
       evaluationCtaClicks1d: traffic?.cta_clicks_1d ?? 0,
       evaluationCtaClicks7d: traffic?.cta_clicks_7d ?? 0,
       evaluationCtaClicks30d: traffic?.cta_clicks_30d ?? 0,
@@ -392,7 +401,7 @@ async function main() {
     ? `[growth] 用户: 总计 ${totalUsers}，D1 +${report.acquisition.newUsers1d} / D7 +${report.acquisition.newUsers7d} / D30 +${report.acquisition.newUsers30d}`
     : "[growth] 用户: 数据不可用（用户表尚未部署）");
   console.log(hasTraffic
-    ? `[growth] 访问: D1 ${report.acquisition.pageViews1d} / D7 ${report.acquisition.pageViews7d} / D30 ${report.acquisition.pageViews30d} 次页面浏览；评测页 D7 ${report.acquisition.evaluationViews7d}，CTA D7 ${report.acquisition.evaluationCtaClicks7d}`
+    ? `[growth] 访问: D1 ${report.acquisition.pageViews1d} / D7 ${report.acquisition.pageViews7d} / D30 ${report.acquisition.pageViews30d} 次页面浏览；评测页 D7 ${report.acquisition.evaluationViews7d}，CTA D7 ${report.acquisition.evaluationCtaClicks7d}，登录/注册页 D7 ${report.acquisition.authViews7d}`
     : "[growth] 访问: 数据不可用（隐私友好流量表尚未部署）");
   console.log(hasJobs
     ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次用户任务；D7 首评 ${report.activation.firstEvaluations7d} 人、复评 ${report.activation.repeatEvaluators7d} 人、完成率 ${report.activation.completionRate7d}；另排除运维任务 ${report.activation.operationalJobs7d} 次`

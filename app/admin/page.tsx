@@ -74,6 +74,9 @@ interface SummaryRow extends Record<string, unknown> {
   evaluation_views_1d: number;
   evaluation_views_7d: number;
   evaluation_views_30d: number;
+  auth_views_1d: number;
+  auth_views_7d: number;
+  auth_views_30d: number;
   cta_clicks_1d: number;
   cta_clicks_7d: number;
   cta_clicks_30d: number;
@@ -206,6 +209,9 @@ async function getSummary(): Promise<SummaryRow> {
       (select coalesce(sum(page_views), 0)::int from traffic_daily where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date) as evaluation_views_1d,
       (select coalesce(sum(page_views), 0)::int from traffic_daily where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date - 6) as evaluation_views_7d,
       (select coalesce(sum(page_views), 0)::int from traffic_daily where path = '/evaluation' and date >= timezone('Asia/Shanghai', now())::date - 29) as evaluation_views_30d,
+      (select coalesce(sum(page_views), 0)::int from traffic_daily where path = '/login' and date >= timezone('Asia/Shanghai', now())::date) as auth_views_1d,
+      (select coalesce(sum(page_views), 0)::int from traffic_daily where path = '/login' and date >= timezone('Asia/Shanghai', now())::date - 6) as auth_views_7d,
+      (select coalesce(sum(page_views), 0)::int from traffic_daily where path = '/login' and date >= timezone('Asia/Shanghai', now())::date - 29) as auth_views_30d,
       (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where date >= timezone('Asia/Shanghai', now())::date) as cta_clicks_1d,
       (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where date >= timezone('Asia/Shanghai', now())::date - 6) as cta_clicks_7d,
       (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where date >= timezone('Asia/Shanghai', now())::date - 29) as cta_clicks_30d,
@@ -334,7 +340,7 @@ export default async function AdminPage({
   const headlineMetrics = [
     { label: "用户总数", value: summary.total_users, detail: `D1 +${summary.new_users_1d} · D7 +${summary.new_users_7d} · D30 +${summary.new_users_30d}`, icon: UsersRound },
     { label: "7 日页面浏览", value: summary.page_views_7d, detail: `D1 ${summary.page_views_1d} · D30 ${summary.page_views_30d}`, icon: Activity },
-    { label: "评测页访问", value: summary.evaluation_views_7d, detail: `近 7 天 CTA ${summary.cta_clicks_7d} 次`, icon: Gauge },
+    { label: "评测页访问", value: summary.evaluation_views_7d, detail: `近 7 天 CTA ${summary.cta_clicks_7d} 次 · 登录/注册页 ${summary.auth_views_7d} 次`, icon: Gauge },
     { label: "7 日活跃评测用户", value: summary.active_evaluators_7d, detail: `首评 ${summary.first_evaluations_7d} · 复评 ${summary.repeat_evaluators_7d} · 激活率 ${activationRate}`, icon: UserRoundCheck },
     { label: "有效订阅", value: summary.active_subscriptions, detail: `免费额度已用 ${summary.free_quota_used} 次 · 耗尽 ${summary.exhausted_free_users} 人`, icon: CircleDollarSign },
     { label: "Skill 库存", value: summary.active_skills, detail: `今日新增 ${summary.new_skills_today}`, icon: Database },
@@ -371,6 +377,7 @@ export default async function AdminPage({
                 ["页面浏览", summary.page_views_1d, summary.page_views_7d, summary.page_views_30d],
                 ["评测落地页访问", summary.evaluation_views_1d, summary.evaluation_views_7d, summary.evaluation_views_30d],
                 ["评测 CTA 点击", summary.cta_clicks_1d, summary.cta_clicks_7d, summary.cta_clicks_30d],
+                ["登录/注册页访问", summary.auth_views_1d, summary.auth_views_7d, summary.auth_views_30d],
                 ["新增用户", summary.new_users_1d, summary.new_users_7d, summary.new_users_30d],
                 ["首次成功评测", summary.first_evaluations_1d, summary.first_evaluations_7d, summary.first_evaluations_30d],
                 ["重复评测用户", summary.repeat_evaluators_1d, summary.repeat_evaluators_7d, summary.repeat_evaluators_30d],

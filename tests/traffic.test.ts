@@ -22,6 +22,7 @@ test("evaluation CTA destinations include prefilled same-origin forms only", () 
 test("traffic paths keep only public funnel routes without query data", () => {
   assert.equal(normalizeTrafficPath("/"), "/");
   assert.equal(normalizeTrafficPath("/evaluation/"), "/evaluation");
+  assert.equal(normalizeTrafficPath("/login"), "/login");
   assert.equal(normalizeTrafficPath("/mcp-server-security-scan/"), "/mcp-server-security-scan");
   assert.equal(normalizeTrafficPath("/skill/githubgithub-mcp-server"), "/skill/githubgithub-mcp-server");
   assert.equal(normalizeTrafficPath("/guides/mcp-server-security-checklist-2026"), "/guides/mcp-server-security-checklist-2026");
