@@ -10,6 +10,7 @@ import { getPypiPackage } from "@/lib/pypi";
 import { extractGithubUrl, parseEvaluationSource } from "@/lib/source-parser";
 import { UpstreamServiceError } from "@/lib/upstream-error";
 import { getRequestSession, unauthorizedResponse } from "@/lib/auth-session";
+import { isCurrentEvaluationFresh } from "@/lib/evaluation-cache";
 import {
   findSkillByEvaluationSource,
   SourceIdentityConflictError,
@@ -135,10 +136,7 @@ export async function POST(request: Request) {
       const [knownEvaluation] = await db.select().from(evaluations)
         .where(eq(evaluations.skillId, knownSkill.id))
         .orderBy(desc(evaluations.evaluatedAt)).limit(1);
-      const knownVersion = (knownEvaluation?.report as { version?: string } | undefined)?.version;
-      const knownIsFresh = knownVersion === "3.0.0" && knownEvaluation?.evaluatedAt &&
-        Date.now() - knownEvaluation.evaluatedAt.getTime() < 24 * 60 * 60_000;
-      if (knownIsFresh) {
+      if (isCurrentEvaluationFresh(knownEvaluation)) {
         return NextResponse.json({
           ok: true, cached: true, slug: knownSkill.slug, skillId: knownSkill.id,
           evaluationId: knownEvaluation.id, status: "done", progress: 100,
@@ -252,9 +250,7 @@ export async function POST(request: Request) {
     }
 
     const [latestEvaluation] = await db.select().from(evaluations).where(eq(evaluations.skillId, skillId)).orderBy(desc(evaluations.evaluatedAt)).limit(1);
-    const reportVersion = (latestEvaluation?.report as { version?: string } | undefined)?.version;
-    const isFresh = reportVersion === "3.0.0" && latestEvaluation?.evaluatedAt && Date.now() - latestEvaluation.evaluatedAt.getTime() < 24 * 60 * 60_000;
-    if (isFresh) {
+    if (isCurrentEvaluationFresh(latestEvaluation)) {
       return NextResponse.json({
         ok: true,
         cached: true,
