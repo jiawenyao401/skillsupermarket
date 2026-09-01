@@ -2,7 +2,12 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
-import { classifyTrafficSource, normalizeTrafficPath, type TrafficSource } from "@/lib/traffic";
+import {
+  classifyTrafficSource,
+  isEvaluationDestination,
+  normalizeTrafficPath,
+  type TrafficSource,
+} from "@/lib/traffic";
 
 type TrafficEvent = "page_view" | "evaluation_cta_click";
 
@@ -36,19 +41,31 @@ export function TrafficTracker() {
   }, [pathname]);
 
   useEffect(() => {
+    const trackCurrentPage = () => {
+      const path = normalizeTrafficPath(window.location.pathname);
+      acquisitionSource.current ??= classifyTrafficSource(document.referrer, window.location.hostname);
+      if (path) sendTrafficEvent("evaluation_cta_click", path, acquisitionSource.current);
+    };
     const trackEvaluationCta = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest<HTMLAnchorElement>("a[href]");
       if (!anchor) return;
-      const destination = new URL(anchor.href, window.location.href);
-      if (destination.origin !== window.location.origin || destination.pathname !== "/evaluate") return;
-      const path = normalizeTrafficPath(window.location.pathname);
-      acquisitionSource.current ??= classifyTrafficSource(document.referrer, window.location.hostname);
-      if (path) sendTrafficEvent("evaluation_cta_click", path, acquisitionSource.current);
+      if (!isEvaluationDestination(anchor.href, window.location.origin)) return;
+      trackCurrentPage();
+    };
+    const trackEvaluationSubmit = (event: SubmitEvent) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      if (!isEvaluationDestination(form.action, window.location.origin)) return;
+      trackCurrentPage();
     };
     document.addEventListener("click", trackEvaluationCta, { capture: true });
-    return () => document.removeEventListener("click", trackEvaluationCta, { capture: true });
+    document.addEventListener("submit", trackEvaluationSubmit, { capture: true });
+    return () => {
+      document.removeEventListener("click", trackEvaluationCta, { capture: true });
+      document.removeEventListener("submit", trackEvaluationSubmit, { capture: true });
+    };
   }, []);
 
   return null;

@@ -158,7 +158,37 @@ export default async function HomePage() {
             浏览、比较和评测社区最优秀的 AI Skills、MCP Servers 与 Agent Packs。少踩坑，更快构建真正有用的 AI 工作流。
           </p>
 
-          <div className="mx-auto mt-8 max-w-2xl">
+          <form
+            action="/evaluate"
+            method="get"
+            className="mx-auto mt-8 max-w-2xl rounded-2xl border bg-background/90 p-2 text-left shadow-lg shadow-primary/5 backdrop-blur"
+          >
+            <label className="sr-only" htmlFor="homepage-evaluation-source">公开项目地址或包名</label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                id="homepage-evaluation-source"
+                name="source"
+                type="text"
+                inputMode="url"
+                autoComplete="url"
+                maxLength={500}
+                required
+                aria-describedby="homepage-evaluation-help"
+                placeholder="粘贴 GitHub 地址，或输入 npm / pypi:包名"
+                className="h-12 min-w-0 flex-1 rounded-xl border bg-card px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <button type="submit" className="button-primary h-12 shrink-0 px-5 text-sm">
+                免费生成评测 <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
+            </div>
+            <p id="homepage-evaluation-help" className="mt-2 flex items-center gap-1.5 px-2 text-xs leading-5 text-muted-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              支持公开 GitHub、npm 与 PyPI 项目；登录后自动带入，无需重复填写。
+            </p>
+          </form>
+
+          <div className="mx-auto mt-6 max-w-2xl">
+            <div className="mb-3 text-xs font-medium text-muted-foreground">或者先搜索已收录的能力</div>
             <SearchBar size="large" autoFocusHint />
             <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span>热门搜索</span>

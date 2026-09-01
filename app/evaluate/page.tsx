@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { skills } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSkillEvaluationSource } from "@/lib/skill-evaluation-source";
+import { normalizeEvaluationSource } from "@/lib/source-parser";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -17,11 +18,21 @@ export const metadata: Metadata = {
 export default async function EvaluatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ skill?: string | string[] }>;
+  searchParams: Promise<{ skill?: string | string[]; source?: string | string[] }>;
 }) {
-  const session = await requireUser("/evaluate");
-  const requestedSlug = (await searchParams).skill;
+  const params = await searchParams;
+  const requestedSlug = params.skill;
   const slug = typeof requestedSlug === "string" && requestedSlug.length <= 200 ? requestedSlug : null;
+  const requestedSource = params.source;
+  const normalizedSource = typeof requestedSource === "string"
+    ? normalizeEvaluationSource(requestedSource)
+    : null;
+  const returnTo = slug
+    ? `/evaluate?skill=${encodeURIComponent(slug)}`
+    : normalizedSource
+      ? `/evaluate?source=${encodeURIComponent(normalizedSource)}`
+      : "/evaluate";
+  const session = await requireUser(returnTo);
   const [selectedSkill] = slug
     ? await db.select({
       name: skills.name,
@@ -30,7 +41,7 @@ export default async function EvaluatePage({
       packageUrl: skills.packageUrl,
     }).from(skills).where(eq(skills.slug, slug)).limit(1)
     : [];
-  const initialSource = selectedSkill ? getSkillEvaluationSource(selectedSkill) : null;
+  const initialSource = selectedSkill ? getSkillEvaluationSource(selectedSkill) : normalizedSource;
   const quota = await getQuotaSnapshot(session.user.id);
   return <EvaluationWorkbench
     userName={session.user.name}

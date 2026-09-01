@@ -3,10 +3,21 @@ import test from "node:test";
 import {
   classifyTrafficSource,
   isAutomatedUserAgent,
+  isEvaluationDestination,
   isTrustedTrafficFetchSite,
   isTrustedTrafficOrigin,
   normalizeTrafficPath,
 } from "../lib/traffic";
+
+test("evaluation CTA destinations include prefilled same-origin forms only", () => {
+  const origin = "https://skillsupermarket.com";
+  assert.equal(isEvaluationDestination("/evaluate", origin), true);
+  assert.equal(isEvaluationDestination("/evaluate?source=https%3A%2F%2Fgithub.com%2Facme%2Fdemo", origin), true);
+  assert.equal(isEvaluationDestination("https://skillsupermarket.com/evaluate", origin), true);
+  assert.equal(isEvaluationDestination("https://attacker.example/evaluate", origin), false);
+  assert.equal(isEvaluationDestination("/evaluation", origin), false);
+  assert.equal(isEvaluationDestination("not a url", "not an origin"), false);
+});
 
 test("traffic paths keep only public funnel routes without query data", () => {
   assert.equal(normalizeTrafficPath("/"), "/");

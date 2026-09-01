@@ -42,6 +42,16 @@ export function parseEvaluationSource(input: string): EvaluationSource | null {
   return NPM_NAME.test(value) ? { kind: "npm", name: value } : null;
 }
 
+/** Return the stable source value used by links, form prefills, and queued jobs. */
+export function normalizeEvaluationSource(input: string | null | undefined): string | null {
+  if (!input || input.length > 500) return null;
+  const source = parseEvaluationSource(input);
+  if (!source) return null;
+  if (source.kind === "github") return `https://github.com/${source.fullName}`;
+  if (source.kind === "pypi") return `pypi:${source.name}`;
+  return source.name;
+}
+
 export function extractGithubUrl(url?: string): string | null {
   if (!url) return null;
   const match = url.match(/github\.com[/:]([^/\s]+\/[^/#\s]+?)(?:\.git)?$/i);

@@ -39,6 +39,16 @@ export function normalizeTrafficPath(value: string): string | null {
   return EXACT_TRACKED_PATHS.has(path) || DYNAMIC_TRACKED_PATH.test(path) ? path : null;
 }
 
+export function isEvaluationDestination(value: string, siteOrigin: string): boolean {
+  try {
+    const site = new URL(siteOrigin);
+    const destination = new URL(value, site);
+    return destination.origin === site.origin && destination.pathname === "/evaluate";
+  } catch {
+    return false;
+  }
+}
+
 export function classifyTrafficSource(referrer: string | null, siteHost: string): TrafficSource {
   if (!referrer) return "direct";
   let host: string;

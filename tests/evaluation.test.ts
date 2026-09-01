@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { scanDocuments } from "../lib/scanner";
-import { extractGithubUrl, parseEvaluationSource } from "../lib/source-parser";
+import { extractGithubUrl, normalizeEvaluationSource, parseEvaluationSource } from "../lib/source-parser";
 import { transformReadmeUrl } from "../lib/readme";
 
 test("source parser accepts supported canonical inputs", () => {
@@ -21,6 +21,17 @@ test("source parser rejects arbitrary hosts, credentials and malformed names", (
   assert.equal(parseEvaluationSource("https://user:pass@github.com/openai/openai-node"), null);
   assert.equal(parseEvaluationSource("https://evil.example/github.com/openai/openai-node"), null);
   assert.equal(parseEvaluationSource("pypi:../secret"), null);
+});
+
+test("evaluation sources are canonicalized before links and prefills", () => {
+  assert.equal(
+    normalizeEvaluationSource("https://github.com/OpenAI/openai-node/tree/main"),
+    "https://github.com/OpenAI/openai-node",
+  );
+  assert.equal(normalizeEvaluationSource("https://www.npmjs.com/package/@scope/example"), "@scope/example");
+  assert.equal(normalizeEvaluationSource("https://pypi.org/project/FastAPI/"), "pypi:FastAPI");
+  assert.equal(normalizeEvaluationSource("https://attacker.example/project/demo"), null);
+  assert.equal(normalizeEvaluationSource("x".repeat(501)), null);
 });
 
 test("repository URLs are normalized without accepting unrelated hosts", () => {
