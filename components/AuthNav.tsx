@@ -8,7 +8,7 @@ export async function AuthNav() {
   const session = await getCurrentSession();
 
   if (!session) {
-    return <Link href="/login?returnTo=%2Fevaluate" className="hidden h-9 items-center gap-1.5 rounded-full border bg-card px-3 text-sm font-semibold transition-colors hover:border-primary/40 sm:inline-flex"><LogIn className="h-3.5 w-3.5" /> 登录</Link>;
+    return <Link href="/login?mode=login&returnTo=%2Fevaluate" className="hidden h-9 items-center gap-1.5 rounded-full border bg-card px-3 text-sm font-semibold transition-colors hover:border-primary/40 sm:inline-flex"><LogIn className="h-3.5 w-3.5" /> 登录</Link>;
   }
 
   const isSuperAdmin = await isSuperAdminUser(session.user.id);

@@ -8,3 +8,23 @@ export function safeReturnTo(value: string | null | undefined, fallback = "/eval
     return fallback;
   }
 }
+
+type AuthMode = "login" | "register";
+type SearchParam = string | string[] | null | undefined;
+
+function firstSearchParam(value: SearchParam): string | undefined {
+  return Array.isArray(value) ? value[0] : value ?? undefined;
+}
+
+export function initialAuthMode(mode: SearchParam, returnTo: SearchParam): AuthMode {
+  const explicitMode = firstSearchParam(mode);
+  if (explicitMode === "login" || explicitMode === "register") return explicitMode;
+
+  const requestedDestination = firstSearchParam(returnTo);
+  if (!requestedDestination) return "login";
+
+  const destination = safeReturnTo(requestedDestination, "/");
+  return destination === "/evaluate" || destination.startsWith("/evaluate?") || destination.startsWith("/evaluate#")
+    ? "register"
+    : "login";
+}

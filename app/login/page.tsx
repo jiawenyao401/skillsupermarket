@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { BadgeCheck, DatabaseZap, ShieldCheck } from "lucide-react";
 import { AuthForm } from "@/components/AuthForm";
 import { getCurrentSession } from "@/lib/auth-session";
-import { safeReturnTo } from "@/lib/auth-utils";
+import { initialAuthMode, safeReturnTo } from "@/lib/auth-utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -15,10 +15,11 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mode?: string; returnTo?: string }>;
+  searchParams: Promise<{ mode?: string | string[]; returnTo?: string | string[] }>;
 }) {
   const params = await searchParams;
-  const returnTo = safeReturnTo(params.returnTo);
+  const requestedReturnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
+  const returnTo = safeReturnTo(requestedReturnTo);
   if (await getCurrentSession()) redirect(returnTo);
 
   return (
@@ -44,7 +45,7 @@ export default async function LoginPage({
           ))}
         </div>
       </section>
-      <AuthForm initialMode={params.mode === "register" ? "register" : "login"} returnTo={returnTo} />
+      <AuthForm initialMode={initialAuthMode(params.mode, params.returnTo)} returnTo={returnTo} />
     </div>
   );
 }
