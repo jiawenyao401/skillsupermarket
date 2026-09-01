@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { and, desc, eq, gte } from "drizzle-orm";
 import { db } from "../lib/db";
-import { INDEXNOW_KEY } from "../lib/indexnow";
+import { INDEXNOW_KEY, submitIndexNowPayload } from "../lib/indexnow";
 import { GUIDES } from "../lib/guides";
 import { skills } from "../lib/schema";
 import { SITE_URL, absoluteUrl } from "../lib/site";
@@ -30,23 +30,16 @@ async function main() {
     ]),
   ])).slice(0, 10_000);
 
-  const response = await fetch("https://api.indexnow.org/indexnow", {
-    method: "POST",
-    headers: { "Content-Type": "application/json; charset=utf-8" },
-    body: JSON.stringify({
-      host: new URL(SITE_URL).host,
-      key: INDEXNOW_KEY,
-      keyLocation: absoluteUrl(`/${INDEXNOW_KEY}.txt`),
-      urlList,
-    }),
-    signal: AbortSignal.timeout(15_000),
+  const result = await submitIndexNowPayload({
+    host: new URL(SITE_URL).host,
+    key: INDEXNOW_KEY,
+    keyLocation: absoluteUrl(`/${INDEXNOW_KEY}.txt`),
+    urlList,
   });
 
-  if (!response.ok && response.status !== 202) {
-    throw new Error(`IndexNow 返回 ${response.status}: ${(await response.text()).slice(0, 300)}`);
-  }
-
-  console.log(`[indexnow] 已提交 ${urlList.length} 个新增或更新 URL（HTTP ${response.status}）`);
+  console.log(
+    `[indexnow] 已提交 ${urlList.length} 个新增或更新 URL（${new URL(result.endpoint).hostname} · HTTP ${result.status}）`,
+  );
 }
 
 main().catch((error) => {
