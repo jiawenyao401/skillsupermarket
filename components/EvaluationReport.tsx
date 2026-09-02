@@ -146,7 +146,7 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
 
       {report.diagram
         ? <EvaluationDiagram diagram={report.diagram} />
-        : <EvaluationDiagramUnavailable status={missingDiagramStatus} />}
+        : <EvaluationDiagramUnavailable status={missingDiagramStatus} rejectionReason={report.methodology?.diagramRejectionReason} />}
 
       <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
         <div className="surface-card p-5 sm:p-6">

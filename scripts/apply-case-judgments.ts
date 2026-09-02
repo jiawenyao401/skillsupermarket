@@ -127,6 +127,7 @@ async function applyCase(entry: z.infer<typeof bundleSchema>["cases"][number]) {
     }),
     aiJudgeUsed: true,
     diagramStatus: diagramResult.status,
+    diagramRejectionReason: diagramResult.rejectionReason,
     aiJudgeModel: judgment.model,
     rubricVersion: judgment.rubricVersion,
     aiJudgeCalibration: judgment.calibrationNotes,

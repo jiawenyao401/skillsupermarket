@@ -1,4 +1,9 @@
-import type { EvaluationDiagram as EvaluationDiagramType, EvaluationDiagramNode, EvaluationDiagramStatus } from "@/lib/types";
+import type {
+  EvaluationDiagram as EvaluationDiagramType,
+  EvaluationDiagramNode,
+  EvaluationDiagramRejectionReason,
+  EvaluationDiagramStatus,
+} from "@/lib/types";
 
 const TYPE_LABELS = {
   flow: "流程图",
@@ -183,9 +188,26 @@ export function EvaluationDiagram({ diagram }: { diagram: EvaluationDiagramType 
 
 type MissingDiagramStatus = Exclude<EvaluationDiagramStatus, "generated">;
 
-export function EvaluationDiagramUnavailable({ status }: { status: MissingDiagramStatus }) {
+const REJECTION_EXPLANATIONS: Record<EvaluationDiagramRejectionReason, string> = {
+  "schema-constraint": "字段数量、长度或格式未满足图示约束",
+  "duplicate-node": "候选图包含重复节点",
+  "unknown-node": "连线引用了未定义节点",
+  "self-loop": "候选图包含无证据支撑的自环关系",
+  "duplicate-edge": "候选图包含完全重复的关系",
+  "unconnected-node": "至少一个节点没有参与任何关系",
+  "disconnected-graph": "节点被拆成了互不相连的关系组",
+};
+
+export function EvaluationDiagramUnavailable({
+  status,
+  rejectionReason,
+}: {
+  status: MissingDiagramStatus;
+  rejectionReason?: EvaluationDiagramRejectionReason;
+}) {
   const invalidOutput = status === "invalid-output";
   const insufficientEvidence = status === "insufficient-evidence";
+  const rejectionExplanation = rejectionReason ? REJECTION_EXPLANATIONS[rejectionReason] : "节点、关系或证据未满足报告约束";
   return (
     <section className="surface-card overflow-hidden" aria-labelledby="skill-diagram-unavailable-title">
       <div className="border-b p-5 sm:p-6">
@@ -195,7 +217,7 @@ export function EvaluationDiagramUnavailable({ status }: { status: MissingDiagra
         </h3>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
           {invalidOutput
-            ? "AI 返回了图示候选，但节点、关系或证据未满足报告约束。为避免展示错误关系，本次仅保留已验证的文字证据；重新评测会再次尝试生成。"
+            ? `AI 返回了图示候选，但${rejectionExplanation}。为避免展示错误关系，本次仅保留已验证的文字证据；重新评测会再次尝试生成。`
             : insufficientEvidence
             ? "当前材料不足以同时核实至少 2 个步骤或组件及 1 条关系。为避免臆测，报告保留文字证据，不生成流程图、时序图或架构图。"
             : "本次评测未完成 AI 证据提取；确定性评分与安全扫描仍然有效。重新评测后，证据充分时会自动选择合适图型。"}

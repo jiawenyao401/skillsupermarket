@@ -1,5 +1,10 @@
 import { z } from "zod";
-import type { EvaluationDiagram, EvaluationDiagramStatus, QualitySubScores } from "./types";
+import type {
+  EvaluationDiagram,
+  EvaluationDiagramRejectionReason,
+  EvaluationDiagramStatus,
+  QualitySubScores,
+} from "./types";
 import { redactKnownSecrets } from "./redaction";
 
 interface JudgeConfig {
@@ -126,30 +131,47 @@ export function protectJudgeInput(value: string): string {
     .replace(/\[\/INST\]/gi, "［/INST］");
 }
 
-export function normalizeEvaluationDiagram(value: unknown): EvaluationDiagram | undefined {
-  const parsed = diagramSchema.safeParse(value);
-  if (!parsed.success) return undefined;
+function normalizeParsedEvaluationDiagram(parsed: z.infer<typeof diagramSchema>): EvaluationDiagram {
   return {
-    ...parsed.data,
-    title: normalizeSentence(parsed.data.title),
-    rationale: normalizeSentence(parsed.data.rationale),
-    nodes: parsed.data.nodes.map((node) => ({
+    ...parsed,
+    title: normalizeSentence(parsed.title),
+    rationale: normalizeSentence(parsed.rationale),
+    nodes: parsed.nodes.map((node) => ({
       ...node,
       label: normalizeSentence(node.label),
       role: node.role ? normalizeSentence(node.role) : undefined,
     })),
-    edges: parsed.data.edges.map((edge) => ({ ...edge, label: normalizeSentence(edge.label) })),
-    evidence: parsed.data.evidence.map(normalizeSentence),
+    edges: parsed.edges.map((edge) => ({ ...edge, label: normalizeSentence(edge.label) })),
+    evidence: parsed.evidence.map(normalizeSentence),
   };
+}
+
+function classifyDiagramRejection(issues: ReadonlyArray<{ message: string }>): EvaluationDiagramRejectionReason {
+  const messages = issues.map((issue) => issue.message);
+  if (messages.includes("连线必须引用已有节点")) return "unknown-node";
+  if (messages.includes("节点 ID 必须唯一")) return "duplicate-node";
+  if (messages.includes("不允许自环")) return "self-loop";
+  if (messages.includes("不允许重复连线")) return "duplicate-edge";
+  if (messages.includes("每个节点必须参与至少一条关系")) return "unconnected-node";
+  if (messages.includes("图示必须形成单一连通关系")) return "disconnected-graph";
+  return "schema-constraint";
+}
+
+export function normalizeEvaluationDiagram(value: unknown): EvaluationDiagram | undefined {
+  const parsed = diagramSchema.safeParse(value);
+  return parsed.success ? normalizeParsedEvaluationDiagram(parsed.data) : undefined;
 }
 
 export function normalizeEvaluationDiagramResult(value: unknown): {
   diagram?: EvaluationDiagram;
   status: Extract<EvaluationDiagramStatus, "generated" | "insufficient-evidence" | "invalid-output">;
+  rejectionReason?: EvaluationDiagramRejectionReason;
 } {
   if (value === null || value === undefined) return { status: "insufficient-evidence" };
-  const diagram = normalizeEvaluationDiagram(value);
-  return diagram ? { diagram, status: "generated" } : { status: "invalid-output" };
+  const parsed = diagramSchema.safeParse(value);
+  return parsed.success
+    ? { diagram: normalizeParsedEvaluationDiagram(parsed.data), status: "generated" }
+    : { status: "invalid-output", rejectionReason: classifyDiagramRejection(parsed.error.issues) };
 }
 
 function splitReadmeSections(readme: string): string[] {
@@ -336,6 +358,7 @@ export interface JudgeResult {
   calibrationNotes: string[];
   diagram?: EvaluationDiagram;
   diagramStatus: Extract<EvaluationDiagramStatus, "generated" | "insufficient-evidence" | "invalid-output">;
+  diagramRejectionReason?: EvaluationDiagramRejectionReason;
   model: string;
   rubricVersion: string;
 }
@@ -492,6 +515,7 @@ export async function judgeSkill(input: JudgeInput): Promise<JudgeResult> {
     calibrationNotes: calibration.notes,
     diagram: diagramResult.diagram,
     diagramStatus: diagramResult.status,
+    diagramRejectionReason: diagramResult.rejectionReason,
     model: config.model,
     rubricVersion: RUBRIC_VERSION,
   };

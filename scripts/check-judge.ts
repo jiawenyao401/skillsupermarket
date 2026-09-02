@@ -53,7 +53,7 @@ MIT`,
   });
 
   if (!result.diagram || result.diagramStatus !== "generated") {
-    throw new Error(`LLM Judge 未返回可验证的 Skill 图示（${result.diagramStatus}）`);
+    throw new Error(`LLM Judge 未返回可验证的 Skill 图示（${result.diagramStatus}${result.diagramRejectionReason ? `:${result.diagramRejectionReason}` : ""}）`);
   }
 
   console.log(JSON.stringify({
@@ -68,6 +68,7 @@ MIT`,
     calibrationNotes: result.calibrationNotes,
     diagram: result.diagram,
     diagramStatus: result.diagramStatus,
+    diagramRejectionReason: result.diagramRejectionReason,
   }, null, 2));
 }
 

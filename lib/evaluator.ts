@@ -240,6 +240,7 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
         scannedCharacters: security.scannedCharacters,
         aiJudgeUsed: Boolean(aiResult),
         diagramStatus: aiResult?.diagramStatus ?? "judge-unavailable",
+        diagramRejectionReason: aiResult?.diagramRejectionReason,
         aiJudgeModel: aiResult?.model,
         rubricVersion: aiResult?.rubricVersion,
         aiJudgeCalibration: aiResult?.calibrationNotes,

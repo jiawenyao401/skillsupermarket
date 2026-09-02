@@ -52,6 +52,7 @@ async function evaluateRepository(fullName: string) {
     calibrationNotes: result.calibrationNotes,
     diagram: result.diagram,
     diagramStatus: result.diagramStatus,
+    diagramRejectionReason: result.diagramRejectionReason,
     readmeCharacters: readme.length,
     evidenceFiles: files.length,
     repeatScore: repeat?.score ?? null,

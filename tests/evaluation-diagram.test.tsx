@@ -27,3 +27,12 @@ test("invalid judge diagrams are reported as rejected instead of insufficient ev
   assert.match(markup, /节点、关系或证据未满足报告约束/);
   assert.doesNotMatch(markup, /公开证据不足/);
 });
+
+test("invalid judge diagrams explain the exact structural rejection", () => {
+  const markup = renderToStaticMarkup(
+    <EvaluationDiagramUnavailable status="invalid-output" rejectionReason="unknown-node" />,
+  );
+
+  assert.match(markup, /连线引用了未定义节点/);
+  assert.match(markup, /为避免展示错误关系/);
+});

@@ -1,12 +1,13 @@
-import type { EvaluationDiagramStatus } from "../lib/types";
+import type { EvaluationDiagramRejectionReason, EvaluationDiagramStatus } from "../lib/types";
 
-export const DIAGRAM_GOLDEN_SET_VERSION = "1.0.0";
+export const DIAGRAM_GOLDEN_SET_VERSION = "1.1.0";
 
 export interface DiagramGoldenCase {
   id: string;
   candidate: unknown;
   expectedStatus: Extract<EvaluationDiagramStatus, "generated" | "insufficient-evidence" | "invalid-output">;
   expectedType?: "flow" | "sequence" | "architecture";
+  expectedRejectionReason?: EvaluationDiagramRejectionReason;
 }
 
 const validFlow = {
@@ -80,6 +81,7 @@ export const DIAGRAM_GOLDEN_CASES: DiagramGoldenCase[] = [
       edges: [{ from: "input", to: "invented", label: "调用" }],
     },
     expectedStatus: "invalid-output",
+    expectedRejectionReason: "unknown-node",
   },
   {
     id: "isolated-node",
@@ -88,6 +90,7 @@ export const DIAGRAM_GOLDEN_CASES: DiagramGoldenCase[] = [
       nodes: [...validFlow.nodes, { id: "orphan", label: "孤立组件" }],
     },
     expectedStatus: "invalid-output",
+    expectedRejectionReason: "unconnected-node",
   },
   {
     id: "disconnected-subgraphs",
@@ -105,6 +108,7 @@ export const DIAGRAM_GOLDEN_CASES: DiagramGoldenCase[] = [
       ],
     },
     expectedStatus: "invalid-output",
+    expectedRejectionReason: "disconnected-graph",
   },
   {
     id: "duplicate-edge",
@@ -113,5 +117,39 @@ export const DIAGRAM_GOLDEN_CASES: DiagramGoldenCase[] = [
       edges: [validFlow.edges[0], validFlow.edges[0], validFlow.edges[1]],
     },
     expectedStatus: "invalid-output",
+    expectedRejectionReason: "duplicate-edge",
+  },
+  {
+    id: "duplicate-node",
+    candidate: {
+      ...validFlow,
+      nodes: [validFlow.nodes[0], { ...validFlow.nodes[1], id: "input" }],
+      edges: [{ from: "input", to: "input", label: "处理" }],
+    },
+    expectedStatus: "invalid-output",
+    expectedRejectionReason: "duplicate-node",
+  },
+  {
+    id: "self-loop",
+    candidate: {
+      ...validFlow,
+      nodes: validFlow.nodes.slice(0, 2),
+      edges: [
+        { from: "input", to: "input", label: "重复处理" },
+        { from: "input", to: "parse", label: "继续" },
+      ],
+    },
+    expectedStatus: "invalid-output",
+    expectedRejectionReason: "self-loop",
+  },
+  {
+    id: "schema-constraint",
+    candidate: {
+      ...validFlow,
+      nodes: [{ id: "Input Node", label: "非法 ID" }, validFlow.nodes[1]],
+      edges: [{ from: "Input Node", to: "parse", label: "处理" }],
+    },
+    expectedStatus: "invalid-output",
+    expectedRejectionReason: "schema-constraint",
   },
 ];

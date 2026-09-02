@@ -20,11 +20,15 @@ const TRUST_BOUNDARY_CASE_SET_VERSION = "1.0.0";
 
 test(`diagram golden set ${DIAGRAM_GOLDEN_SET_VERSION} preserves evidence-graph invariants`, () => {
   assert.ok(DIAGRAM_GOLDEN_CASES.length >= 8, "golden set must cover all diagram types and failure modes");
+  const rejectedCases = DIAGRAM_GOLDEN_CASES.filter((fixture) => fixture.expectedStatus === "invalid-output");
+  assert.ok(rejectedCases.length >= 7, "golden set must cover distinct structural rejection modes");
+  assert.ok(rejectedCases.every((fixture) => fixture.expectedRejectionReason), "every rejected case needs an explainable reason");
 
   for (const fixture of DIAGRAM_GOLDEN_CASES) {
     const result = normalizeEvaluationDiagramResult(fixture.candidate);
     assert.equal(result.status, fixture.expectedStatus, `${fixture.id} status drifted`);
     assert.equal(result.diagram?.type, fixture.expectedType, `${fixture.id} type drifted`);
+    assert.equal(result.rejectionReason, fixture.expectedRejectionReason, `${fixture.id} rejection reason drifted`);
   }
 });
 
@@ -115,7 +119,10 @@ test("diagram normalization records generated, insufficient, and invalid outcome
 
   assert.equal(normalizeEvaluationDiagramResult(valid).status, "generated");
   assert.deepEqual(normalizeEvaluationDiagramResult(null), { status: "insufficient-evidence" });
-  assert.deepEqual(normalizeEvaluationDiagramResult({ ...valid, edges: [] }), { status: "invalid-output" });
+  assert.deepEqual(normalizeEvaluationDiagramResult({ ...valid, edges: [] }), {
+    status: "invalid-output",
+    rejectionReason: "unconnected-node",
+  });
 });
 
 test("long README evidence selection keeps late safety and troubleshooting sections", () => {

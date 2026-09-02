@@ -99,6 +99,14 @@ export type EvaluationDiagramStatus =
   | "insufficient-evidence"
   | "invalid-output"
   | "judge-unavailable";
+export type EvaluationDiagramRejectionReason =
+  | "schema-constraint"
+  | "duplicate-node"
+  | "unknown-node"
+  | "self-loop"
+  | "duplicate-edge"
+  | "unconnected-node"
+  | "disconnected-graph";
 
 export interface EvaluationDiagramNode {
   id: string;
@@ -199,6 +207,7 @@ export interface EvaluationMethodology {
   scannedCharacters: number;
   aiJudgeUsed: boolean;
   diagramStatus?: EvaluationDiagramStatus;
+  diagramRejectionReason?: EvaluationDiagramRejectionReason;
   aiJudgeModel?: string;
   rubricVersion?: string;
   aiJudgeCalibration?: string[];
