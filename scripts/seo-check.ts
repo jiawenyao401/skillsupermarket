@@ -53,6 +53,7 @@ async function main() {
     mcpSecurityScan,
     guides,
     guide,
+    claudeCodeGuide,
     privacy,
     login,
     robots,
@@ -68,6 +69,7 @@ async function main() {
     request("/mcp-server-security-scan"),
     request("/guides"),
     request("/guides/mcp-server-security-checklist-2026"),
+    request("/guides/claude-code-skills-recommended-2026"),
     request("/privacy"),
     request("/login?returnTo=%2Fevaluate"),
     request("/robots.txt"),
@@ -141,6 +143,14 @@ async function main() {
       && guide.body.includes(`${SITE_URL}/guides/mcp-server-security-checklist-2026`),
     detail: `HTTP ${guide.status} · Article + canonical`,
   });
+  checks.push({
+    name: "Claude Code Skill 推荐指南",
+    ok: claudeCodeGuide.status === 200
+      && claudeCodeGuide.body.includes("Claude Code Skill 推荐 2026")
+      && claudeCodeGuide.body.includes("application/ld+json")
+      && claudeCodeGuide.body.includes(`${SITE_URL}/guides/claude-code-skills-recommended-2026`),
+    detail: `HTTP ${claudeCodeGuide.status} · Article + canonical`,
+  });
   checks.push({ name: "隐私说明", ok: privacy.status === 200 && privacy.body.includes("Global Privacy Control"), detail: `HTTP ${privacy.status}` });
   checks.push({
     name: "登录页",
@@ -155,6 +165,7 @@ async function main() {
       && sitemap.body.includes("/skill/")
       && sitemap.body.includes("/evaluation")
       && sitemap.body.includes("/mcp-server-security-scan")
+      && sitemap.body.includes("/guides/claude-code-skills-recommended-2026")
       && sitemap.body.includes("/guides/mcp-server-security-checklist-2026"),
     detail: `HTTP ${sitemap.status} · ${(sitemap.body.match(/<loc>/g) ?? []).length} URLs`,
   });

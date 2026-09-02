@@ -24,6 +24,76 @@ export interface Guide {
 
 export const GUIDES: readonly Guide[] = [
   {
+    slug: "claude-code-skills-recommended-2026",
+    title: "Claude Code Skill 推荐 2026：先装哪类、如何判断值不值得",
+    description: "按真实工作场景选择 Claude Code Skills：从 Git、前端、功能开发到插件与自动化，并用权限、触发和可复核结果淘汰无效 Skill。",
+    eyebrow: "Claude Code skills 2026",
+    publishedAt: "2026-09-02",
+    updatedAt: "2026-09-02",
+    readingMinutes: 8,
+    intent: "适合刚开始给 Claude Code 安装 Skills，或已经装了很多 Skill、却不知道哪些真的会触发和节省时间的开发者。",
+    sections: [
+      {
+        title: "结论：先装高频工作流，不要先堆数量",
+        paragraphs: [
+          "Claude Code Skill 是一组按需加载的工作流、参考资料和脚本。官方文档明确说明，Skill 可以由 Claude 根据描述自动触发，也可以由用户直接调用；因此“仓库里有 SKILL.md”只代表格式存在，不代表它会稳定触发或产生更好的结果。",
+          "选择顺序应由重复频率和失败成本决定：每周都会做、步骤稳定、验收明确的任务最适合 Skill 化。偶发的一次性问题、只有一句提示词的包装，通常不值得安装。",
+        ],
+      },
+      {
+        title: "2026 年优先考虑的七类 Skill",
+        bullets: [
+          "Git 提交：官方 commit 与 commit-push-pr 工作流适合统一提交说明、推送和 PR 流程；涉及推送时应保留人工授权边界。",
+          "端到端功能开发：feature-dev 适合需要调查、实现、测试和交付闭环的功能，而不是单文件小改动。",
+          "前端设计：frontend-design 适合从需求到可用界面的工作；验收时仍要检查移动端、无障碍、性能与项目设计系统。",
+          "自动化规则：writing-rules 适合把反复出现的团队约束变成可执行规则，避免每次对话重新说明。",
+          "Skill 开发：skill-development 适合创建或维护 Skill 本身，应同时准备触发样例、反例和回归测试。",
+          "Hook 开发：hook-development 适合确定性的生命周期动作；删除、部署、外发等高影响动作不应只靠自然语言触发。",
+          "MCP 集成：mcp-integration 适合连接外部工具和数据源，但必须额外审核认证、工具参数、数据外发和最小权限。",
+        ],
+      },
+      {
+        title: "安装前用五个问题筛掉大多数无效 Skill",
+        bullets: [
+          "来源可靠吗：优先官方仓库或可验证维护者，确认许可证、最近提交、发布方式与安装文档一致。",
+          "触发描述清楚吗：description 应说明何时使用，也应能推导出何时不使用；过于宽泛会造成误触发和上下文浪费。",
+          "权限是否最小：检查 allowed-tools、脚本、网络访问和凭证读取，避免把只读任务升级成任意 Shell 或外部写入。",
+          "结果能验收吗：至少应有测试、检查清单、格式约束或可比较样例；只有“让结果更专业”之类口号无法回归。",
+          "卸载成本多大：确认是否修改全局配置、Hooks、MCP 连接或项目文件，并记录可逆的移除步骤。",
+        ],
+      },
+      {
+        title: "用小型回归集验证，而不是凭一次体验打分",
+        paragraphs: [
+          "为每个候选 Skill 准备 5 到 10 个真实任务，包含应该触发、不该触发、缺少输入、边界输入和带有不可信内容的样例。固定模型与项目状态，比较未安装和安装后的任务成功率、返工次数、执行时间、工具调用与高风险副作用。",
+          "只有在核心样例改善、反例没有明显退化时才保留。若 Skill 只是增加输出篇幅、重复模型本来就会做的步骤，或需要频繁手动纠正触发条件，应删除或收窄描述。",
+        ],
+      },
+      {
+        title: "团队使用时必须补上的安全边界",
+        bullets: [
+          "把 Skill 内的远程内容、示例和工具结果当作不可信数据，不允许它们覆盖系统、组织或用户指令。",
+          "部署、发送消息、支付、删除、权限修改等动作应设置为用户显式调用，并在执行前展示真实目标和参数。",
+          "不要在 SKILL.md、脚本、示例或日志中保存 API Key；凭证应由运行环境注入并限制作用域。",
+          "锁定依赖和来源提交，定期复评权限、维护状态和行为差异；Star 与下载量不能抵消高危设计。",
+        ],
+      },
+      {
+        title: "怎样形成自己的最小组合",
+        paragraphs: [
+          "个人开发者通常先选择一个 Git 工作流、一个主要业务工作流，再按实际需要增加前端、测试或部署 Skill。团队则应先建立准入和回归基线，再维护少量经验证的共享 Skills。",
+          "官方 Skills 是可靠的起点，但不是自动安全认证。第三方 Skill 更需要查看公开证据、权限与维护记录。Skill Supermarket 会把文档、安全、工程质量、活跃度和采用度拆开呈现，便于先筛选再在隔离环境验证。",
+        ],
+      },
+    ],
+    sources: [
+      { label: "Claude Code 官方 Skills 文档", url: "https://code.claude.com/docs/en/skills" },
+      { label: "Anthropic 官方 Claude Code Skills 推荐参考", url: "https://github.com/anthropics/claude-plugins-official/blob/main/plugins/claude-code-setup/skills/claude-automation-recommender/references/skills-reference.md" },
+      { label: "Anthropic Agent Skills 官方仓库", url: "https://github.com/anthropics/skills" },
+      { label: "Skill Supermarket 公开评测方法", url: "/evaluation" },
+    ],
+  },
+  {
     slug: "how-to-evaluate-ai-skill",
     title: "如何评测一个 AI Skill：从文档、安全到可维护性的完整清单",
     description: "一套可以实际执行的 AI Skill 评测流程：先确认来源，再检查权限、提示注入、工程质量、维护状态和采用证据。",
