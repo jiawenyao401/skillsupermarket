@@ -7,6 +7,7 @@ export interface GuideSection {
   title: string;
   paragraphs?: string[];
   bullets?: string[];
+  code?: string;
 }
 
 export interface Guide {
@@ -23,6 +24,90 @@ export interface Guide {
 }
 
 export const GUIDES: readonly Guide[] = [
+  {
+    slug: "claude-code-mcp-setup-2026",
+    title: "Claude Code MCP 配置教程 2026：HTTP、stdio 与权限范围",
+    description: "从选择传输方式、安装与作用域，到凭证、验证和故障排查，安全地为 Claude Code 配置 MCP Server。",
+    eyebrow: "Claude Code MCP setup",
+    publishedAt: "2026-09-03",
+    updatedAt: "2026-09-03",
+    readingMinutes: 9,
+    intent: "适合第一次为 Claude Code 接入 GitHub、数据库、监控或内部 API，也适合需要把 MCP 配置安全共享给团队的开发者。",
+    sections: [
+      {
+        title: "先决定是否真的需要 MCP",
+        paragraphs: [
+          "当任务需要读取或操作外部系统，而且反复复制粘贴数据已经影响效率时，MCP 才有明显价值。只需要一段固定工作说明时，Skill 通常更轻；只运行一次的脚本，也不必长期连接为 MCP Server。",
+          "连接前先写清楚目标动作，例如“只读查询 Issue”或“读取测试数据库 Schema”。不要从“接入整个系统”开始，因为 Server 暴露的每个工具都会扩大 Agent 可选择的动作和需要审计的边界。",
+        ],
+      },
+      {
+        title: "远程服务优先用 HTTP",
+        paragraphs: [
+          "Claude Code 官方文档把 HTTP 作为连接云端服务的推荐传输；旧 SSE 方式已经弃用，新配置应避免继续采用。只连接你能验证来源和 HTTPS 地址的服务，认证优先走服务提供的 OAuth 流程。",
+          "下面的命令不会写入密钥。添加后先列出配置，再查看单个 Server 的传输、地址和作用域是否符合预期。",
+        ],
+        code: "claude mcp add --transport http <name> <https-url>\nclaude mcp list\nclaude mcp get <name>",
+      },
+      {
+        title: "需要本机文件或进程时才使用 stdio",
+        paragraphs: [
+          "stdio Server 会作为本地子进程启动，适合访问项目文件或内部命令。它继承的环境和可执行权限决定了真实风险，因此应锁定包版本、使用明确命令，并避免默认开放任意 Shell、任意路径或整个主目录。",
+          "`--` 前是 Claude Code 的配置选项，后面才是 Server 命令及参数。先用 local 作用域试运行，确认工具清单、输入 Schema 和副作用后，再考虑团队共享。",
+        ],
+        code: "claude mcp add --transport stdio --scope local <name> -- <command> [args...]\nclaude mcp list",
+      },
+      {
+        title: "正确选择 local、project 与 user 作用域",
+        bullets: [
+          "local：只在当前项目加载，配置保存在个人配置中，适合实验和包含私有连接信息的 Server。",
+          "project：配置写入项目根目录 `.mcp.json`，可以进入版本控制，适合团队共享不含秘密的 Server 定义。",
+          "user：在本机所有项目加载，只适合你确实会跨项目使用且权限范围清楚的个人工具。",
+          "同名配置同时存在时，Claude Code 按 local、project、user、插件和连接器的顺序选择；排障时先检查是否被更高优先级配置覆盖。",
+        ],
+      },
+      {
+        title: "团队配置可以共享，凭证不可以",
+        paragraphs: [
+          "项目级 `.mcp.json` 可以使用环境变量展开，让团队共享地址结构而不提交 Token。秘密应来自每个人或部署环境的凭证存储，并使用短期、可撤销、最小作用域的账号。不要把真实值放进 URL、命令参数、README 或提交历史。",
+          "项目级 Server 首次使用会触发信任确认；确认前核对本次变更的地址、命令、包版本和环境变量名。第三方仓库中的 `.mcp.json` 应视为不可信配置。",
+        ],
+        code: "{\n  \"mcpServers\": {\n    \"service-name\": {\n      \"type\": \"http\",\n      \"url\": \"${MCP_URL}\",\n      \"headers\": {\n        \"Authorization\": \"Bearer ${MCP_TOKEN}\"\n      }\n    }\n  }\n}",
+      },
+      {
+        title: "连接成功后做四步验收",
+        bullets: [
+          "状态：运行 `claude mcp list`，并在 Claude Code 的 `/mcp` 面板确认连接成功和工具数量合理。",
+          "权限：逐项查看工具名称、描述和参数，只保留完成目标需要的读取或写入能力。",
+          "正向测试：用测试账号完成一个最小任务，确认输出、超时、日志和资源范围符合预期。",
+          "反向测试：尝试越界路径、跨项目对象、危险 URL 和高影响动作，确认服务端拒绝，而不是只依赖模型自觉。",
+        ],
+      },
+      {
+        title: "常见故障按这个顺序排查",
+        bullets: [
+          "显示已添加但无法连接：用 `claude mcp get <name>` 核对传输类型、URL、命令和实际作用域。",
+          "远程认证失败：在 `/mcp` 中重新登录；检查回调地址、HTTPS、令牌受众和服务端授权范围。",
+          "本地进程启动失败：确认命令在当前 PATH 可用、包版本已锁定、工作目录和必需环境变量存在。",
+          "连接成功但没有工具：检查 Server 是否声明 tools 能力并实际返回工具；不要通过扩大账号权限掩盖协议或配置错误。",
+          "上下文或成本异常增长：减少不必要的 Server 和工具，限制单次返回大小，并移除不会在当前项目使用的 user 级配置。",
+        ],
+      },
+      {
+        title: "上线前最后一道安全门",
+        paragraphs: [
+          "MCP 2026-07-28 规范强化了 HTTP 路由和授权，但协议版本本身不是安全认证。Server 仍可能包含提示注入、凭证外泄、过度授权、危险命令或供应链风险。连接前应审查源码、发布来源、许可证和维护状态，连接后还要验证运行时副作用。",
+          "Skill Supermarket 的静态评测会区分已验证证据、风险信号和未验证边界。它适合做接入前初筛与版本变化复测，但不能替代你在真实身份、网络和数据边界上的集成测试。",
+        ],
+      },
+    ],
+    sources: [
+      { label: "Claude Code 官方 MCP 配置文档", url: "https://code.claude.com/docs/en/mcp" },
+      { label: "MCP 2026-07-28 稳定规范说明", url: "https://blog.modelcontextprotocol.io/posts/2026-07-28/" },
+      { label: "Skill Supermarket MCP 安全扫描", url: "/mcp-server-security-scan" },
+      { label: "查看已收录 MCP Server", url: "/search?q=MCP" },
+    ],
+  },
   {
     slug: "ai-agent-security-risks-2026",
     title: "AI Agent 安全风险与防护清单 2026：从提示注入到工具越权",

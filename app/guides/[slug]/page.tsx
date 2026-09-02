@@ -102,6 +102,11 @@ export default async function GuidePage({ params }: GuidePageProps) {
                         ))}
                       </ul>
                     )}
+                    {section.code && (
+                      <pre className="mt-5 overflow-x-auto rounded-2xl border bg-foreground p-5 text-sm leading-6 text-background shadow-inner" tabIndex={0}>
+                        <code>{section.code}</code>
+                      </pre>
+                    )}
                   </div>
                 </div>
               </section>
