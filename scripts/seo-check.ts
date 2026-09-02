@@ -60,6 +60,7 @@ async function main() {
     sitemap,
     caseApi,
     casePage,
+    caseOgImage,
     anonymousEvaluation,
     ...protectedPages
   ] = await Promise.all([
@@ -76,6 +77,7 @@ async function main() {
     request("/sitemap.xml"),
     request(`/api/skills?slug=${encodeURIComponent(caseSlug)}`),
     request(`/skill/${encodeURIComponent(caseSlug)}`),
+    request(`/skill/${encodeURIComponent(caseSlug)}/opengraph-image`),
     request("/api/evaluate", {
       method: "POST",
       headers: {
@@ -180,6 +182,11 @@ async function main() {
     name: "真实评测案例页面",
     ok: casePage.status === 200 && casePage.body.includes("评测报告"),
     detail: `${caseSlug} · HTTP ${casePage.status}`,
+  });
+  checks.push({
+    name: "真实评测案例分享图片",
+    ok: caseOgImage.status === 200 && caseOgImage.headers.get("content-type")?.startsWith("image/png") === true,
+    detail: `${caseSlug} · HTTP ${caseOgImage.status} · ${caseOgImage.headers.get("content-type") ?? "无内容类型"}`,
   });
 
   const anonymousData = recordFromJson(anonymousEvaluation.body);

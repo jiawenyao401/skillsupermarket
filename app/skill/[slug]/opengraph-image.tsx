@@ -20,6 +20,9 @@ export default async function OpenGraphImage({ params }: { params: Promise<{ slu
 
   const name = skill?.name ?? "AI Skill";
   const type = skill?.type === "mcp-server" ? "MCP Server" : skill?.type === "agent-pack" ? "Agent Pack" : "AI Skill";
+  // Satori treats numeric React children as multiple layout nodes in this
+  // dynamic route. Normalize the score to text before image rendering.
+  const score = evaluation ? String(evaluation.overallScore) : "—";
 
   return new ImageResponse(
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", background: "#faf8f3", color: "#151a28", padding: "64px 72px", fontFamily: "sans-serif" }}>
@@ -42,7 +45,7 @@ export default async function OpenGraphImage({ params }: { params: Promise<{ slu
           <div style={{ color: "#697184", fontSize: 27 }}>Security · Documentation · Quality · Activity · Adoption</div>
         </div>
         <div style={{ width: 190, height: 190, flexShrink: 0, borderRadius: 40, background: "#151a28", color: "#faf8f3", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ fontSize: 74, fontWeight: 900, letterSpacing: -4 }}>{evaluation?.overallScore ?? "—"}</div>
+          <div style={{ fontSize: 74, fontWeight: 900, letterSpacing: -4 }}>{score}</div>
           <div style={{ color: "#ff7651", fontSize: 20, fontWeight: 700 }}>{evaluation ? "SCORE / 100" : "PENDING"}</div>
         </div>
       </div>
