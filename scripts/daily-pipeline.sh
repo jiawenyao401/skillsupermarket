@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 服务器侧数据流水线（由 systemd timer 每 6 小时触发）
-# 流程: collect -> rank -> IndexNow -> snapshot -> bounded evaluation coverage
+# 流程: collect -> bounded README cache -> rank -> IndexNow -> snapshot -> bounded evaluation coverage
 # 不 push 到 GitHub (服务器网络封了, 改为导出快照, 本地拉)
 # 服务器路径: /opt/skillsupermarket/scripts/daily-pipeline.sh
 
@@ -32,29 +32,37 @@ log "--- 1. collect ---"
 npm run collect 2>&1 | tee -a "$LOG_FILE"
 log "✅ collect 完成"
 
-# 2. 榜单（评测由常驻 Worker 独立处理）
-log "--- 2. rank ---"
+# 2. 有界刷新 README 缓存。无 GitHub Token 时默认仅 3 个，避免公共 API 限流。
+log "--- 2. readme cache ---"
+if npm run cache:readmes 2>&1 | tee -a "$LOG_FILE"; then
+  log "✅ README 缓存刷新完成"
+else
+  log "⚠️ README 缓存刷新失败，不阻断榜单与评测"
+fi
+
+# 3. 榜单（评测由常驻 Worker 独立处理）
+log "--- 3. rank ---"
 npm run rank 2>&1 | tee -a "$LOG_FILE"
 log "✅ rank 完成"
 
-# 3. 主动通知支持 IndexNow 的搜索引擎（失败不阻断数据流水线）
-log "--- 3. indexnow ---"
+# 4. 主动通知支持 IndexNow 的搜索引擎（失败不阻断数据流水线）
+log "--- 4. indexnow ---"
 if npm run indexnow 2>&1 | tee -a "$LOG_FILE"; then
   log "✅ IndexNow 提交完成"
 else
   log "⚠️ IndexNow 提交失败，将在下一轮重试"
 fi
 
-# 4. 导出快照 (失败不影响已生成的线上榜单)
-log "--- 4. snapshot ---"
+# 5. 导出快照 (失败不影响已生成的线上榜单)
+log "--- 5. snapshot ---"
 if SNAPSHOT_STAMP=$(npm run --silent snapshot 2>&1 | tail -1); then
   log "✅ 快照: $SNAPSHOT_STAMP"
 else
   log "⚠️ 快照导出失败，榜单仍已成功生成"
 fi
 
-# 5. 有界补齐无报告项目。常驻 Worker 会优先处理用户任务，再处理这些后台任务。
-log "--- 5. coverage ---"
+# 6. 有界补齐无报告项目。常驻 Worker 会优先处理用户任务，再处理这些后台任务。
+log "--- 6. coverage ---"
 npm run coverage:enqueue 2>&1 | tee -a "$LOG_FILE"
 log "✅ coverage 调度完成"
 

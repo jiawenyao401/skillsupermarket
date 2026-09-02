@@ -43,6 +43,13 @@
       "when": 1786982400000,
       "tag": "0005_privacy_traffic_analytics",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788307200000,
+      "tag": "0006_readme_cache",
+      "breakpoints": true
     }
   ]
 }

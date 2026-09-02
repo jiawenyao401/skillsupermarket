@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "./db";
-import { evaluations, evaluationJobs, metricsDaily, skills } from "./schema";
+import { evaluations, evaluationJobs, metricsDaily, skillReadmes, skills } from "./schema";
 import { scanDocuments } from "./scanner";
 import { hasJudgeConfiguration, judgeSkill, type JudgeResult } from "./judge";
 import {
@@ -17,11 +17,12 @@ import {
   scorePopularity,
   WEIGHTS,
 } from "./evaluation-scoring";
-import { getEvaluationFiles, getReadme, getRepo } from "./github";
+import { getEvaluationFiles, getReadmeDocument, getRepo } from "./github";
 import { getNpmWeeklyDownloads } from "./npm";
 import { getPypiWeeklyDownloads } from "./pypi";
 import { EVALUATION_QUEUE_PRIORITY, SCHEDULED_COVERAGE_TRIGGER } from "./evaluation-queue-policy";
 import { inferGitHubSkillType, SKILL_CLASSIFIER_VERSION } from "./skill-classification";
+import { readmeCacheValues } from "./readme-cache";
 import type {
   EvaluationReport,
   PopularityStats,
@@ -83,12 +84,12 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
     if (match) repoFullName = match[1].replace(/\.git$/i, "");
 
     await updateJob(job.id, { stage: "evidence", progress: 20 });
-    const [repo, readmeResult] = await Promise.all([
+    const [repo, readmeDocument] = await Promise.all([
       repoFullName ? getRepo(repoFullName) : Promise.resolve(null),
-      repoFullName ? getReadme(repoFullName) : Promise.resolve(null),
+      repoFullName ? getReadmeDocument(repoFullName) : Promise.resolve(null),
     ]);
     const extraFiles = repoFullName ? await getEvaluationFiles(repoFullName, repo?.default_branch) : [];
-    readme = readmeResult ?? skill.description ?? "";
+    readme = readmeDocument?.content ?? skill.description ?? "";
     const evaluationType = repo && skill.source === "github"
       ? inferGitHubSkillType(repo)
       : skill.type;
@@ -283,6 +284,13 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
       pypiDownloadsWeekly: isPypi ? popStats.downloadsWeekly : skill.pypiDownloadsWeekly,
       lastIndexedAt: new Date(),
     }).where(eq(skills.id, skill.id));
+    if (repoFullName && readmeDocument) {
+      const values = readmeCacheValues(readmeDocument);
+      await db.insert(skillReadmes).values({ skillId: skill.id, ...values }).onConflictDoUpdate({
+        target: skillReadmes.skillId,
+        set: values,
+      });
+    }
 
     await updateJob(job.id, { status: "done", stage: "done", progress: 100, finishedAt: new Date(), error: null });
     return evaluation.id;

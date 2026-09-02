@@ -3,6 +3,7 @@ import test from "node:test";
 import { scanDocuments } from "../lib/scanner";
 import { extractGithubUrl, normalizeEvaluationSource, parseEvaluationSource } from "../lib/source-parser";
 import { transformReadmeUrl } from "../lib/readme";
+import { cachedReadmeDocument, MAX_CACHED_README_CHARACTERS, readmeCacheValues } from "../lib/readme-cache";
 
 test("source parser accepts supported canonical inputs", () => {
   assert.deepEqual(parseEvaluationSource("https://github.com/OpenAI/openai-node/tree/main"), {
@@ -58,6 +59,25 @@ test("README URLs resolve against the repository and reject unsafe protocols", (
     }),
     "https://raw.githubusercontent.com/acme/demo/main/assets/hero.png"
   );
+});
+
+test("README cache snapshots are bounded and reconstruct without an upstream request", () => {
+  const cachedAt = new Date("2026-09-02T00:00:00.000Z");
+  const values = readmeCacheValues({
+    content: "x".repeat(MAX_CACHED_README_CHARACTERS + 100),
+    path: "docs/README.md",
+    htmlUrl: "https://github.com/acme/demo/blob/main/docs/README.md",
+    rawUrl: "https://raw.githubusercontent.com/acme/demo/main/docs/README.md",
+  }, cachedAt);
+  assert.equal(values.readmeContent?.length, MAX_CACHED_README_CHARACTERS);
+  assert.deepEqual(cachedReadmeDocument(values), {
+    content: "x".repeat(MAX_CACHED_README_CHARACTERS),
+    path: "docs/README.md",
+    htmlUrl: "https://github.com/acme/demo/blob/main/docs/README.md",
+    rawUrl: "https://raw.githubusercontent.com/acme/demo/main/docs/README.md",
+  });
+  assert.equal(cachedReadmeDocument({ ...values, readmeCachedAt: null }), null);
+  assert.equal(cachedReadmeDocument(null), null);
 });
 
 test("clean documentation keeps a low risk score", () => {

@@ -23,6 +23,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "collect": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/collect.ts",
+    "cache:readmes": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/cache-readmes.ts",
     "evaluate": "tsx scripts/evaluate.ts",
     "coverage:enqueue": "tsx scripts/enqueue-evaluation-coverage.ts",
     "types:reclassify": "tsx scripts/reclassify-github-skills.ts",

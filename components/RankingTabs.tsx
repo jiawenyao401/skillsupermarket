@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, RefreshCw, Trophy } from "lucide-react";
 import { SkillCard } from "./SkillCard";
 import type { RankingPeriod } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-interface RankingItem {
+export interface RankingItem {
   rank: number;
   score: string;
   skillId: string;
@@ -15,10 +15,10 @@ interface RankingItem {
   description: string | null;
   type: "claude-skill" | "mcp-server" | "agent-pack";
   category: string | null;
-  tags: string[];
+  tags: string[] | null;
   authorName: string | null;
   authorAvatar: string | null;
-  githubStars: number;
+  githubStars: number | null;
   license: string | null;
 }
 
@@ -28,16 +28,32 @@ const PERIODS: { value: RankingPeriod; label: string; detail: string }[] = [
   { value: "monthly", label: "本月", detail: "30 天" },
 ];
 
-export function RankingTabs() {
+interface RankingTabsProps {
+  initialData?: RankingItem[];
+  initialSnapshotDate?: string | null;
+  initialIsStale?: boolean;
+}
+
+export function RankingTabs({
+  initialData = [],
+  initialSnapshotDate = null,
+  initialIsStale = false,
+}: RankingTabsProps) {
   const [period, setPeriod] = useState<RankingPeriod>("daily");
-  const [data, setData] = useState<RankingItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<RankingItem[]>(initialData);
+  const [loading, setLoading] = useState(initialData.length === 0);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [snapshotDate, setSnapshotDate] = useState<string | null>(null);
-  const [isStale, setIsStale] = useState(false);
+  const [snapshotDate, setSnapshotDate] = useState<string | null>(initialSnapshotDate);
+  const [isStale, setIsStale] = useState(initialIsStale);
+  const skippedInitialFetch = useRef(false);
 
   useEffect(() => {
+    if (!skippedInitialFetch.current && period === "daily" && retry === 0 && initialData.length > 0) {
+      skippedInitialFetch.current = true;
+      return;
+    }
+    skippedInitialFetch.current = true;
     const controller = new AbortController();
 
     fetch(`/api/rankings?period=${period}&limit=6`, { signal: controller.signal })
@@ -58,7 +74,7 @@ export function RankingTabs() {
       });
 
     return () => controller.abort();
-  }, [period, retry]);
+  }, [initialData.length, period, retry]);
 
   return (
     <div>

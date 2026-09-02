@@ -231,6 +231,21 @@ export const skills = pgTable(
   })
 );
 
+// README snapshots live outside the hot skills row. This keeps collection,
+// ranking and snapshot queries small even when a README reaches the cache cap.
+export const skillReadmes = pgTable("skill_readmes", {
+  skillId: uuid("skill_id")
+    .primaryKey()
+    .references(() => skills.id, { onDelete: "cascade" }),
+  readmeContent: text("content"),
+  readmePath: text("path"),
+  readmeHtmlUrl: text("html_url"),
+  readmeRawUrl: text("raw_url"),
+  readmeCachedAt: timestamp("cached_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  cachedAtIdx: index("skill_readmes_cached_at_idx").on(t.readmeCachedAt),
+}));
+
 // ===== evaluations =====
 export const evaluations = pgTable(
   "evaluations",
@@ -353,11 +368,16 @@ export const accountRelations = relations(account, ({ one }) => ({
 }));
 
 // ===== Relations =====
-export const skillsRelations = relations(skills, ({ many }) => ({
+export const skillsRelations = relations(skills, ({ many, one }) => ({
   evaluations: many(evaluations),
   metrics: many(metricsDaily),
   rankings: many(rankings),
   jobs: many(evaluationJobs),
+  readme: one(skillReadmes, { fields: [skills.id], references: [skillReadmes.skillId] }),
+}));
+
+export const skillReadmesRelations = relations(skillReadmes, ({ one }) => ({
+  skill: one(skills, { fields: [skillReadmes.skillId], references: [skills.id] }),
 }));
 
 export const evaluationsRelations = relations(evaluations, ({ one }) => ({

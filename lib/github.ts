@@ -108,7 +108,8 @@ export async function getReadme(
 /** Fetch README content together with canonical URLs used to resolve relative assets. */
 export async function getReadmeDocument(
   fullName: string,
-  ref?: string
+  ref?: string,
+  throwOnUpstreamError = false,
 ): Promise<GitHubReadmeDocument | null> {
   try {
     const url = ref
@@ -119,7 +120,10 @@ export async function getReadmeDocument(
       next: { revalidate: 86400 },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 404) return null;
+      throw new UpstreamServiceError("github", res.status, `GitHub README API returned ${res.status}`);
+    }
 
     const payload = await res.json() as GitHubReadmeResponse;
     const encoded = payload.content?.replace(/\s/g, "") ?? "";
@@ -134,7 +138,11 @@ export async function getReadmeDocument(
       htmlUrl: payload.html_url ?? null,
       rawUrl: payload.download_url ?? null,
     };
-  } catch {
+  } catch (error) {
+    if (throwOnUpstreamError) {
+      if (error instanceof UpstreamServiceError) throw error;
+      throw new UpstreamServiceError("github", undefined, "GitHub README API request failed");
+    }
     return null;
   }
 }

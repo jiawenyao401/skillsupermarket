@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { skills, evaluations, metricsDaily } from "@/lib/schema";
+import { skills, evaluations, metricsDaily, skillReadmes } from "@/lib/schema";
 import { eq, desc, and, gte, asc } from "drizzle-orm";
 import { EvaluationReport } from "@/components/EvaluationReport";
 import { TrendChart } from "@/components/TrendChart";
@@ -13,8 +13,8 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
-import { getReadmeDocument, type GitHubReadmeDocument } from "@/lib/github";
 import { transformReadmeUrl } from "@/lib/readme";
+import { cachedReadmeDocument } from "@/lib/readme-cache";
 import Link from "next/link";
 import { getSkillEvaluationSource } from "@/lib/skill-evaluation-source";
 import { JsonLd } from "@/components/JsonLd";
@@ -37,30 +37,25 @@ const getSkill = cache(async (slug: string) => {
     .where(eq(skills.slug, slug));
   if (!skill) return null;
 
-  const [evaluation] = await db
-    .select()
-    .from(evaluations)
-    .where(eq(evaluations.skillId, skill.id))
-    .orderBy(desc(evaluations.evaluatedAt))
-    .limit(1);
-
   // 最近 30 天热度趋势
   const since = new Date();
   since.setDate(since.getDate() - 30);
   const sinceStr = since.toISOString().split("T")[0];
 
-  const trend = await db
-    .select()
-    .from(metricsDaily)
-    .where(
-      and(
-        eq(metricsDaily.skillId, skill.id),
-        gte(metricsDaily.date, sinceStr)
-      )
-    )
-    .orderBy(asc(metricsDaily.date));
+  const [[evaluation], [readmeSnapshot], trend] = await Promise.all([
+    db.select().from(evaluations)
+      .where(eq(evaluations.skillId, skill.id))
+      .orderBy(desc(evaluations.evaluatedAt))
+      .limit(1),
+    db.select().from(skillReadmes)
+      .where(eq(skillReadmes.skillId, skill.id))
+      .limit(1),
+    db.select().from(metricsDaily)
+      .where(and(eq(metricsDaily.skillId, skill.id), gte(metricsDaily.date, sinceStr)))
+      .orderBy(asc(metricsDaily.date)),
+  ]);
 
-  return { skill, evaluation, trend };
+  return { skill, evaluation, trend, readmeSnapshot };
 });
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -107,12 +102,8 @@ export default async function SkillDetailPage({ params }: PageProps) {
   const data = await getSkill(slug);
   if (!data) notFound();
 
-  const { skill, evaluation, trend } = data;
-  let readme: GitHubReadmeDocument | null = null;
-  if (skill.repoUrl) {
-    const match = skill.repoUrl.match(/github\.com\/([^/]+\/[^/]+)/);
-    if (match) readme = await getReadmeDocument(match[1]);
-  }
+  const { skill, evaluation, trend, readmeSnapshot } = data;
+  const readme = cachedReadmeDocument(readmeSnapshot);
 
   const typeLabel = {
     "claude-skill": "Claude Skill",

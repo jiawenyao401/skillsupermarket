@@ -17,8 +17,11 @@ import { skills, evaluations } from "@/lib/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { SkillCard } from "@/components/SkillCard";
 import { RankingTabs } from "@/components/RankingTabs";
+import { JsonLd } from "@/components/JsonLd";
 import { SearchBar } from "@/components/SearchBar";
 import { formatNumber } from "@/lib/utils";
+import { getRankings } from "@/lib/ranker";
+import { absoluteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 3600;
@@ -124,11 +127,13 @@ async function getHomeData() {
     .from(skills)
     .where(eq(skills.status, "active"));
 
-  return { latest, topRated, stats };
+  const dailyRanking = await getRankings("daily", 6);
+
+  return { latest, topRated, stats, dailyRanking };
 }
 
 export default async function HomePage() {
-  const { latest, topRated, stats } = await getHomeData();
+  const { latest, topRated, stats, dailyRanking } = await getHomeData();
 
   const total = stats?.totalSkills ?? 0;
   const typeStats = [
@@ -139,6 +144,20 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-20 sm:space-y-24">
+      {dailyRanking.items.length > 0 && (
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "正在升温的 AI 能力",
+          numberOfItems: dailyRanking.items.length,
+          itemListElement: dailyRanking.items.map((skill) => ({
+            "@type": "ListItem",
+            position: skill.rank,
+            name: skill.name,
+            url: absoluteUrl(`/skill/${encodeURIComponent(skill.slug)}`),
+          })),
+        }} />
+      )}
       <section className="relative overflow-hidden rounded-[2rem] border bg-card px-5 py-12 shadow-sm sm:px-10 sm:py-16 lg:px-16 lg:py-20">
         <div className="hero-grid" aria-hidden="true" />
         <div className="relative z-10 mx-auto max-w-4xl text-center">
@@ -256,7 +275,11 @@ export default async function HomePage() {
             每 6 小时自动更新
           </div>
         </div>
-        <RankingTabs />
+        <RankingTabs
+          initialData={dailyRanking.items}
+          initialSnapshotDate={dailyRanking.snapshotDate}
+          initialIsStale={dailyRanking.isStale}
+        />
       </section>
 
       {topRated.length > 0 && (

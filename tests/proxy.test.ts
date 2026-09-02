@@ -11,7 +11,7 @@ test("login recovery destination remains same-origin", () => {
   assert.equal(safeReturnTo("https://attacker.example"), "/evaluate");
 });
 
-test("www requests permanently redirect to the canonical host", async () => {
+test("legacy hosts permanently redirect to the canonical host", async () => {
   const nextConfig = require("../next.config.js") as {
     redirects: () => Promise<unknown[]> | unknown[];
   };
@@ -20,6 +20,12 @@ test("www requests permanently redirect to the canonical host", async () => {
     {
       source: "/:path*",
       has: [{ type: "host", value: "www.skillsupermarket.com" }],
+      destination: "https://skillsupermarket.com/:path*",
+      permanent: true,
+    },
+    {
+      source: "/:path*",
+      has: [{ type: "host", value: "skill-supermarket.vercel.app" }],
       destination: "https://skillsupermarket.com/:path*",
       permanent: true,
     },

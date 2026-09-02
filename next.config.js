@@ -9,6 +9,12 @@ const nextConfig = {
         destination: "https://skillsupermarket.com/:path*",
         permanent: true,
       },
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "skill-supermarket.vercel.app" }],
+        destination: "https://skillsupermarket.com/:path*",
+        permanent: true,
+      },
     ];
   },
   images: {

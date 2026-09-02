@@ -123,6 +123,8 @@ npm run dev
 | `FREE_NETWORK_WEEKLY_LIMIT` | 可选 | 免费账号共享网络周额度，默认 20 |
 | `DEEPSEEK_API_KEY` | 三选一 | DeepSeek Judge |
 | `EVALUATION_COVERAGE_BATCH` | 否 | 每轮后台补齐的无报告项目数，默认 5、最大 5；设为 0 可暂停 |
+| `README_CACHE_BATCH` | 否 | 每轮持久化的 README 数；无 GitHub Token 默认 3、有 Token 默认 12、最大 20 |
+| `README_CACHE_TTL_DAYS` | 否 | README 缓存刷新周期，默认 14 天 |
 | `OPENAI_API_KEY` | 三选一 | OpenAI Judge |
 | `ANTHROPIC_API_KEY` | 三选一 | Anthropic Judge |
 

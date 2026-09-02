@@ -19,11 +19,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Skill Supermarket — AI 能力发现与评测",
+    default: "Skill Supermarket - AI Skill / MCP 发现与安全评测平台",
     template: "%s · Skill Supermarket",
   },
   description:
-    "发现经过评测的 AI Skills、MCP Servers 与 Agent Packs，用可信数据为你的 AI 选择下一项能力。",
+    "收录并持续评测 AI Skills、MCP Servers 与 Agent Packs，展示可追溯证据、安全风险、五维评分和采用建议，帮你少踩坑、快选型。",
   keywords: ["Claude", "MCP", "AI Skill", "Agent", "AI 工具", "安全评测"],
   authors: [{ name: "Skill Supermarket" }],
   creator: SITE_NAME,
@@ -43,8 +43,8 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Skill Supermarket — AI 能力发现与评测",
-    description: "发现、比较并评测真正值得使用的 AI 能力。",
+    title: "Skill Supermarket - AI Skill / MCP 发现与安全评测平台",
+    description: "发现、比较并评测 AI Skills、MCP Servers 与 Agent Packs，用可追溯证据完成选型。",
     type: "website",
     url: "/",
     locale: "zh_CN",
@@ -52,8 +52,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Skill Supermarket — AI 能力发现与评测",
-    description: "发现、比较并评测真正值得使用的 AI 能力。",
+    title: "Skill Supermarket - AI Skill / MCP 发现与安全评测平台",
+    description: "发现、比较并评测 AI Skills、MCP Servers 与 Agent Packs，用可追溯证据完成选型。",
   },
   verification: process.env.GOOGLE_SITE_VERIFICATION
     ? { google: process.env.GOOGLE_SITE_VERIFICATION }
