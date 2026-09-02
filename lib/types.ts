@@ -99,6 +99,14 @@ export type EvaluationDiagramStatus =
   | "insufficient-evidence"
   | "invalid-output"
   | "judge-unavailable";
+
+export type EvaluationDiagramRecoveryStatus =
+  | "not-needed"
+  | "not-eligible"
+  | "generated"
+  | "insufficient-evidence"
+  | "invalid-output"
+  | "unavailable";
 export type EvaluationDiagramRejectionReason =
   | "schema-constraint"
   | "duplicate-node"
@@ -208,6 +216,8 @@ export interface EvaluationMethodology {
   aiJudgeUsed: boolean;
   diagramStatus?: EvaluationDiagramStatus;
   diagramRejectionReason?: EvaluationDiagramRejectionReason;
+  diagramRecoveryAttempted?: boolean;
+  diagramRecoveryStatus?: EvaluationDiagramRecoveryStatus;
   aiJudgeModel?: string;
   rubricVersion?: string;
   aiJudgeCalibration?: string[];

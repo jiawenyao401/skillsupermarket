@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test:evaluation": "tsx --test tests/evaluation.test.ts tests/evaluation-scoring.test.ts tests/evaluation-cache.test.ts tests/evaluation-queue.test.ts tests/judge.test.ts tests/evaluation-diagram.test.tsx tests/auth.test.ts tests/admin.test.ts tests/proxy.test.ts tests/quota.test.ts tests/skill-classification.test.ts tests/skill-evaluation-source.test.ts tests/skill-source-identity.test.ts tests/traffic.test.ts tests/sitemap.test.ts tests/indexnow.test.ts tests/release-retention.test.ts",
     "test:scoring": "tsx --test tests/evaluation-scoring.test.ts tests/judge.test.ts",
+    "benchmark:diagrams": "tsx scripts/benchmark-diagram-recovery.ts",
     "evaluate:cases": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/evaluate-cases.ts",
     "prepare:case-judgments": "tsx scripts/prepare-case-judgments.ts",
     "apply:case-judgments": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/apply-case-judgments.ts",

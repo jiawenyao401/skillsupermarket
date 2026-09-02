@@ -241,6 +241,8 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
         aiJudgeUsed: Boolean(aiResult),
         diagramStatus: aiResult?.diagramStatus ?? "judge-unavailable",
         diagramRejectionReason: aiResult?.diagramRejectionReason,
+        diagramRecoveryAttempted: aiResult?.diagramRecoveryAttempted,
+        diagramRecoveryStatus: aiResult?.diagramRecoveryStatus,
         aiJudgeModel: aiResult?.model,
         rubricVersion: aiResult?.rubricVersion,
         aiJudgeCalibration: aiResult?.calibrationNotes,
