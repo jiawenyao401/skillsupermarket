@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, ExternalLink, ShieldCheck } from "lucide-react";
 import { JsonLd } from "@/components/JsonLd";
-import { GUIDES, getGuide } from "@/lib/guides";
+import { GUIDES, getGuide, getRelatedGuides } from "@/lib/guides";
 import { absoluteUrl } from "@/lib/site";
 
 export const dynamicParams = false;
@@ -43,6 +43,7 @@ export default async function GuidePage({ params }: GuidePageProps) {
   if (!guide) notFound();
 
   const path = `/guides/${guide.slug}`;
+  const relatedGuides = getRelatedGuides(guide);
   return (
     <div className="mx-auto max-w-5xl">
       <JsonLd data={[
@@ -127,6 +128,23 @@ export default async function GuidePage({ params }: GuidePageProps) {
                 );
               })}
             </ul>
+          </section>
+
+          <section className="mt-12 border-t pt-9" aria-labelledby="related-guides">
+            <div className="section-eyebrow">Keep exploring</div>
+            <h2 id="related-guides" className="mt-2 text-2xl font-extrabold tracking-[-0.035em]">继续阅读相关指南</h2>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {relatedGuides.map((related) => (
+                <Link key={related.slug} href={`/guides/${related.slug}`} className="group flex min-h-48 flex-col rounded-2xl border bg-background p-5 transition hover:border-primary/40 hover:shadow-sm">
+                  <div className="section-eyebrow">{related.eyebrow}</div>
+                  <h3 className="mt-3 font-extrabold leading-snug tracking-[-0.02em] group-hover:text-primary">{related.title}</h3>
+                  <div className="mt-auto flex items-center justify-between gap-3 pt-5 text-xs text-muted-foreground">
+                    <span>{related.readingMinutes} 分钟</span>
+                    <span className="inline-flex items-center font-bold text-foreground">阅读 <ArrowRight className="ml-1 h-3.5 w-3.5" /></span>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </section>
         </div>
       </article>

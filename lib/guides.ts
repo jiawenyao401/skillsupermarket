@@ -21,6 +21,7 @@ export interface Guide {
   intent: string;
   sections: GuideSection[];
   sources: GuideSource[];
+  relatedSlugs: readonly string[];
 }
 
 export const GUIDES: readonly Guide[] = [
@@ -107,6 +108,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "Skill Supermarket MCP 安全扫描", url: "/mcp-server-security-scan" },
       { label: "查看已收录 MCP Server", url: "/search?q=MCP" },
     ],
+    relatedSlugs: ["mcp-server-security-checklist-2026", "skill-vs-mcp-vs-agent", "ai-agent-security-risks-2026"],
   },
   {
     slug: "ai-agent-security-risks-2026",
@@ -186,6 +188,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "Model Context Protocol 授权规范", url: "https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization" },
       { label: "Skill Supermarket 公开评测方法", url: "/evaluation" },
     ],
+    relatedSlugs: ["mcp-server-security-checklist-2026", "how-to-evaluate-ai-skill", "claude-code-mcp-setup-2026"],
   },
   {
     slug: "claude-code-skills-recommended-2026",
@@ -256,6 +259,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "Anthropic Agent Skills 官方仓库", url: "https://github.com/anthropics/skills" },
       { label: "Skill Supermarket 公开评测方法", url: "/evaluation" },
     ],
+    relatedSlugs: ["how-to-evaluate-ai-skill", "skill-vs-mcp-vs-agent", "ai-agent-security-risks-2026"],
   },
   {
     slug: "how-to-evaluate-ai-skill",
@@ -298,6 +302,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "Anthropic Agent Skills 公开仓库", url: "https://github.com/anthropics/skills" },
       { label: "Skill Supermarket 公开评测方法", url: "/evaluation" },
     ],
+    relatedSlugs: ["claude-code-skills-recommended-2026", "ai-agent-security-risks-2026", "mcp-server-security-checklist-2026"],
   },
   {
     slug: "mcp-server-security-checklist-2026",
@@ -344,6 +349,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "MCP Official Registry API", url: "https://github.com/modelcontextprotocol/registry/blob/main/docs/reference/api/official-registry-api.md" },
       { label: "Skill Supermarket 真实 MCP 评测案例", url: "/skill/githubgithub-mcp-server" },
     ],
+    relatedSlugs: ["claude-code-mcp-setup-2026", "ai-agent-security-risks-2026", "skill-vs-mcp-vs-agent"],
   },
   {
     slug: "skill-vs-mcp-vs-agent",
@@ -392,9 +398,17 @@ export const GUIDES: readonly Guide[] = [
       { label: "Anthropic Agent Skills 公开仓库", url: "https://github.com/anthropics/skills" },
       { label: "Skill Supermarket 评测方法", url: "/evaluation" },
     ],
+    relatedSlugs: ["how-to-evaluate-ai-skill", "claude-code-mcp-setup-2026", "claude-code-skills-recommended-2026"],
   },
 ] as const;
 
 export function getGuide(slug: string): Guide | undefined {
   return GUIDES.find((guide) => guide.slug === slug);
+}
+
+export function getRelatedGuides(guide: Guide): Guide[] {
+  return guide.relatedSlugs.flatMap((slug) => {
+    const related = getGuide(slug);
+    return related ? [related] : [];
+  });
 }

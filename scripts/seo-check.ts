@@ -170,6 +170,8 @@ async function main() {
     ok: claudeCodeMcpGuide.status === 200
       && claudeCodeMcpGuide.body.includes("Claude Code MCP 配置教程 2026")
       && claudeCodeMcpGuide.body.includes("claude mcp add --transport http")
+      && claudeCodeMcpGuide.body.includes("/guides/mcp-server-security-checklist-2026")
+      && claudeCodeMcpGuide.body.includes("继续阅读相关指南")
       && claudeCodeMcpGuide.body.includes("application/ld+json")
       && claudeCodeMcpGuide.body.includes(`${SITE_URL}/guides/claude-code-mcp-setup-2026`),
     detail: `HTTP ${claudeCodeMcpGuide.status} · Article + canonical + commands`,

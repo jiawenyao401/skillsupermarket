@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { GUIDES, getGuide } from "../lib/guides";
+import { GUIDES, getGuide, getRelatedGuides } from "../lib/guides";
 
 test("guide slugs and canonical lookup remain unique", () => {
   const slugs = GUIDES.map((guide) => guide.slug);
@@ -32,4 +32,19 @@ test("guide command examples never contain real credentials", () => {
       assert.doesNotMatch(section.code, /(?:sk-|ghp_|github_pat_)[A-Za-z0-9_-]{12,}/, `${guide.slug} contains a credential-like value`);
     }
   }
+});
+
+test("related guides form valid, intentional internal links", () => {
+  const inbound = new Map(GUIDES.map((guide) => [guide.slug, 0]));
+
+  for (const guide of GUIDES) {
+    assert.equal(guide.relatedSlugs.length, 3, `${guide.slug} should have three related guides`);
+    assert.equal(new Set(guide.relatedSlugs).size, guide.relatedSlugs.length, `${guide.slug} repeats a related guide`);
+    assert.ok(!guide.relatedSlugs.includes(guide.slug), `${guide.slug} links to itself`);
+    assert.equal(getRelatedGuides(guide).length, guide.relatedSlugs.length, `${guide.slug} contains a missing related guide`);
+
+    for (const slug of guide.relatedSlugs) inbound.set(slug, (inbound.get(slug) ?? 0) + 1);
+  }
+
+  for (const [slug, count] of inbound) assert.ok(count > 0, `${slug} has no inbound related-guide link`);
 });
