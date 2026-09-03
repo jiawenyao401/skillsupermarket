@@ -52,6 +52,7 @@ collect_code_manifest() {
       for candidate in package.json package-lock.json next.config.js ecosystem.config.cjs proxy.ts; do
         [[ -f "$candidate" ]] && printf '%s\0' "$candidate"
       done
+      true
     } | LC_ALL=C sort -z | xargs -0 -r sha256sum
   ) >"$output"
 }
