@@ -285,7 +285,17 @@ systemctl status skillsupermarket-security-monitor.timer
 journalctl -u skillsupermarket-security-monitor.service --since today
 ```
 
-正常发布会改变代码哈希。新 release 完成构建、来源核验、测试、健康检查与人工差异审查后，再用同一条 `--init` 命令更新基线；告警中的文件、账号、密钥或端口变化未查清前不得重新初始化。systemd 返回码 `2` 表示发现变化或攻击信号，`3/4` 表示监控配置不完整，均应保留日志和现场证据后再处置。
+正常发布会改变代码哈希。不要用 `--init` 覆盖整套主机基线：它会同时信任账号、SSH 公钥和监听端口。新 release 完成来源核验、测试、构建、健康检查与差异审查后，只更新代码基线，并把已核验的 release 和清单摘要同时作为约束：
+
+```bash
+digest=$(/opt/skillsupermarket/scripts/security-monitor.sh --code-digest | sed -n 's/.*digest=\([0-9a-f]\{64\}\).*/\1/p')
+SECURITY_CODE_BASELINE_APPROVED=1 \
+SECURITY_EXPECTED_RELEASE="$(readlink -f /opt/skillsupermarket)" \
+SECURITY_EXPECTED_CODE_MANIFEST_SHA256="$digest" \
+  /opt/skillsupermarket/scripts/security-monitor.sh --accept-code
+```
+
+`--accept-code` 不会修改账号、`authorized_keys` 或监听端口基线，release 或摘要不一致时拒绝更新。告警中的账号、密钥或端口变化未查清前不得重新初始化。systemd 返回码 `2` 表示发现变化或攻击信号，`3/4` 表示监控配置不完整，`5` 表示待接受代码与预期 release/摘要不一致，均应保留日志和现场证据后再处置。
 
 不要把服务器地址、SSH 密码、数据库口令或 API Key 写入 README、PM2 配置、systemd unit 或提交历史。
 

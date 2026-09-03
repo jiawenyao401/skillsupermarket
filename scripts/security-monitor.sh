@@ -102,6 +102,75 @@ initialize_baseline() {
     "$(wc -l <"$PORT_BASELINE" | tr -d ' ')"
 }
 
+resolve_directory() {
+  (cd "$1" 2>/dev/null && pwd -P)
+}
+
+code_manifest_digest() {
+  sha256sum "$1" | awk '{ print $1 }'
+}
+
+print_code_digest() {
+  [[ -d "$PROJECT_DIR" ]] || { printf '[security-monitor] ERROR project missing: %s\n' "$PROJECT_DIR" >&2; exit 3; }
+  install -d -m 0700 "$STATE_DIR"
+  local temp_dir digest release
+  temp_dir="$(mktemp -d "$STATE_DIR/.digest.XXXXXX")"
+  TEMP_DIR_TO_CLEAN="$temp_dir"
+  collect_code_manifest "$temp_dir/code.sha256"
+  digest="$(code_manifest_digest "$temp_dir/code.sha256")"
+  release="$(resolve_directory "$PROJECT_DIR")"
+  printf '[security-monitor] CODE_MANIFEST digest=%s files=%s release=%s\n' \
+    "$digest" "$(wc -l <"$temp_dir/code.sha256" | tr -d ' ')" "$release"
+}
+
+accept_code_baseline() {
+  if [[ "${SECURITY_CODE_BASELINE_APPROVED:-}" != "1" ]]; then
+    printf '%s\n' '[security-monitor] Refusing to trust changed application code automatically.' >&2
+    printf '%s\n' '[security-monitor] Verify the release and manifest digest, then rerun with SECURITY_CODE_BASELINE_APPROVED=1.' >&2
+    exit 4
+  fi
+
+  local expected_digest="${SECURITY_EXPECTED_CODE_MANIFEST_SHA256:-}"
+  local expected_release="${SECURITY_EXPECTED_RELEASE:-}"
+  if [[ ! "$expected_digest" =~ ^[0-9a-f]{64}$ || -z "$expected_release" ]]; then
+    printf '%s\n' '[security-monitor] ERROR expected release and 64-character manifest digest are required.' >&2
+    exit 4
+  fi
+  [[ -d "$PROJECT_DIR" && -d "$expected_release" ]] || {
+    printf '%s\n' '[security-monitor] ERROR project or expected release directory is missing.' >&2
+    exit 4
+  }
+
+  local baseline
+  for baseline in "$CODE_BASELINE" "$ACCOUNT_BASELINE" "$KEY_BASELINE" "$PORT_BASELINE"; do
+    [[ -f "$baseline" ]] || {
+      printf '[security-monitor] ERROR baseline missing: %s\n' "$baseline" >&2
+      exit 4
+    }
+  done
+
+  local actual_release resolved_expected_release temp_dir actual_digest
+  actual_release="$(resolve_directory "$PROJECT_DIR")"
+  resolved_expected_release="$(resolve_directory "$expected_release")"
+  if [[ "$actual_release" != "$resolved_expected_release" ]]; then
+    printf '[security-monitor] ERROR release mismatch: active=%s expected=%s\n' "$actual_release" "$resolved_expected_release" >&2
+    exit 5
+  fi
+
+  temp_dir="$(mktemp -d "$STATE_DIR/.code-baseline.XXXXXX")"
+  TEMP_DIR_TO_CLEAN="$temp_dir"
+  collect_code_manifest "$temp_dir/code.sha256"
+  actual_digest="$(code_manifest_digest "$temp_dir/code.sha256")"
+  if [[ "$actual_digest" != "$expected_digest" ]]; then
+    printf '[security-monitor] ERROR code manifest mismatch: actual=%s expected=%s\n' "$actual_digest" "$expected_digest" >&2
+    exit 5
+  fi
+
+  install -m 0600 "$temp_dir/code.sha256" "$CODE_BASELINE"
+  printf '[security-monitor] CODE_BASELINE_UPDATED digest=%s files=%s release=%s\n' \
+    "$actual_digest" "$(wc -l <"$CODE_BASELINE" | tr -d ' ')" "$actual_release"
+}
+
 check_baselines() {
   local temp_dir="$1"
   local baseline
@@ -213,12 +282,14 @@ run_daily_tools_if_available() {
 
 main() {
   require_command sha256sum
-  require_command ss
   case "$MODE" in
-    --init) initialize_baseline; return ;;
+    --code-digest) print_code_digest; return ;;
+    --accept-code) accept_code_baseline; return ;;
+    --init) require_command ss; initialize_baseline; return ;;
     check) ;;
-    *) printf 'Usage: %s [check|--init]\n' "$0" >&2; exit 64 ;;
+    *) printf 'Usage: %s [check|--init|--code-digest|--accept-code]\n' "$0" >&2; exit 64 ;;
   esac
+  require_command ss
 
   [[ -d "$PROJECT_DIR" ]] || { alert "PROJECT_DIRECTORY_MISSING path=$PROJECT_DIR"; }
   install -d -m 0700 "$STATE_DIR"
