@@ -12,12 +12,13 @@ import {
   isTrustedTrafficFetchSite,
   isTrustedTrafficOrigin,
   normalizeTrafficPath,
+  TRAFFIC_EVENTS,
 } from "@/lib/traffic";
 
 export const dynamic = "force-dynamic";
 
 const eventSchema = z.object({
-  event: z.enum(["page_view", "evaluation_cta_click"]),
+  event: z.enum(TRAFFIC_EVENTS),
   path: z.string().min(1).max(160),
   source: z.enum(["direct", "internal", "organic", "github", "community", "referral"]).optional(),
 });
@@ -82,17 +83,20 @@ export async function POST(request: Request) {
       ?? classifyTrafficSource(request.headers.get("referer"), new URL(request.url).hostname);
     const pageViewIncrement = parsed.data.event === "page_view" ? 1 : 0;
     const ctaIncrement = parsed.data.event === "evaluation_cta_click" ? 1 : 0;
+    const guideContinuationIncrement = parsed.data.event === "guide_continuation_click" ? 1 : 0;
     await db.insert(trafficDaily).values({
       date: rankingDateKey(),
       path,
       source,
       pageViews: pageViewIncrement,
       evaluationCtaClicks: ctaIncrement,
+      guideContinuationClicks: guideContinuationIncrement,
     }).onConflictDoUpdate({
       target: [trafficDaily.date, trafficDaily.path, trafficDaily.source],
       set: {
         pageViews: sql`${trafficDaily.pageViews} + ${pageViewIncrement}`,
         evaluationCtaClicks: sql`${trafficDaily.evaluationCtaClicks} + ${ctaIncrement}`,
+        guideContinuationClicks: sql`${trafficDaily.guideContinuationClicks} + ${guideContinuationIncrement}`,
         updatedAt: new Date(),
       },
     });

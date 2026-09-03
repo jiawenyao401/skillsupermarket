@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
+  BookOpenCheck,
   CheckCircle2,
   CircleDollarSign,
   Clock3,
@@ -80,6 +81,15 @@ interface SummaryRow extends Record<string, unknown> {
   cta_clicks_1d: number;
   cta_clicks_7d: number;
   cta_clicks_30d: number;
+  guide_views_1d: number;
+  guide_views_7d: number;
+  guide_views_30d: number;
+  guide_cta_clicks_1d: number;
+  guide_cta_clicks_7d: number;
+  guide_cta_clicks_30d: number;
+  guide_continuation_clicks_1d: number;
+  guide_continuation_clicks_7d: number;
+  guide_continuation_clicks_30d: number;
   last_collection_date: string | null;
   last_indexed_at: Date | string | null;
 }
@@ -215,6 +225,15 @@ async function getSummary(): Promise<SummaryRow> {
       (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where date >= timezone('Asia/Shanghai', now())::date) as cta_clicks_1d,
       (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where date >= timezone('Asia/Shanghai', now())::date - 6) as cta_clicks_7d,
       (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where date >= timezone('Asia/Shanghai', now())::date - 29) as cta_clicks_30d,
+      (select coalesce(sum(page_views), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date) as guide_views_1d,
+      (select coalesce(sum(page_views), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 6) as guide_views_7d,
+      (select coalesce(sum(page_views), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 29) as guide_views_30d,
+      (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date) as guide_cta_clicks_1d,
+      (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 6) as guide_cta_clicks_7d,
+      (select coalesce(sum(evaluation_cta_clicks), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 29) as guide_cta_clicks_30d,
+      (select coalesce(sum(guide_continuation_clicks), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date) as guide_continuation_clicks_1d,
+      (select coalesce(sum(guide_continuation_clicks), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 6) as guide_continuation_clicks_7d,
+      (select coalesce(sum(guide_continuation_clicks), 0)::int from traffic_daily where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 29) as guide_continuation_clicks_30d,
       (select max(date)::text from metrics_daily) as last_collection_date,
       (select max(last_indexed_at) from skills) as last_indexed_at
   `);
@@ -335,12 +354,15 @@ export default async function AdminPage({
   const completionRate = formatPercent(summary.completed_jobs_7d, summary.jobs_7d);
   const evaluationCoverage = formatPercent(summary.evaluated_skills, summary.active_skills);
   const activationRate = formatPercent(summary.active_evaluators_7d, summary.total_users);
+  const guideCtaRate = formatPercent(summary.guide_cta_clicks_7d, summary.guide_views_7d);
+  const guideContinuationRate = formatPercent(summary.guide_continuation_clicks_7d, summary.guide_views_7d);
   const latestSevenDays = dailySkills.slice(-7).reverse();
 
   const headlineMetrics = [
     { label: "用户总数", value: summary.total_users, detail: `D1 +${summary.new_users_1d} · D7 +${summary.new_users_7d} · D30 +${summary.new_users_30d}`, icon: UsersRound },
     { label: "7 日页面浏览", value: summary.page_views_7d, detail: `D1 ${summary.page_views_1d} · D30 ${summary.page_views_30d}`, icon: Activity },
     { label: "评测页访问", value: summary.evaluation_views_7d, detail: `近 7 天 CTA ${summary.cta_clicks_7d} 次 · 登录/注册页 ${summary.auth_views_7d} 次`, icon: Gauge },
+    { label: "指南引导评测", value: summary.guide_cta_clicks_7d, detail: `浏览 ${summary.guide_views_7d} · 继续阅读 ${summary.guide_continuation_clicks_7d}（${guideContinuationRate}）· CTA ${guideCtaRate}`, icon: BookOpenCheck },
     { label: "7 日活跃评测用户", value: summary.active_evaluators_7d, detail: `首评 ${summary.first_evaluations_7d} · 复评 ${summary.repeat_evaluators_7d} · 激活率 ${activationRate}`, icon: UserRoundCheck },
     { label: "有效订阅", value: summary.active_subscriptions, detail: `免费额度已用 ${summary.free_quota_used} 次 · 耗尽 ${summary.exhausted_free_users} 人`, icon: CircleDollarSign },
     { label: "Skill 库存", value: summary.active_skills, detail: `今日新增 ${summary.new_skills_today}`, icon: Database },
@@ -375,6 +397,9 @@ export default async function AdminPage({
             <tbody className="divide-y">
               {[
                 ["页面浏览", summary.page_views_1d, summary.page_views_7d, summary.page_views_30d],
+                ["指南页面浏览", summary.guide_views_1d, summary.guide_views_7d, summary.guide_views_30d],
+                ["指南继续阅读点击", summary.guide_continuation_clicks_1d, summary.guide_continuation_clicks_7d, summary.guide_continuation_clicks_30d],
+                ["指南评测 CTA", summary.guide_cta_clicks_1d, summary.guide_cta_clicks_7d, summary.guide_cta_clicks_30d],
                 ["评测落地页访问", summary.evaluation_views_1d, summary.evaluation_views_7d, summary.evaluation_views_30d],
                 ["评测 CTA 点击", summary.cta_clicks_1d, summary.cta_clicks_7d, summary.cta_clicks_30d],
                 ["登录/注册页访问", summary.auth_views_1d, summary.auth_views_7d, summary.auth_views_30d],

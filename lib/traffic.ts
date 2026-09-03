@@ -1,4 +1,6 @@
 export type TrafficSource = "direct" | "internal" | "organic" | "github" | "community" | "referral";
+export const TRAFFIC_EVENTS = ["page_view", "evaluation_cta_click", "guide_continuation_click"] as const;
+export type TrafficEvent = (typeof TRAFFIC_EVENTS)[number];
 
 const EXACT_TRACKED_PATHS = new Set([
   "/",
@@ -44,6 +46,17 @@ export function isEvaluationDestination(value: string, siteOrigin: string): bool
     const site = new URL(siteOrigin);
     const destination = new URL(value, site);
     return destination.origin === site.origin && destination.pathname === "/evaluate";
+  } catch {
+    return false;
+  }
+}
+
+export function isGuideContinuationDestination(value: string, siteOrigin: string): boolean {
+  try {
+    const site = new URL(siteOrigin);
+    const destination = new URL(value, site);
+    return destination.origin === site.origin
+      && /^\/guides\/[a-zA-Z0-9._~%-]+$/.test(destination.pathname);
   } catch {
     return false;
   }

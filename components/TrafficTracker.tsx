@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import {
   classifyTrafficSource,
   isEvaluationDestination,
+  isGuideContinuationDestination,
   normalizeTrafficPath,
+  type TrafficEvent,
   type TrafficSource,
 } from "@/lib/traffic";
-
-type TrafficEvent = "page_view" | "evaluation_cta_click";
 
 function privacySignalEnabled(): boolean {
   const privacyNavigator = navigator as Navigator & { globalPrivacyControl?: boolean };
@@ -41,29 +41,37 @@ export function TrafficTracker() {
   }, [pathname]);
 
   useEffect(() => {
-    const trackCurrentPage = () => {
+    const trackCurrentPage = (trafficEvent: TrafficEvent) => {
       const path = normalizeTrafficPath(window.location.pathname);
       acquisitionSource.current ??= classifyTrafficSource(document.referrer, window.location.hostname);
-      if (path) sendTrafficEvent("evaluation_cta_click", path, acquisitionSource.current);
+      if (path) sendTrafficEvent(trafficEvent, path, acquisitionSource.current);
     };
-    const trackEvaluationCta = (event: MouseEvent) => {
+    const trackLinkClick = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest<HTMLAnchorElement>("a[href]");
       if (!anchor) return;
-      if (!isEvaluationDestination(anchor.href, window.location.origin)) return;
-      trackCurrentPage();
+      if (isEvaluationDestination(anchor.href, window.location.origin)) {
+        trackCurrentPage("evaluation_cta_click");
+        return;
+      }
+      if (
+        anchor.dataset.trafficEvent === "guide_continuation_click"
+        && isGuideContinuationDestination(anchor.href, window.location.origin)
+      ) {
+        trackCurrentPage("guide_continuation_click");
+      }
     };
     const trackEvaluationSubmit = (event: SubmitEvent) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement)) return;
       if (!isEvaluationDestination(form.action, window.location.origin)) return;
-      trackCurrentPage();
+      trackCurrentPage("evaluation_cta_click");
     };
-    document.addEventListener("click", trackEvaluationCta, { capture: true });
+    document.addEventListener("click", trackLinkClick, { capture: true });
     document.addEventListener("submit", trackEvaluationSubmit, { capture: true });
     return () => {
-      document.removeEventListener("click", trackEvaluationCta, { capture: true });
+      document.removeEventListener("click", trackLinkClick, { capture: true });
       document.removeEventListener("submit", trackEvaluationSubmit, { capture: true });
     };
   }, []);

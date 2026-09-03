@@ -70,6 +70,15 @@ interface TrafficRow extends Record<string, unknown> {
   cta_clicks_1d: number;
   cta_clicks_7d: number;
   cta_clicks_30d: number;
+  guide_views_1d: number;
+  guide_views_7d: number;
+  guide_views_30d: number;
+  guide_cta_clicks_1d: number;
+  guide_cta_clicks_7d: number;
+  guide_cta_clicks_30d: number;
+  guide_continuation_clicks_1d: number;
+  guide_continuation_clicks_7d: number;
+  guide_continuation_clicks_30d: number;
   organic_views_7d: number;
   community_views_7d: number;
   github_views_7d: number;
@@ -300,6 +309,15 @@ async function main() {
       coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date), 0)::int as cta_clicks_1d,
       coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as cta_clicks_7d,
       coalesce(sum(evaluation_cta_clicks) filter (where date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as cta_clicks_30d,
+      coalesce(sum(page_views) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as guide_views_1d,
+      coalesce(sum(page_views) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as guide_views_7d,
+      coalesce(sum(page_views) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as guide_views_30d,
+      coalesce(sum(evaluation_cta_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as guide_cta_clicks_1d,
+      coalesce(sum(evaluation_cta_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as guide_cta_clicks_7d,
+      coalesce(sum(evaluation_cta_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as guide_cta_clicks_30d,
+      coalesce(sum(guide_continuation_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as guide_continuation_clicks_1d,
+      coalesce(sum(guide_continuation_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as guide_continuation_clicks_7d,
+      coalesce(sum(guide_continuation_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as guide_continuation_clicks_30d,
       coalesce(sum(page_views) filter (where source = 'organic' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as organic_views_7d,
       coalesce(sum(page_views) filter (where source = 'community' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as community_views_7d,
       coalesce(sum(page_views) filter (where source = 'github' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as github_views_7d
@@ -331,6 +349,17 @@ async function main() {
       evaluationCtaClicks1d: traffic?.cta_clicks_1d ?? 0,
       evaluationCtaClicks7d: traffic?.cta_clicks_7d ?? 0,
       evaluationCtaClicks30d: traffic?.cta_clicks_30d ?? 0,
+      guideViews1d: traffic?.guide_views_1d ?? 0,
+      guideViews7d: traffic?.guide_views_7d ?? 0,
+      guideViews30d: traffic?.guide_views_30d ?? 0,
+      guideEvaluationCtaClicks1d: traffic?.guide_cta_clicks_1d ?? 0,
+      guideEvaluationCtaClicks7d: traffic?.guide_cta_clicks_7d ?? 0,
+      guideEvaluationCtaClicks30d: traffic?.guide_cta_clicks_30d ?? 0,
+      guideContinuationClicks1d: traffic?.guide_continuation_clicks_1d ?? 0,
+      guideContinuationClicks7d: traffic?.guide_continuation_clicks_7d ?? 0,
+      guideContinuationClicks30d: traffic?.guide_continuation_clicks_30d ?? 0,
+      guideCtaRate7d: percentage(traffic?.guide_cta_clicks_7d ?? 0, traffic?.guide_views_7d ?? 0),
+      guideContinuationRate7d: percentage(traffic?.guide_continuation_clicks_7d ?? 0, traffic?.guide_views_7d ?? 0),
       sourceViews7d: {
         organic: traffic?.organic_views_7d ?? 0,
         community: traffic?.community_views_7d ?? 0,
@@ -425,6 +454,9 @@ async function main() {
   console.log(hasTraffic
     ? `[growth] 访问: D1 ${report.acquisition.pageViews1d} / D7 ${report.acquisition.pageViews7d} / D30 ${report.acquisition.pageViews30d} 次页面浏览；评测页 D7 ${report.acquisition.evaluationViews7d}，CTA D7 ${report.acquisition.evaluationCtaClicks7d}，登录/注册页 D7 ${report.acquisition.authViews7d}`
     : "[growth] 访问: 数据不可用（隐私友好流量表尚未部署）");
+  if (hasTraffic) {
+    console.log(`[growth] 指南漏斗: 浏览 D1 ${report.acquisition.guideViews1d} / D7 ${report.acquisition.guideViews7d} / D30 ${report.acquisition.guideViews30d}；D7 继续阅读 ${report.acquisition.guideContinuationClicks7d}（${report.acquisition.guideContinuationRate7d}），评测 CTA ${report.acquisition.guideEvaluationCtaClicks7d}（${report.acquisition.guideCtaRate7d}）`);
+  }
   console.log(hasJobs
     ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次用户任务；D7 首评 ${report.activation.firstEvaluations7d} 人、复评 ${report.activation.repeatEvaluators7d} 人、完成率 ${report.activation.completionRate7d}；另排除运维任务 ${report.activation.operationalJobs7d} 次`
     : "[growth] 激活: 数据不可用（评测任务表尚未部署）");

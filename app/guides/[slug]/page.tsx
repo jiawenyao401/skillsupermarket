@@ -135,7 +135,7 @@ export default async function GuidePage({ params }: GuidePageProps) {
             <h2 id="related-guides" className="mt-2 text-2xl font-extrabold tracking-[-0.035em]">继续阅读相关指南</h2>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               {relatedGuides.map((related) => (
-                <Link key={related.slug} href={`/guides/${related.slug}`} className="group flex min-h-48 flex-col rounded-2xl border bg-background p-5 transition hover:border-primary/40 hover:shadow-sm">
+                <Link key={related.slug} href={`/guides/${related.slug}`} data-traffic-event="guide_continuation_click" className="group flex min-h-48 flex-col rounded-2xl border bg-background p-5 transition hover:border-primary/40 hover:shadow-sm">
                   <div className="section-eyebrow">{related.eyebrow}</div>
                   <h3 className="mt-3 font-extrabold leading-snug tracking-[-0.02em] group-hover:text-primary">{related.title}</h3>
                   <div className="mt-auto flex items-center justify-between gap-3 pt-5 text-xs text-muted-foreground">

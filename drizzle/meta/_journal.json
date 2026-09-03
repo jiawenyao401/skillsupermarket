@@ -50,6 +50,13 @@
       "when": 1788307200000,
       "tag": "0006_readme_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788393600000,
+      "tag": "0007_guide_funnel_telemetry",
+      "breakpoints": true
     }
   ]
 }

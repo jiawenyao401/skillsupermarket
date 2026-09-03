@@ -4,10 +4,16 @@ import {
   classifyTrafficSource,
   isAutomatedUserAgent,
   isEvaluationDestination,
+  isGuideContinuationDestination,
   isTrustedTrafficFetchSite,
   isTrustedTrafficOrigin,
   normalizeTrafficPath,
+  TRAFFIC_EVENTS,
 } from "../lib/traffic";
+
+test("traffic event allowlist includes only aggregate funnel events", () => {
+  assert.deepEqual(TRAFFIC_EVENTS, ["page_view", "evaluation_cta_click", "guide_continuation_click"]);
+});
 
 test("evaluation CTA destinations include prefilled same-origin forms only", () => {
   const origin = "https://skillsupermarket.com";
@@ -17,6 +23,16 @@ test("evaluation CTA destinations include prefilled same-origin forms only", () 
   assert.equal(isEvaluationDestination("https://attacker.example/evaluate", origin), false);
   assert.equal(isEvaluationDestination("/evaluation", origin), false);
   assert.equal(isEvaluationDestination("not a url", "not an origin"), false);
+});
+
+test("guide continuation destinations remain same-origin guide details", () => {
+  const origin = "https://skillsupermarket.com";
+  assert.equal(isGuideContinuationDestination("/guides/mcp-server-security-checklist-2026", origin), true);
+  assert.equal(isGuideContinuationDestination("https://skillsupermarket.com/guides/how-to-evaluate-ai-skill", origin), true);
+  assert.equal(isGuideContinuationDestination("/guides", origin), false);
+  assert.equal(isGuideContinuationDestination("/guides/a/b", origin), false);
+  assert.equal(isGuideContinuationDestination("https://attacker.example/guides/x", origin), false);
+  assert.equal(isGuideContinuationDestination("not a url", "not an origin"), false);
 });
 
 test("traffic paths keep only public funnel routes without query data", () => {

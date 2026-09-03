@@ -138,6 +138,7 @@ export const trafficDaily = pgTable("traffic_daily", {
   source: text("source").notNull(),
   pageViews: integer("page_views").notNull().default(0),
   evaluationCtaClicks: integer("evaluation_cta_clicks").notNull().default(0),
+  guideContinuationClicks: integer("guide_continuation_clicks").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   pk: primaryKey({ columns: [t.date, t.path, t.source] }),
