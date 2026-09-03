@@ -26,6 +26,81 @@ export interface Guide {
 
 export const GUIDES: readonly Guide[] = [
   {
+    slug: "claude-code-mcp-server-recommendations-2026",
+    title: "Claude Code MCP Server 推荐 2026：GitHub、浏览器、数据库与监控怎么选",
+    description: "按代码协作、浏览器自动化、数据库查询和故障监控四类场景选择 Claude Code MCP Server，并用来源、权限与可回滚性完成接入前筛选。",
+    eyebrow: "Claude Code MCP servers 2026",
+    publishedAt: "2026-09-04",
+    updatedAt: "2026-09-04",
+    readingMinutes: 10,
+    intent: "适合已经会配置 Claude Code MCP，但不确定该装哪些 Server、如何避开停更项目和过度授权的个人开发者与团队。",
+    sections: [
+      {
+        title: "先给结论：按任务选，不按安装量选",
+        paragraphs: [
+          "值得优先接入的 MCP Server，应该把一个高频外部系统变成边界清楚、结果可验证的工具，而不是一次暴露几十个暂时用不到的动作。对多数 Claude Code 用户，先从代码仓库或只读监控二选一；只有确实需要端到端页面操作时再增加浏览器，数据库则应最后接入，并默认只读。",
+          "下面的“推荐”不是安全背书或热度榜。官方 MCP Registry 也明确建议使用者自行评估 Server 是否适合自己的场景。选择时至少核对发布者、源码、版本、权限、传输方式、维护状态和失败后的回滚办法，再用测试账号完成一次最小任务。",
+        ],
+      },
+      {
+        title: "代码协作：优先评估 GitHub 官方 MCP Server",
+        paragraphs: [
+          "如果核心任务是读取仓库、Issue、Pull Request 或辅助代码评审，GitHub 官方 MCP Server 是更可追溯的起点：发布主体、源码、版本和安装文档都能从官方仓库交叉验证。接入时仍不要直接给个人账号的全部仓库写权限，应先限定组织或仓库，并从只读任务开始。",
+          "验收时用测试仓库依次执行“读取一个 Issue、查询一个 PR、尝试访问范围外仓库”。前两项应返回可核对结果，最后一项必须被身份权限拒绝。只有确实要创建 Issue 或修改内容时，才增加对应写权限，并为写操作保留人工确认。",
+        ],
+      },
+      {
+        title: "浏览器自动化：Playwright MCP 适合可复现页面任务",
+        paragraphs: [
+          "需要操作真实页面、复现前端问题或执行验收流程时，可以评估 Microsoft 维护的 Playwright MCP。它主要基于页面的可访问性树工作，适合导航、表单、页面状态检查和测试调试；它不是普通网页搜索工具，也不应默认继承你日常浏览器里的所有登录态。",
+          "生产使用优先采用隔离配置、独立测试账号、允许访问的域名列表和单独输出目录。官方文档明确提醒 Playwright MCP 本身不是安全边界，并且执行 Playwright 代码相当于获得 Server 进程级代码执行能力；因此不要把未受信任页面、敏感登录态和任意脚本执行放在同一个会话里。",
+        ],
+      },
+      {
+        title: "数据库：不要把旧参考实现当成生产推荐",
+        paragraphs: [
+          "数据库场景的风险不是“能不能连上”，而是查询身份能看到什么、单次查询能消耗多少资源，以及模型能否发起写入。MCP 官方 servers 仓库说明其中的参考实现用于教学，不代表生产可用；一些早期数据库 Server 也已经移入归档仓库，所以不能因为包名看起来官方就直接连接生产库。",
+          "更稳妥的选择标准是：由数据库厂商或你信任的团队持续维护；支持只读身份、数据库与 Schema 白名单、查询超时、行数上限和审计日志；凭证不会出现在参数、日志或版本库中。先接脱敏副本或只读副库，并用越权表、写语句和长查询验证服务端确实拒绝。",
+        ],
+      },
+      {
+        title: "故障监控：先用只读诊断能力",
+        paragraphs: [
+          "需要让 Claude Code 查询错误、Issue、Trace 或性能线索时，可以评估监控厂商自己维护的 Server。例如 Sentry 的官方实现提供远程服务与公开源码，并把只读 inspect 能力和会产生修改的 triage 等能力分开。第一阶段只开放查看组织、项目、事件和错误所需的读取权限。",
+          "监控数据经常包含用户输入、请求路径和异常上下文，应把它们视为不可信内容。不要允许错误消息中的文字改变系统目标，也不要把生产事件里的秘密原样送入后续工具。验收应包括项目边界、敏感字段脱敏、时间范围、返回条数和超时。",
+        ],
+      },
+      {
+        title: "用六项门槛淘汰不合适的 Server",
+        bullets: [
+          "来源：发布者身份、源码仓库、包或远程域名能否互相对应；只在第三方列表出现不算来源证明。",
+          "必要性：至少对应一个每周重复、且手工复制明显低效的任务；否则先不安装。",
+          "权限：存在只读或最小工具集，账号范围能限制到目标仓库、项目、域名或数据库。",
+          "运行边界：有超时、输出上限、网络或文件范围，以及失败时不会继续执行高影响动作。",
+          "维护：最近版本、变更记录、问题响应和安全说明与当前客户端、协议版本相符。",
+          "可撤销：令牌可单独吊销，配置可禁用，操作有日志，升级失败可以退回已验证版本。",
+        ],
+      },
+      {
+        title: "推荐的最小接入顺序",
+        paragraphs: [
+          "先写下一项具体任务和允许读取的资源，再选一个 Server。在 Claude Code 中以 local 作用域接入，检查工具清单后用测试身份运行正向和越界样例。观察一周的调用次数、失败、耗时和误操作；没有稳定节省时间就移除，而不是继续增加更多 Server。",
+          "团队共享前，再把不含秘密的定义迁移到 project 配置，锁定可复现版本，补充负责人、权限说明和撤销步骤。Skill Supermarket 的公开评测可以帮助你比较文档、安全信号、维护和证据覆盖，但生产准入仍应由实际身份、网络、数据和副作用测试完成。",
+        ],
+        code: "claude mcp list\nclaude mcp get <server-name>\n# 验证完成后，仍不需要的 Server 应移除\nclaude mcp remove <server-name>",
+      },
+    ],
+    sources: [
+      { label: "Claude Code 官方 MCP 配置文档", url: "https://code.claude.com/docs/en/mcp" },
+      { label: "GitHub 官方 MCP Server", url: "https://github.com/github/github-mcp-server" },
+      { label: "Microsoft Playwright MCP", url: "https://github.com/microsoft/playwright-mcp" },
+      { label: "Sentry 官方 MCP Server", url: "https://github.com/getsentry/sentry-mcp" },
+      { label: "MCP 官方参考 Server 说明", url: "https://github.com/modelcontextprotocol/servers" },
+      { label: "Skill Supermarket MCP 安全扫描", url: "/mcp-server-security-scan" },
+    ],
+    relatedSlugs: ["claude-code-mcp-setup-2026", "mcp-server-security-checklist-2026", "ai-agent-security-risks-2026"],
+  },
+  {
     slug: "claude-code-mcp-setup-2026",
     title: "Claude Code MCP 配置教程 2026：HTTP、stdio 与权限范围",
     description: "从选择传输方式、安装与作用域，到凭证、验证和故障排查，安全地为 Claude Code 配置 MCP Server。",
@@ -108,7 +183,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "Skill Supermarket MCP 安全扫描", url: "/mcp-server-security-scan" },
       { label: "查看已收录 MCP Server", url: "/search?q=MCP" },
     ],
-    relatedSlugs: ["mcp-server-security-checklist-2026", "skill-vs-mcp-vs-agent", "ai-agent-security-risks-2026"],
+    relatedSlugs: ["claude-code-mcp-server-recommendations-2026", "mcp-server-security-checklist-2026", "ai-agent-security-risks-2026"],
   },
   {
     slug: "ai-agent-security-risks-2026",

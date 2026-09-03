@@ -56,6 +56,7 @@ async function main() {
     claudeCodeGuide,
     agentSecurityGuide,
     claudeCodeMcpGuide,
+    mcpRecommendationsGuide,
     privacy,
     login,
     robots,
@@ -75,6 +76,7 @@ async function main() {
     request("/guides/claude-code-skills-recommended-2026"),
     request("/guides/ai-agent-security-risks-2026"),
     request("/guides/claude-code-mcp-setup-2026"),
+    request("/guides/claude-code-mcp-server-recommendations-2026"),
     request("/privacy"),
     request("/login?returnTo=%2Fevaluate"),
     request("/robots.txt"),
@@ -176,6 +178,17 @@ async function main() {
       && claudeCodeMcpGuide.body.includes(`${SITE_URL}/guides/claude-code-mcp-setup-2026`),
     detail: `HTTP ${claudeCodeMcpGuide.status} · Article + canonical + commands`,
   });
+  checks.push({
+    name: "Claude Code MCP Server 选型指南",
+    ok: mcpRecommendationsGuide.status === 200
+      && mcpRecommendationsGuide.body.includes("Claude Code MCP Server 推荐 2026")
+      && mcpRecommendationsGuide.body.includes("GitHub 官方 MCP Server")
+      && mcpRecommendationsGuide.body.includes("Playwright MCP")
+      && mcpRecommendationsGuide.body.includes("继续阅读相关指南")
+      && mcpRecommendationsGuide.body.includes("application/ld+json")
+      && mcpRecommendationsGuide.body.includes(`${SITE_URL}/guides/claude-code-mcp-server-recommendations-2026`),
+    detail: `HTTP ${mcpRecommendationsGuide.status} · Article + canonical + selection evidence`,
+  });
   checks.push({ name: "隐私说明", ok: privacy.status === 200 && privacy.body.includes("Global Privacy Control"), detail: `HTTP ${privacy.status}` });
   checks.push({
     name: "登录页",
@@ -193,6 +206,7 @@ async function main() {
       && sitemap.body.includes("/guides/ai-agent-security-risks-2026")
       && sitemap.body.includes("/guides/claude-code-skills-recommended-2026")
       && sitemap.body.includes("/guides/claude-code-mcp-setup-2026")
+      && sitemap.body.includes("/guides/claude-code-mcp-server-recommendations-2026")
       && sitemap.body.includes("/guides/mcp-server-security-checklist-2026"),
     detail: `HTTP ${sitemap.status} · ${(sitemap.body.match(/<loc>/g) ?? []).length} URLs`,
   });
