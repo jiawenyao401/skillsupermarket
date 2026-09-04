@@ -1,6 +1,6 @@
 import type { EvaluationDiagramRejectionReason, EvaluationDiagramStatus } from "../lib/types";
 
-export const DIAGRAM_GOLDEN_SET_VERSION = "1.1.0";
+export const DIAGRAM_GOLDEN_SET_VERSION = "1.2.0";
 
 export interface DiagramGoldenCase {
   id: string;
@@ -143,13 +143,51 @@ export const DIAGRAM_GOLDEN_CASES: DiagramGoldenCase[] = [
     expectedRejectionReason: "self-loop",
   },
   {
-    id: "schema-constraint",
+    id: "repairable-presentation-constraints",
     candidate: {
       ...validFlow,
-      nodes: [{ id: "Input Node", label: "非法 ID" }, validFlow.nodes[1]],
+      title: `文档处理流程${"说明".repeat(40)}`,
+      rationale: `README 明确描述了输入与解析的调用关系。${"可核实。".repeat(50)}`,
+      nodes: [
+        { id: "Input Node", label: `文档输入${"详情".repeat(20)}` },
+        { id: "Parse Node", label: "内容解析" },
+      ],
       edges: [{ from: "Input Node", to: "parse", label: "处理" }],
+      evidence: [
+        `README Usage：${"输入调用解析。".repeat(30)}`,
+        "README Architecture：输入连接解析。",
+        "README Flow：解析返回结果。",
+        "README 多返回了一条证据。",
+      ],
     },
     expectedStatus: "invalid-output",
-    expectedRejectionReason: "schema-constraint",
+    expectedRejectionReason: "unknown-node",
+  },
+  {
+    id: "repairable-presentation-only",
+    candidate: {
+      ...validFlow,
+      title: `文档处理流程${"说明".repeat(40)}`,
+      rationale: `README 明确描述了输入、解析与输出的调用关系。${"可核实。".repeat(50)}`,
+      nodes: validFlow.nodes.map((node, index) => ({
+        ...node,
+        id: `Node ${index + 1}`,
+        label: `${node.label}${"详情".repeat(20)}`,
+      })),
+      edges: validFlow.edges.map((edge) => ({
+        ...edge,
+        from: `Node ${validFlow.nodes.findIndex((node) => node.id === edge.from) + 1}`,
+        to: `Node ${validFlow.nodes.findIndex((node) => node.id === edge.to) + 1}`,
+        label: `${edge.label}${"关系".repeat(30)}`,
+      })),
+      evidence: [
+        `README Usage：${"输入调用解析再输出。".repeat(30)}`,
+        "README Architecture：输入连接解析。",
+        "README Flow：解析连接输出。",
+        "README 多返回了一条证据。",
+      ],
+    },
+    expectedStatus: "generated",
+    expectedType: "flow",
   },
 ];

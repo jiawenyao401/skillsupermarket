@@ -111,7 +111,7 @@ const diagramRecoveryResponseSchema = z.object({
   diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.4.0";
+const RUBRIC_VERSION = "3.5.0";
 const MAX_README_CHARACTERS = 30_000;
 const MISSING_EVIDENCE_TOTAL_CAP = 72;
 const EXTREME_INFLATION_TOTAL = 90;
@@ -119,6 +119,62 @@ const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reus
 
 function normalizeSentence(value: string): string {
   return redactKnownSecrets(value).replace(/\s+/g, " ").trim();
+}
+
+function boundedDiagramText(value: unknown, maximum: number): unknown {
+  if (typeof value !== "string") return value;
+  return [...normalizeSentence(value)].slice(0, maximum).join("");
+}
+
+/**
+ * Repair presentation-only LLM drift before enforcing graph invariants. Node
+ * IDs are renderer-internal references, and clipping documented field bounds
+ * cannot create a relationship that was not returned by the judge. Structural
+ * errors (unknown nodes, duplicate IDs, self-loops and disconnected graphs)
+ * remain hard failures.
+ */
+function normalizeDiagramPresentation(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+
+  const raw = value as Record<string, unknown>;
+  const nodes = Array.isArray(raw.nodes) ? raw.nodes : undefined;
+  const edges = Array.isArray(raw.edges) ? raw.edges : undefined;
+  const nodeRecords = nodes?.every((node) => node && typeof node === "object" && !Array.isArray(node))
+    ? nodes as Array<Record<string, unknown>>
+    : undefined;
+  const rawIds = nodeRecords?.map((node) => node.id);
+  const canRewriteIds = rawIds
+    && rawIds.every((id): id is string => typeof id === "string")
+    && new Set(rawIds).size === rawIds.length
+    && rawIds.some((id) => !/^[a-z][a-z0-9-]{0,23}$/.test(id));
+  const idMap = canRewriteIds
+    ? new Map(rawIds.map((id, index) => [id, `node-${index + 1}`]))
+    : undefined;
+
+  return {
+    ...raw,
+    title: boundedDiagramText(raw.title, 60),
+    rationale: boundedDiagramText(raw.rationale, 160),
+    nodes: nodeRecords?.map((node) => ({
+      ...node,
+      id: typeof node.id === "string" ? idMap?.get(node.id) ?? node.id : node.id,
+      label: boundedDiagramText(node.label, 24),
+      role: boundedDiagramText(node.role, 30),
+    })) ?? raw.nodes,
+    edges: edges?.map((edge) => {
+      if (!edge || typeof edge !== "object" || Array.isArray(edge)) return edge;
+      const edgeRecord = edge as Record<string, unknown>;
+      return {
+        ...edgeRecord,
+        from: typeof edgeRecord.from === "string" ? idMap?.get(edgeRecord.from) ?? edgeRecord.from : edgeRecord.from,
+        to: typeof edgeRecord.to === "string" ? idMap?.get(edgeRecord.to) ?? edgeRecord.to : edgeRecord.to,
+        label: boundedDiagramText(edgeRecord.label, 40),
+      };
+    }) ?? raw.edges,
+    evidence: Array.isArray(raw.evidence)
+      ? raw.evidence.slice(0, 3).map((item) => boundedDiagramText(item, 160))
+      : raw.evidence,
+  };
 }
 
 /**
@@ -161,7 +217,7 @@ function classifyDiagramRejection(issues: ReadonlyArray<{ message: string }>): E
 }
 
 export function normalizeEvaluationDiagram(value: unknown): EvaluationDiagram | undefined {
-  const parsed = diagramSchema.safeParse(value);
+  const parsed = diagramSchema.safeParse(normalizeDiagramPresentation(value));
   return parsed.success ? normalizeParsedEvaluationDiagram(parsed.data) : undefined;
 }
 
@@ -171,7 +227,7 @@ export function normalizeEvaluationDiagramResult(value: unknown): {
   rejectionReason?: EvaluationDiagramRejectionReason;
 } {
   if (value === null || value === undefined) return { status: "insufficient-evidence" };
-  const parsed = diagramSchema.safeParse(value);
+  const parsed = diagramSchema.safeParse(normalizeDiagramPresentation(value));
   return parsed.success
     ? { diagram: normalizeParsedEvaluationDiagram(parsed.data), status: "generated" }
     : { status: "invalid-output", rejectionReason: classifyDiagramRejection(parsed.error.issues) };

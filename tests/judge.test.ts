@@ -140,6 +140,41 @@ test("diagram normalization records generated, insufficient, and invalid outcome
   });
 });
 
+test("diagram normalization repairs presentation drift without inventing relationships", () => {
+  const result = normalizeEvaluationDiagramResult({
+    type: "architecture",
+    title: "组件关系".repeat(20),
+    rationale: "README 明确记录了客户端连接服务端。".repeat(20),
+    nodes: [
+      { id: "Client UI", label: "客户端界面".repeat(10), role: "请求发起方".repeat(10) },
+      { id: "MCP Server", label: "MCP 服务端" },
+    ],
+    edges: [{ from: "Client UI", to: "MCP Server", label: "调用工具并等待结构化结果".repeat(5) }],
+    evidence: [
+      "README Architecture 明确写出客户端连接 MCP 服务端。".repeat(10),
+      "README Flow 描述客户端发起工具调用。",
+      "README Usage 展示服务端返回结果。",
+      "模型多返回的第四条证据会被丢弃。",
+    ],
+  });
+
+  assert.equal(result.status, "generated");
+  assert.deepEqual(result.diagram?.nodes.map((node) => node.id), ["node-1", "node-2"]);
+  assert.deepEqual(result.diagram?.edges.map((edge) => [edge.from, edge.to]), [["node-1", "node-2"]]);
+  assert.ok((result.diagram?.title.length ?? 0) <= 60);
+  assert.ok((result.diagram?.evidence.length ?? 0) <= 3);
+
+  const unknownNode = normalizeEvaluationDiagramResult({
+    type: "flow",
+    title: "错误流程",
+    rationale: "README 没有这个节点。",
+    nodes: [{ id: "Input Node", label: "输入" }, { id: "Output Node", label: "输出" }],
+    edges: [{ from: "Input Node", to: "Invented Node", label: "调用" }],
+    evidence: ["README 只描述输入与输出。"],
+  });
+  assert.deepEqual(unknownNode, { status: "invalid-output", rejectionReason: "unknown-node" });
+});
+
 test("long README evidence selection keeps late safety and troubleshooting sections", () => {
   const readme = [
     "# Example\n\nA useful integration.",
