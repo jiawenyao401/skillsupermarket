@@ -11,6 +11,7 @@ import { extractGithubUrl, parseEvaluationSource } from "@/lib/source-parser";
 import { UpstreamServiceError } from "@/lib/upstream-error";
 import { getRequestSession, unauthorizedResponse } from "@/lib/auth-session";
 import { isCurrentEvaluationFresh } from "@/lib/evaluation-cache";
+import { EmailVerificationRequiredError } from "@/lib/email-verification";
 import {
   findSkillByEvaluationSource,
   SourceIdentityConflictError,
@@ -86,6 +87,10 @@ function inferCategory(repo: { description: string | null; topics: string[] }): 
 export async function POST(request: Request) {
   const session = await getRequestSession(request);
   if (!session) return unauthorizedResponse();
+  if (!session.user.emailVerified) return NextResponse.json({
+    error: "请先验证邮箱后再使用评测额度",
+    code: "EMAIL_VERIFICATION_REQUIRED",
+  }, { status: 403, headers: { "Cache-Control": "no-store" } });
 
   const rateLimit = checkRateLimit(`${session.user.id}:${getClientKey(request)}`);
   if (!rateLimit.allowed) {
@@ -310,6 +315,9 @@ export async function POST(request: Request) {
       message: "评测已开始，页面会实时更新进度",
     }, { status: 202 });
   } catch (error) {
+    if (error instanceof EmailVerificationRequiredError) return NextResponse.json({
+      error: error.message, code: error.code,
+    }, { status: 403, headers: { "Cache-Control": "no-store" } });
     console.error("[api/evaluate] error:", error);
     if (error instanceof QuotaExceededError) {
       return NextResponse.json({

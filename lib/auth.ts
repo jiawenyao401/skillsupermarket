@@ -4,11 +4,17 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import * as schema from "@/lib/schema";
+import { registrationProtection } from "@/lib/auth-protection";
+import { getRegistrationConfig } from "@/lib/registration-config";
+import { reserveVerificationEmail } from "@/lib/auth-email-limit";
+import { sendEmailVerificationCode } from "@/lib/verification-mail";
 
 const productionURL = "https://skillsupermarket.com";
 const appURL = process.env.BETTER_AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? productionURL;
+const protection = registrationProtection({ config: getRegistrationConfig(), appURL, reserveEmail: reserveVerificationEmail, sendCode: sendEmailVerificationCode });
 
 export const auth = betterAuth({
+  ...protection,
   appName: "Skill Supermarket",
   baseURL: appURL,
   secret: process.env.BETTER_AUTH_SECRET,
@@ -16,13 +22,6 @@ export const auth = betterAuth({
     provider: "pg",
     schema,
   }),
-  emailAndPassword: {
-    enabled: true,
-    minPasswordLength: 10,
-    maxPasswordLength: 128,
-    autoSignIn: true,
-    revokeSessionsOnPasswordReset: true,
-  },
   user: {
     additionalFields: {
       // Authorization is always re-checked against PostgreSQL. The field is
@@ -57,6 +56,8 @@ export const auth = betterAuth({
     customRules: {
       "/sign-in/email": { window: 60, max: 5 },
       "/sign-up/email": { window: 60 * 10, max: 5 },
+      "/email-otp/send-verification-otp": { window: 60 * 10, max: 5 },
+      "/email-otp/verify-email": { window: 60 * 10, max: 10 },
     },
   },
   advanced: {
@@ -72,7 +73,7 @@ export const auth = betterAuth({
       ipAddressHeaders: ["x-real-ip", "x-forwarded-for"],
     },
   },
-  plugins: [nextCookies()],
+  plugins: [...protection.plugins, nextCookies()],
 });
 
 export type AuthSession = typeof auth.$Infer.Session;

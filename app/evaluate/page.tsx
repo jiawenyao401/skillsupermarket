@@ -7,6 +7,8 @@ import { skills } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { getSkillEvaluationSource } from "@/lib/skill-evaluation-source";
 import { normalizeEvaluationSource } from "@/lib/source-parser";
+import { redirect } from "next/navigation";
+import { emailVerificationDestination } from "@/lib/auth-utils";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -33,6 +35,7 @@ export default async function EvaluatePage({
       ? `/evaluate?source=${encodeURIComponent(normalizedSource)}`
       : "/evaluate";
   const session = await requireUser(returnTo);
+  if (!session.user.emailVerified) redirect(emailVerificationDestination(returnTo));
   const [selectedSkill] = slug
     ? await db.select({
       name: skills.name,

@@ -3,26 +3,25 @@
 import { useState } from "react";
 import { ArrowRight, Eye, EyeOff, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { authErrorMessage } from "@/lib/auth-utils";
+import { Turnstile } from "@/components/Turnstile";
+import { VerifyEmailForm } from "@/components/VerifyEmailForm";
 
 type Mode = "login" | "register";
 
-function authErrorMessage(message?: string, status?: number) {
-  if (status === 429) return "尝试次数过多，请稍后再试";
-  const normalized = message?.toLowerCase() ?? "";
-  if (normalized.includes("invalid email or password") || normalized.includes("invalid credentials")) return "邮箱或密码不正确";
-  if (normalized.includes("already exists") || normalized.includes("already in use")) return "该邮箱已注册，请直接登录";
-  if (normalized.includes("password")) return "密码不符合要求，请使用 10–128 个字符";
-  return "操作未完成，请稍后重试";
-}
-
-export function AuthForm({ initialMode, returnTo }: { initialMode: Mode; returnTo: string }) {
+export function AuthForm({ initialMode, returnTo, siteKey }: { initialMode: Mode; returnTo: string; siteKey: string | null }) {
   const [mode, setMode] = useState<Mode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState("");
+  const [token, setToken] = useState("");
+  const [challenge, setChallenge] = useState(0);
+  const [verification, setVerification] = useState<{ email: string; alreadySent: boolean } | null>(null);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (pending || (mode === "register" && (!siteKey || !token))) return;
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") ?? "").trim().toLowerCase();
     const password = String(form.get("password") ?? "");
@@ -30,21 +29,25 @@ export function AuthForm({ initialMode, returnTo }: { initialMode: Mode; returnT
     setPending(true);
     setError(null);
 
-    const result = mode === "register"
-      ? await authClient.signUp.email({ email, password, name })
-      : await authClient.signIn.email({ email, password, rememberMe: true });
-
-    if (result.error) {
-      setError(authErrorMessage(result.error.message, result.error.status));
-      setPending(false);
-      return;
+    try {
+      const result = mode === "register"
+        ? await authClient.signUp.email({ email, password, name }, { headers: { "x-captcha-response": token } })
+        : await authClient.signIn.email({ email, password, rememberMe: true });
+      if (result.error) {
+        if (result.error.code === "EMAIL_NOT_VERIFIED") setVerification({ email, alreadySent: false });
+        else setError(authErrorMessage(result.error.message, result.error.status, result.error.code));
+        return;
+      }
+      if (mode === "register") { setVerification({ email, alreadySent: true }); return; }
+      window.location.replace(new URL(returnTo, window.location.origin).href);
+    } catch {
+      setError("网络连接失败，请稍后重试。");
+    } finally {
+      setPending(false); setToken(""); setChallenge((value) => value + 1);
     }
-
-    // Cross the authentication boundary with a full navigation. This makes
-    // the freshly written HttpOnly session cookie available to Proxy and the
-    // protected Server Component in the same request.
-    window.location.replace(new URL(returnTo, window.location.origin).href);
   }
+
+  if (verification) return <div className="w-full max-w-md rounded-[2rem] border bg-card p-6 sm:p-8"><VerifyEmailForm {...verification} siteKey={siteKey} onVerified={() => { setVerification(null); setMode("login"); setError(null); setNotice("邮箱验证成功，请使用邮箱和密码登录。"); }} onBack={() => { setVerification(null); setMode("login"); setError(null); }} /></div>;
 
   return (
     <div className="w-full max-w-md rounded-[2rem] border bg-card p-6 shadow-2xl shadow-black/[0.06] sm:p-8">
@@ -55,8 +58,9 @@ export function AuthForm({ initialMode, returnTo }: { initialMode: Mode; returnT
             type="button"
             role="tab"
             aria-selected={mode === item}
+            disabled={pending}
             className={`h-10 rounded-full text-sm font-bold transition ${mode === item ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
-            onClick={() => { setMode(item); setError(null); }}
+            onClick={() => { setMode(item); setError(null); setToken(""); setNotice(""); }}
           >
             {item === "login" ? "登录" : "注册"}
           </button>
@@ -66,7 +70,7 @@ export function AuthForm({ initialMode, returnTo }: { initialMode: Mode; returnT
       <div className="mt-7">
         <h1 className="text-2xl font-black tracking-[-0.035em]">{mode === "login" ? "欢迎回来" : "创建你的账号"}</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {mode === "login" ? "登录后即可提交 Skill 深度评测。" : "注册后自动登录，每周可免费启动 10 次新评测。"}
+          {mode === "login" ? "完成邮箱验证并登录后即可提交 Skill 深度评测。" : "完成人机验证和邮箱验证后，每周可免费启动 10 次新评测。"}
         </p>
       </div>
 
@@ -100,8 +104,10 @@ export function AuthForm({ initialMode, returnTo }: { initialMode: Mode; returnT
 
         {error && <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/[0.07] px-3.5 py-3 text-sm text-destructive">{error}</div>}
 
-        <button type="submit" disabled={pending} className="button-primary h-12 w-full rounded-xl text-sm disabled:cursor-not-allowed disabled:opacity-60">
-          {pending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> 请稍候</> : <>{mode === "login" ? "登录并继续" : "注册并开始评测"}<ArrowRight className="ml-2 h-4 w-4" /></>}
+        {notice && <p role="status" className="text-sm text-primary">{notice}</p>}
+        {mode === "register" && (siteKey ? <Turnstile key={challenge} siteKey={siteKey} onToken={setToken} /> : <p role="alert" className="text-sm text-destructive">注册验证服务暂不可用，请稍后再试。</p>)}
+        <button type="submit" disabled={pending || (mode === "register" && (!siteKey || !token))} className="button-primary h-12 w-full rounded-xl text-sm disabled:cursor-not-allowed disabled:opacity-60">
+          {pending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> 请稍候</> : <>{mode === "login" ? "登录并继续" : "注册并发送验证码"}<ArrowRight className="ml-2 h-4 w-4" /></>}
         </button>
       </form>
 

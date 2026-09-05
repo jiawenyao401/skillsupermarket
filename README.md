@@ -243,6 +243,7 @@ collect -> rank -> IndexNow -> snapshot
 
 1. 记录当前 release，并完成 PostgreSQL 备份。
 2. 在新 release 中执行 `npm ci`、`npm run typecheck`、`npm run lint`、测试和 `npm run build`。
+   注册保护版本还必须执行 `npm run auth:check`，并完成真实人机验证、邮件到达、验证后登录的验收；Turnstile 或 SMTP 尚未开通时禁止切换。配置步骤见 [注册与邮箱验证](docs/registration-verification.md)。
 3. 审核 migration；涉及数据库变更时先验证备份可恢复，再执行 `npm run db:migrate`。
 4. 原子切换 `/opt/skillsupermarket`，执行 `pm2 reload ecosystem.config.cjs --update-env`。
 5. 验证 `/api/health`、首页、榜单、至少一个报告详情页、登录、评测、个人中心和后台权限。
@@ -307,6 +308,7 @@ npm run lint
 npm run test:evaluation
 npm run test:rankings
 npm run build
+npm run auth:check
 npm run seo:check
 git diff --check
 ```

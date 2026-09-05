@@ -1,7 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
-import { safeReturnTo } from "@/lib/auth-utils";
+import { safeReturnTo, emailVerificationDestination } from "@/lib/auth-utils";
 
 export async function proxy(request: NextRequest) {
   const isLoginPage = request.nextUrl.pathname === "/login";
@@ -27,7 +27,11 @@ export async function proxy(request: NextRequest) {
 
   if (isLoginPage) {
     const destination = safeReturnTo(request.nextUrl.searchParams.get("returnTo"));
-    return NextResponse.redirect(new URL(destination, request.url));
+    return NextResponse.redirect(new URL(session.user.emailVerified ? destination : emailVerificationDestination(destination), request.url));
+  }
+
+  if (request.nextUrl.pathname === "/evaluate" && !session.user.emailVerified) {
+    return NextResponse.redirect(new URL(emailVerificationDestination(`${request.nextUrl.pathname}${request.nextUrl.search}`), request.url));
   }
 
   return NextResponse.next();

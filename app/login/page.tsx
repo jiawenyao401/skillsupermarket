@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { BadgeCheck, DatabaseZap, ShieldCheck } from "lucide-react";
 import { AuthForm } from "@/components/AuthForm";
 import { getCurrentSession } from "@/lib/auth-session";
-import { initialAuthMode, safeReturnTo } from "@/lib/auth-utils";
+import { initialAuthMode, safeReturnTo, emailVerificationDestination } from "@/lib/auth-utils";
+import { getRegistrationConfig } from "@/lib/registration-config";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -20,7 +21,8 @@ export default async function LoginPage({
   const params = await searchParams;
   const requestedReturnTo = Array.isArray(params.returnTo) ? params.returnTo[0] : params.returnTo;
   const returnTo = safeReturnTo(requestedReturnTo);
-  if (await getCurrentSession()) redirect(returnTo);
+  const session = await getCurrentSession();
+  if (session) redirect(session.user.emailVerified ? returnTo : emailVerificationDestination(returnTo));
 
   return (
     <div className="mx-auto grid min-h-[calc(100vh-13rem)] max-w-5xl items-center gap-10 py-6 lg:grid-cols-[1fr_28rem]">
@@ -45,7 +47,7 @@ export default async function LoginPage({
           ))}
         </div>
       </section>
-      <AuthForm initialMode={initialAuthMode(params.mode, params.returnTo)} returnTo={returnTo} />
+      <AuthForm initialMode={initialAuthMode(params.mode, params.returnTo)} returnTo={returnTo} siteKey={getRegistrationConfig()?.siteKey ?? null} />
     </div>
   );
 }

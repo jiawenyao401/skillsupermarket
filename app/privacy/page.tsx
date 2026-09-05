@@ -12,12 +12,16 @@ export default function PrivacyPage() {
     <article className="mx-auto max-w-3xl rounded-[2rem] border bg-card px-6 py-10 shadow-sm sm:px-10 sm:py-14">
       <div className="section-eyebrow">Privacy</div>
       <h1 className="mt-3 text-4xl font-black tracking-[-0.05em]">隐私说明</h1>
-      <p className="mt-4 text-sm text-muted-foreground">更新日期：2026-08-18</p>
+      <p className="mt-4 text-sm text-muted-foreground">更新日期：2026-09-05</p>
 
       <div className="mt-9 space-y-8 text-[15px] leading-7 text-foreground/80">
         <section>
           <h2 className="text-xl font-extrabold text-foreground">账户与评测数据</h2>
           <p className="mt-3">注册和登录需要保存用于识别账户的必要信息。评测任务会保存提交的公开项目来源、任务状态、额度消耗和生成的报告，用于提供个人历史、公开案例和服务运营。我们不会在公开页面展示用户邮箱。</p>
+        </section>
+        <section>
+          <h2 className="text-xl font-extrabold text-foreground">注册验证与反滥用</h2>
+          <p className="mt-3">注册及发送邮箱验证码使用 Cloudflare Turnstile 人机验证。该服务处理浏览器和网络信号以判断自动化请求，适用 <a href="https://www.cloudflare.com/privacypolicy/" className="underline" target="_blank" rel="noreferrer">Cloudflare 隐私政策</a>。验证码通过配置的邮件服务发送到你的邮箱，数据库仅保存验证码哈希及有效期。注册和发送接口按网络来源及邮箱限频；邮箱限频标识经过 HMAC 处理，不保存明文邮箱作为限频键。</p>
         </section>
         <section>
           <h2 className="text-xl font-extrabold text-foreground">站内访问统计</h2>

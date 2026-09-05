@@ -2,7 +2,8 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { evaluationJobs, evaluationQuotaUsage, subscriptions } from "@/lib/schema";
+import { evaluationJobs, evaluationQuotaUsage, subscriptions, user } from "@/lib/schema";
+import { assertVerifiedEmail } from "@/lib/email-verification";
 import {
   FREE_WEEKLY_EVALUATION_LIMIT,
   getShanghaiWeekWindow,
@@ -56,6 +57,11 @@ async function getActiveEntitlement(userId: string, now: Date) {
 
 export async function getQuotaSnapshot(userId: string, now = new Date()): Promise<QuotaSnapshot> {
   const window = getShanghaiWeekWindow(now);
+  const [profile] = await db.select({ emailVerified: user.emailVerified }).from(user).where(eq(user.id, userId)).limit(1);
+  if (!profile?.emailVerified) return {
+    plan: "free", limit: 0, used: 0, remaining: 0,
+    periodStart: window.periodStart, resetsAt: window.endsAt.toISOString(),
+  };
   const entitlement = await getActiveEntitlement(userId, now);
   const [usage] = await db.select({ used: evaluationQuotaUsage.used })
     .from(evaluationQuotaUsage)
@@ -89,6 +95,8 @@ export async function reserveQuotaAndCreateJob(input: {
   const entitlement = await getActiveEntitlement(input.userId, now);
 
   return db.transaction(async (tx) => {
+    const [profile] = await tx.select({ emailVerified: user.emailVerified }).from(user).where(eq(user.id, input.userId)).limit(1);
+    assertVerifiedEmail(profile);
     const periodEnd = window.endsAt.toISOString();
     const [job] = await tx.insert(evaluationJobs).values({
       skillId: input.skillId,
