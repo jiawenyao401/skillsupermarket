@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { DOCUMENTATION_FORMAT_CASES, DOCUMENTATION_FORMAT_SET_VERSION } from "../data/documentation-format-cases";
 import {
   SCORING_GOLDEN_CASES,
   SCORING_GOLDEN_SET_VERSION,
@@ -22,6 +23,34 @@ import {
 } from "../lib/evaluation-scoring";
 
 const FIXED_NOW = new Date("2026-01-15T00:00:00.000Z");
+
+test(`documentation format set ${DOCUMENTATION_FORMAT_SET_VERSION} preserves equivalent evidence and rejects hidden commands`, () => {
+  for (const fixture of DOCUMENTATION_FORMAT_CASES) {
+    const result = scoreDocumentation(fixture.readme, fixture.description, fixture.filePaths);
+    assert.equal(result.score, fixture.expectedScore, fixture.id);
+    assert.equal(result.checks.find((check) => check.id === "install")?.passed, fixture.actionable, fixture.id);
+    assert.equal(result.checks.find((check) => check.id === "example")?.passed, fixture.actionable, fixture.id);
+    assert.deepEqual(scoreDocumentation(fixture.readme, fixture.description, fixture.filePaths), result);
+  }
+});
+
+test("documentation parser handles malformed fences, long and delimiter-heavy input deterministically", () => {
+  const tick = "`";
+  const inputs = [
+    "", "\r\n", `${tick.repeat(4)}bash\nnpx @example/tool --read-only\n${tick.repeat(3)}`,
+    `~~~bash\nnpx @example/tool --read-only\n${tick.repeat(3)}`,
+    `${tick.repeat(3)}bash invalid${tick}\nnpx @example/tool --read-only\n${tick.repeat(3)}`,
+    `${tick.repeat(3)}\n${"[<>*_~] ".repeat(4_000)}\n${tick.repeat(3)}`,
+    "Plain documentation evidence. ".repeat(9_000),
+  ];
+  for (const readme of inputs) {
+    const result = scoreDocumentation(readme, null, []);
+    assert.ok(Number.isFinite(result.score) && result.score >= 0 && result.score <= 100);
+    assert.deepEqual(scoreDocumentation(readme, null, []), result);
+  }
+  const misleadingInline = `Installation snippet ${tick.repeat(3)}bash\nnpx @example/tool --read-only\n${tick.repeat(3)}`;
+  assert.equal(scoreDocumentation(misleadingInline, null, []).checks.find((c) => c.id === "install")?.passed, false);
+});
 
 test(`evaluation scoring golden set ${SCORING_GOLDEN_SET_VERSION} matches evaluator ${EVALUATOR_VERSION}`, () => {
   assert.ok(SCORING_GOLDEN_CASES.length >= 3, "golden set must cover mature, sparse, and blocked cases");

@@ -1,3 +1,4 @@
+import { fromMarkdown } from "mdast-util-from-markdown";
 import type {
   EvaluationCheck,
   EvaluationConfidenceFactor,
@@ -9,7 +10,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.10.0";
+export const EVALUATOR_VERSION = "3.11.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -58,20 +59,27 @@ const DOCUMENTATION_SIGNAL_PATTERNS = [
   /errors?|troubleshoot|faq|failure|错误|排障|常见问题|失败/i,
 ];
 
-interface FencedCodeBlock {
+interface ReadmeCodeBlock {
   language: string;
   content: string;
 }
 
-function fencedCodeBlocks(readme: string): FencedCodeBlock[] {
-  return [...readme.matchAll(/```([^\n]*)\n([\s\S]*?)```/g)].map((match) => ({
-    language: match[1].trim().toLowerCase(),
-    content: match[2].trim(),
-  }));
+function readmeCodeBlocks(readme: string): ReadmeCodeBlock[] {
+  // Use the same CommonMark parser family as README rendering. Regex cannot
+  // distinguish real code from inline text or hidden HTML, or handle list/quote
+  // containers and the different legal fence forms consistently.
+  const blocks: ReadmeCodeBlock[] = [];
+  const pending = [...fromMarkdown(readme).children];
+  while (pending.length) {
+    const node = pending.pop()!;
+    if (node.type === "code") blocks.push({ language: (node.lang ?? "").toLowerCase(), content: node.value.trim() });
+    else if ("children" in node) for (const child of node.children) pending.push(child);
+  }
+  return blocks;
 }
 
-function hasActionableAdoptionEvidence(readme: string): boolean {
-  return fencedCodeBlocks(readme).some(({ content: block }) => [
+function hasActionableAdoptionEvidence(blocks: ReadmeCodeBlock[]): boolean {
+  return blocks.some(({ content: block }) => [
     /(?:^|\n)\s*(?:\$\s*)?(?:npm|pnpm|yarn|bun)\s+(?:i|install|add|exec|dlx)\s+\S+/im,
     /(?:^|\n)\s*(?:\$\s*)?(?:npx|bunx)\s+\S+/im,
     /(?:^|\n)\s*(?:\$\s*)?(?:(?:python\s+-m\s+)?pip3?|pipx)\s+install\s+\S+/im,
@@ -85,8 +93,8 @@ function hasActionableAdoptionEvidence(readme: string): boolean {
   ].some((pattern) => pattern.test(block)));
 }
 
-function hasConcreteUsageEvidence(readme: string): boolean {
-  return fencedCodeBlocks(readme).some(({ language, content }) => {
+function hasConcreteUsageEvidence(blocks: ReadmeCodeBlock[]): boolean {
+  return blocks.some(({ language, content }) => {
     if (content.length < 20 || /^(?:text|txt|plaintext|output)$/i.test(language)) return false;
     const jsonProperties = content.match(/["'][\w.-]+["']\s*:\s*(?:["'\d[{]|true\b|false\b|null\b)/g) ?? [];
     const yamlProperties = content.match(/^\s*[\w.-]+\s*:\s*\S.+$/gm) ?? [];
@@ -120,8 +128,8 @@ function hasPackedChecklistLanguage(readme: string): boolean {
  * covers nearly the full checklist, either packed or spread across headings, but
  * provides neither executable adoption evidence nor a structured usage example.
  */
-function isDocumentationChecklistGaming(readme: string, rawScore: number): boolean {
-  if (rawScore < 80 || hasActionableAdoptionEvidence(readme) || hasConcreteUsageEvidence(readme)) return false;
+function isDocumentationChecklistGaming(readme: string, rawScore: number, hasConcreteEvidence: boolean): boolean {
+  if (rawScore < 80 || hasConcreteEvidence) return false;
   return hasPackedChecklistLanguage(readme) || DOCUMENTATION_SIGNAL_PATTERNS.every((pattern) => pattern.test(readme));
 }
 
@@ -137,9 +145,10 @@ export function scoreDocumentation(
   const normalized = readme.toLowerCase();
   const has = (pattern: RegExp) => pattern.test(normalized);
   const hasInstallSignal = has(/install|安装|setup|配置|quick\s*start|getting\s*started/);
-  const hasExampleSignal = /```[\s\S]{20,}?```/.test(readme);
-  const hasAdoptionEvidence = hasActionableAdoptionEvidence(readme);
-  const hasUsageEvidence = hasConcreteUsageEvidence(readme);
+  const blocks = readmeCodeBlocks(readme);
+  const hasExampleSignal = blocks.some((block) => block.content.length >= 20);
+  const hasAdoptionEvidence = hasActionableAdoptionEvidence(blocks);
+  const hasUsageEvidence = hasConcreteUsageEvidence(blocks);
   let checks: EvaluationCheck[] = [
     { id: "description", label: "问题与用途描述", passed: Boolean(description && description.trim().length >= 40), weight: 10 },
     { id: "readme", label: "有效 README", passed: readme.trim().length >= 500, weight: 12, evidence: `${readme.trim().length} 字符` },
@@ -170,7 +179,7 @@ export function scoreDocumentation(
   const nominalScore = evidenceScore +
     (hasInstallSignal && !hasAdoptionEvidence ? 14 : 0) +
     (hasExampleSignal && !hasAdoptionEvidence && !hasUsageEvidence ? 16 : 0);
-  const checklistGamingDetected = isDocumentationChecklistGaming(readme, nominalScore);
+  const checklistGamingDetected = isDocumentationChecklistGaming(readme, nominalScore, hasAdoptionEvidence || hasUsageEvidence);
   if (checklistGamingDetected) {
     checks = checks.map((check) => DOCUMENTATION_EVIDENCE_CHECK_IDS.has(check.id)
       ? { ...check, passed: false, evidence: "关键词集中但缺少可执行、可核对的采用证据" }
