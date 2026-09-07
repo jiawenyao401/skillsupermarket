@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DOCUMENTATION_FORMAT_CASES, DOCUMENTATION_FORMAT_SET_VERSION } from "../data/documentation-format-cases";
+import { REMOTE_MCP_ADOPTION_CASES, REMOTE_MCP_ADOPTION_SET_VERSION } from "../data/remote-mcp-adoption-cases";
 import {
   SCORING_GOLDEN_CASES,
   SCORING_GOLDEN_SET_VERSION,
@@ -23,6 +24,15 @@ import {
 } from "../lib/evaluation-scoring";
 
 const FIXED_NOW = new Date("2026-01-15T00:00:00.000Z");
+
+test(`remote MCP adoption set ${REMOTE_MCP_ADOPTION_SET_VERSION} recognizes client configuration without executing endpoints`, () => {
+  for (const fixture of REMOTE_MCP_ADOPTION_CASES) {
+    const result = scoreDocumentation(fixture.readme, fixture.description, fixture.filePaths);
+    assert.equal(result.checks.find((c) => c.id === "install")?.passed, fixture.actionable, fixture.id);
+    if (fixture.actionable) assert.equal(result.score, 100, fixture.id);
+    assert.deepEqual(scoreDocumentation(fixture.readme, fixture.description, fixture.filePaths), result);
+  }
+});
 
 test(`documentation format set ${DOCUMENTATION_FORMAT_SET_VERSION} preserves equivalent evidence and rejects hidden commands`, () => {
   for (const fixture of DOCUMENTATION_FORMAT_CASES) {

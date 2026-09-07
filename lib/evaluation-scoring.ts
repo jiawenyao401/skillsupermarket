@@ -10,7 +10,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.11.0";
+export const EVALUATOR_VERSION = "3.12.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -78,7 +78,33 @@ function readmeCodeBlocks(readme: string): ReadmeCodeBlock[] {
   return blocks;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasRemoteMcpConfiguration({ language, content }: ReadmeCodeBlock): boolean {
+  if (language && language !== "json") return false;
+  // Remote clients need an endpoint, not a local command. Cursor supports URL-only
+  // entries; Claude Code requires an explicit transport. This is adoption evidence
+  // for at least one client, not proof of compatibility, reachability, or safety.
+  let parsed: unknown;
+  try { parsed = JSON.parse(content); } catch { return false; }
+  if (!isRecord(parsed) || !isRecord(parsed.mcpServers)) return false;
+  return Object.entries(parsed.mcpServers).some(([name, entry]) => {
+    if (!name.trim() || !isRecord(entry) || typeof entry.url !== "string") return false;
+    if (entry.type !== undefined && (typeof entry.type !== "string" || !["http", "streamable-http", "sse"].includes(entry.type))) return false;
+    if (entry.headers !== undefined && (!isRecord(entry.headers) ||
+      Object.values(entry.headers).some((value) => typeof value !== "string"))) return false;
+    if (!/^https?:\/\/\S+$/i.test(entry.url)) return false;
+    try {
+      const url = new URL(entry.url);
+      return Boolean(url.hostname) && ["http:", "https:"].includes(url.protocol);
+    } catch { return false; }
+  });
+}
+
 function hasActionableAdoptionEvidence(blocks: ReadmeCodeBlock[]): boolean {
+  if (blocks.some(hasRemoteMcpConfiguration)) return true;
   return blocks.some(({ content: block }) => [
     /(?:^|\n)\s*(?:\$\s*)?(?:npm|pnpm|yarn|bun)\s+(?:i|install|add|exec|dlx)\s+\S+/im,
     /(?:^|\n)\s*(?:\$\s*)?(?:npx|bunx)\s+\S+/im,
