@@ -44,4 +44,13 @@ npm run build
 
 发布从现有生产 `93d0d30` 隔离应用本次提交，不包含未开通服务的注册改动；无依赖升级、无数据库迁移。旧报告不会被就地改分，后续评测采用 3.12.0；不批量重评消耗模型额度。
 
+## 发布验收（北京时间 20:08）
+
+- 主分支实现 `5f89f3b` 已推送 GitHub main；隔离生产提交 `20fa571`，发布包 SHA-256 `7926916895a1be5ba2a34dfb0afa9aa5d5773582395f3e64a835d9584ce79fac`。认证、数据库 schema 和锁文件与生产基线逐项相同。
+- PostgreSQL 自定义格式备份 1,920,432 字节且归档目录校验成功。旧 release 和备份保留，未清理文件、未迁移数据库。
+- 服务器独立 `npm ci`、typecheck、lint、103/103 测试、3/3 榜单、12/12 格式集、29/29 接入集和生产构建全部通过。本机使用构建进程随机密钥后的构建亦通过且无默认密钥警告。
+- 20:06 原子切换到 `/opt/releases/skillsupermarket-20260907-20fa571`；Web/Worker 的实际进程目录一致。健康 3.12.0、database/Judge ready；SEO、关键页面和登录保护通过。
+- 20:07 一次 SurfSense 运营冒烟由真实 Worker 完成（attempt=1、用户额度扣减 0）。新报告文档分 75、接入检查通过，AI 评审使用正常配置，并生成时序图；公开详情 HTTP 200、版本和图形渲染均验证。旧报告文档分 61 保留。这一次模型冒烟与离线零模型调用基准分开计数。
+- 安全检查只有预期代码哈希变化，按已验证 release/摘要单独更新代码基线，未修改账号、公钥或监听端口基线；20:08 复检 healthy。HSTS/nosniff 存在，采集最近运行 success、采集与安全 timer active。健康请求 14ms 为单次采样，不是 SLA。磁盘 50% → 53% 来自保留新 release，仍有 18G 可用，无文件删除。
+
 依据：[Cursor MCP 配置](https://cursor.com/docs/mcp)、[Claude Code MCP 配置](https://code.claude.com/docs/en/mcp)、[SurfSense 公开 README](https://github.com/ModSetter/SurfSense/blob/main/README.md)。于 2026-09-07 核验。
