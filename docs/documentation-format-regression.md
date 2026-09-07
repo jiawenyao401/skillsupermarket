@@ -55,6 +55,6 @@ npm run build
 - 原子发布到 `/opt/releases/skillsupermarket-20260907-15b915e`。Web 和 Worker 的实际工作目录均为该 release；健康接口返回 3.11.0，数据库/Judge ready；SEO 检查、登录及权限保护、采集定时器通过。
 - 一次运营冒烟由真实 Worker 完成（attempt=1），报告版本 3.11.0，并生成结构图；未扣用户额度。该端到端冒烟使用了配置的模型，与上表零模型调用的离线格式基准分开统计。
 - 仅更新已验证的代码哈希基线，未改账号、公钥或端口基线；安全复检 healthy。发布后磁盘 47%，旧版本和备份保留。
-- 推送命令两次在本机权限审批环节超时，未确认推送成功；已上线不等于 GitHub main 已同步。下一轮首先核对远端，避免重复或覆盖其他提交。
+- 推送命令两次在本机权限审批环节超时，后续 Git 传输出现 HTTP/2/低速超时。9 月 7 日同日心跳已通过 GitHub Git Data API 同步原提交：逐个核对 blob/tree/commit SHA 一致、以 `force=false` 快进 main；本轮评分提交现已在远端，未重写提交历史。
 
 依据：[CommonMark 0.31.2 代码围栏规范](https://spec.commonmark.org/0.31.2/#fenced-code-blocks)、[解析器官方文档](https://github.com/syntax-tree/mdast-util-from-markdown)。
