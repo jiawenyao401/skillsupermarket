@@ -22,6 +22,9 @@ import { AdminCollectionChart, type DailySkillCollectionPoint } from "@/componen
 import { requireSuperAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 import { growthPercentage } from "@/lib/growth-metrics";
+import { EVALUATOR_VERSION } from "@/lib/evaluation-scoring";
+import { evaluationVersionMetricsQuery, summarizeEvaluationVersions, type EvaluationVersionRow } from "@/lib/evaluation-version-metrics";
+import { AdminEvaluationVersions } from "@/components/AdminEvaluationVersions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -344,10 +347,11 @@ export default async function AdminPage({
   const parsedPage = Number.parseInt(firstValue(params.page), 10);
   const requestedPage = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
-  const [summary, dailySkills, initialUsers] = await Promise.all([
+  const [summary, dailySkills, initialUsers, versionRows] = await Promise.all([
     getSummary(),
     getDailySkillSeries(),
     getUsers(query, requestedPage),
+    db.execute<EvaluationVersionRow>(evaluationVersionMetricsQuery()),
   ]);
   const totalPages = Math.max(1, Math.ceil(initialUsers.total / PAGE_SIZE));
   const page = Math.min(requestedPage, totalPages);
@@ -359,6 +363,7 @@ export default async function AdminPage({
   const guideCtaRate = formatPercent(summary.guide_cta_clicks_7d, summary.guide_views_7d);
   const guideContinuationRate = formatPercent(summary.guide_continuation_clicks_7d, summary.guide_views_7d);
   const latestSevenDays = dailySkills.slice(-7).reverse();
+  const versionMetrics = summarizeEvaluationVersions([...versionRows], EVALUATOR_VERSION, summary.active_skills);
 
   const headlineMetrics = [
     { label: "用户总数", value: summary.total_users, detail: `D1 +${summary.new_users_1d} · D7 +${summary.new_users_7d} · D30 +${summary.new_users_30d}`, icon: UsersRound },
@@ -452,6 +457,8 @@ export default async function AdminPage({
           </div>
         </div>
       </section>
+
+      <AdminEvaluationVersions metrics={versionMetrics} />
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="surface-card p-6">

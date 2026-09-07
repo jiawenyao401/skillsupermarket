@@ -2,6 +2,8 @@ import "dotenv/config";
 import { sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import { growthPercentage } from "../lib/growth-metrics";
+import { EVALUATOR_VERSION } from "../lib/evaluation-scoring";
+import { evaluationVersionMetricsQuery, summarizeEvaluationVersions, type EvaluationVersionRow } from "../lib/evaluation-version-metrics";
 
 interface ContentRow extends Record<string, unknown> {
   active_skills: number;
@@ -187,6 +189,8 @@ async function main() {
   `);
   const diagrams = diagramResult[0];
   if (!diagrams) throw new Error("增长报表图示查询未返回数据");
+  const versionRows = await db.execute<EvaluationVersionRow>(evaluationVersionMetricsQuery());
+  const versionMetrics = summarizeEvaluationVersions([...versionRows], EVALUATOR_VERSION, content.active_skills);
 
   const [hasUsers, hasJobs, hasJobUsers, hasJobSources, hasSubscriptions, hasQuota, hasTraffic] = await Promise.all([
     tableExists("user"),
@@ -423,6 +427,7 @@ async function main() {
       thinDescriptions: content.missing_descriptions,
       staleSkills30d: content.stale_skills,
     },
+    evaluatorRollout: versionMetrics,
     evaluationQuality: {
       latestReports: diagrams.latest_reports,
       aiJudgedReports: diagrams.ai_judged_reports,
@@ -470,6 +475,11 @@ async function main() {
     : "[growth] 变现: 数据不可用（订阅或额度表尚未部署）");
   console.log(`[growth] 库存: ${content.active_skills} 个有效项目，D1 +${content.new_skills_1d} / D7 +${content.new_skills_7d} / D30 +${content.new_skills_30d}，今日采集 ${content.collected_skills_today}，最近采集 ${content.last_collection_date ?? "暂无"}`);
   console.log(`[growth] 报告: ${content.evaluated_skills}/${content.active_skills} 个项目有报告，覆盖率 ${report.inventory.evaluationCoverage ?? "暂无有效样本"}，累计 ${content.total_evaluations} 份`);
+  console.log(`[growth] 算法版本: 当前 ${versionMetrics.currentVersion} 覆盖 ${versionMetrics.currentVersionLatestReports}/${versionMetrics.activeSkills} 个有效 Skill（${versionMetrics.currentVersionCoverage === null ? "暂无有效样本" : `${versionMetrics.currentVersionCoverage.toFixed(1)}%`}）；其他版本 ${versionMetrics.otherVersionLatestReports}，版本未知 ${versionMetrics.unversionedLatestReports}。覆盖率不是准确率。`);
+  for (const row of versionMetrics.versions) {
+    console.log(`[growth] 版本 ${row.version ?? "未知"}: 最新 ${row.latestReports}；滚动 D1/D7/D30 产出 ${row.reports1d}/${row.reports7d}/${row.reports30d}`);
+  }
+  console.log("[growth] 版本产出包含运营、重评与发布冒烟；尚无报告与任务的可靠来源关联，不代表用户增长，不自动触发重评。");
   console.log(`[growth] 图示: ${report.evaluationQuality.diagramReports}/${report.evaluationQuality.aiJudgedReports} 份 AI 复核报告有图，覆盖率 ${report.evaluationQuality.diagramCoverage ?? "暂无有效样本"}；D1 ${report.evaluationQuality.diagramReports1d}/${report.evaluationQuality.aiJudgedReports1d}（${report.evaluationQuality.diagramCoverage1d ?? "暂无有效样本"}），无效输出 ${report.evaluationQuality.invalidDiagrams1d}；恢复 ${report.evaluationQuality.recoveredDiagrams}/${report.evaluationQuality.diagramRecoveryAttempts}，D1 ${report.evaluationQuality.recoveredDiagrams1d}/${report.evaluationQuality.diagramRecoveryAttempts1d}；流程 ${report.evaluationQuality.diagramTypes.flow} / 时序 ${report.evaluationQuality.diagramTypes.sequence} / 架构 ${report.evaluationQuality.diagramTypes.architecture}`);
 }
 
