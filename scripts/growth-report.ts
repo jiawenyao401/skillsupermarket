@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { sql } from "drizzle-orm";
 import { db } from "../lib/db";
+import { growthPercentage } from "../lib/growth-metrics";
 
 interface ContentRow extends Record<string, unknown> {
   active_skills: number;
@@ -100,8 +101,9 @@ interface DiagramRow extends Record<string, unknown> {
   recovered_diagrams_1d: number;
 }
 
-function percentage(value: number, total: number): string {
-  return total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "0.0%";
+function percentage(value: number | undefined, total: number | undefined): string | null {
+  const result = growthPercentage(value, total);
+  return result === null ? null : `${result.toFixed(1)}%`;
 }
 
 async function tableExists(name: string): Promise<boolean> {
@@ -358,8 +360,8 @@ async function main() {
       guideContinuationClicks1d: traffic?.guide_continuation_clicks_1d ?? 0,
       guideContinuationClicks7d: traffic?.guide_continuation_clicks_7d ?? 0,
       guideContinuationClicks30d: traffic?.guide_continuation_clicks_30d ?? 0,
-      guideCtaRate7d: percentage(traffic?.guide_cta_clicks_7d ?? 0, traffic?.guide_views_7d ?? 0),
-      guideContinuationRate7d: percentage(traffic?.guide_continuation_clicks_7d ?? 0, traffic?.guide_views_7d ?? 0),
+      guideCtaRate7d: percentage(traffic?.guide_cta_clicks_7d, traffic?.guide_views_7d),
+      guideContinuationRate7d: percentage(traffic?.guide_continuation_clicks_7d, traffic?.guide_views_7d),
       sourceViews7d: {
         organic: traffic?.organic_views_7d ?? 0,
         community: traffic?.community_views_7d ?? 0,
@@ -395,10 +397,10 @@ async function main() {
       coverageJobs7d: jobs?.coverage_jobs_7d ?? 0,
       coverageCompleted7d: jobs?.coverage_completed_7d ?? 0,
       coverageFailed7d: jobs?.coverage_failed_7d ?? 0,
-      coverageCompletionRate7d: percentage(jobs?.coverage_completed_7d ?? 0, jobs?.coverage_jobs_7d ?? 0),
-      completionRate1d: percentage(jobs?.completed_1d ?? 0, jobs1d),
-      completionRate7d: percentage(jobs?.completed_7d ?? 0, jobs7d),
-      completionRate30d: percentage(jobs?.completed_30d ?? 0, jobs30d),
+      coverageCompletionRate7d: percentage(jobs?.coverage_completed_7d, jobs?.coverage_jobs_7d),
+      completionRate1d: percentage(jobs?.completed_1d, jobs?.jobs_1d),
+      completionRate7d: percentage(jobs?.completed_7d, jobs?.jobs_7d),
+      completionRate30d: percentage(jobs?.completed_30d, jobs?.jobs_30d),
     },
     monetization: {
       available: hasSubscriptions && hasQuota,
@@ -455,20 +457,20 @@ async function main() {
     ? `[growth] 访问: D1 ${report.acquisition.pageViews1d} / D7 ${report.acquisition.pageViews7d} / D30 ${report.acquisition.pageViews30d} 次页面浏览；评测页 D7 ${report.acquisition.evaluationViews7d}，CTA D7 ${report.acquisition.evaluationCtaClicks7d}，登录/注册页 D7 ${report.acquisition.authViews7d}`
     : "[growth] 访问: 数据不可用（隐私友好流量表尚未部署）");
   if (hasTraffic) {
-    console.log(`[growth] 指南漏斗: 浏览 D1 ${report.acquisition.guideViews1d} / D7 ${report.acquisition.guideViews7d} / D30 ${report.acquisition.guideViews30d}；D7 继续阅读 ${report.acquisition.guideContinuationClicks7d}（${report.acquisition.guideContinuationRate7d}），评测 CTA ${report.acquisition.guideEvaluationCtaClicks7d}（${report.acquisition.guideCtaRate7d}）`);
+    console.log(`[growth] 指南漏斗: 浏览 D1 ${report.acquisition.guideViews1d} / D7 ${report.acquisition.guideViews7d} / D30 ${report.acquisition.guideViews30d}；D7 继续阅读 ${report.acquisition.guideContinuationClicks7d}（${report.acquisition.guideContinuationRate7d ?? "暂无有效样本"}），评测 CTA ${report.acquisition.guideEvaluationCtaClicks7d}（${report.acquisition.guideCtaRate7d ?? "暂无有效样本"}）`);
   }
   console.log(hasJobs
-    ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次用户任务；D7 首评 ${report.activation.firstEvaluations7d} 人、复评 ${report.activation.repeatEvaluators7d} 人、完成率 ${report.activation.completionRate7d}；另排除运维任务 ${report.activation.operationalJobs7d} 次`
+    ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次用户任务；D7 首评 ${report.activation.firstEvaluations7d} 人、复评 ${report.activation.repeatEvaluators7d} 人、完成率 ${report.activation.completionRate7d ?? "暂无有效样本"}；另排除运维任务 ${report.activation.operationalJobs7d} 次`
     : "[growth] 激活: 数据不可用（评测任务表尚未部署）");
   if (hasJobs && hasJobSources) {
-    console.log(`[growth] 覆盖调度: D1 ${report.activation.coverageJobs1d} / D7 ${report.activation.coverageJobs7d} 个任务；D7 完成率 ${report.activation.coverageCompletionRate7d}，失败 ${report.activation.coverageFailed7d}`);
+    console.log(`[growth] 覆盖调度: D1 ${report.activation.coverageJobs1d} / D7 ${report.activation.coverageJobs7d} 个任务；D7 完成率 ${report.activation.coverageCompletionRate7d ?? "暂无有效样本"}，失败 ${report.activation.coverageFailed7d}`);
   }
   console.log(report.monetization.available
     ? `[growth] 变现: ${report.monetization.activeSubscriptions} 个有效订阅，${report.monetization.freeQuotaUsers} 位免费用户本周已用 ${report.monetization.freeQuotaUsed} 次，${report.monetization.exhaustedFreeUsers} 位已耗尽额度`
     : "[growth] 变现: 数据不可用（订阅或额度表尚未部署）");
   console.log(`[growth] 库存: ${content.active_skills} 个有效项目，D1 +${content.new_skills_1d} / D7 +${content.new_skills_7d} / D30 +${content.new_skills_30d}，今日采集 ${content.collected_skills_today}，最近采集 ${content.last_collection_date ?? "暂无"}`);
-  console.log(`[growth] 报告: ${content.evaluated_skills}/${content.active_skills} 个项目有报告，覆盖率 ${report.inventory.evaluationCoverage}，累计 ${content.total_evaluations} 份`);
-  console.log(`[growth] 图示: ${report.evaluationQuality.diagramReports}/${report.evaluationQuality.aiJudgedReports} 份 AI 复核报告有图，覆盖率 ${report.evaluationQuality.diagramCoverage}；D1 ${report.evaluationQuality.diagramReports1d}/${report.evaluationQuality.aiJudgedReports1d}（${report.evaluationQuality.diagramCoverage1d}），无效输出 ${report.evaluationQuality.invalidDiagrams1d}；恢复 ${report.evaluationQuality.recoveredDiagrams}/${report.evaluationQuality.diagramRecoveryAttempts}，D1 ${report.evaluationQuality.recoveredDiagrams1d}/${report.evaluationQuality.diagramRecoveryAttempts1d}；流程 ${report.evaluationQuality.diagramTypes.flow} / 时序 ${report.evaluationQuality.diagramTypes.sequence} / 架构 ${report.evaluationQuality.diagramTypes.architecture}`);
+  console.log(`[growth] 报告: ${content.evaluated_skills}/${content.active_skills} 个项目有报告，覆盖率 ${report.inventory.evaluationCoverage ?? "暂无有效样本"}，累计 ${content.total_evaluations} 份`);
+  console.log(`[growth] 图示: ${report.evaluationQuality.diagramReports}/${report.evaluationQuality.aiJudgedReports} 份 AI 复核报告有图，覆盖率 ${report.evaluationQuality.diagramCoverage ?? "暂无有效样本"}；D1 ${report.evaluationQuality.diagramReports1d}/${report.evaluationQuality.aiJudgedReports1d}（${report.evaluationQuality.diagramCoverage1d ?? "暂无有效样本"}），无效输出 ${report.evaluationQuality.invalidDiagrams1d}；恢复 ${report.evaluationQuality.recoveredDiagrams}/${report.evaluationQuality.diagramRecoveryAttempts}，D1 ${report.evaluationQuality.recoveredDiagrams1d}/${report.evaluationQuality.diagramRecoveryAttempts1d}；流程 ${report.evaluationQuality.diagramTypes.flow} / 时序 ${report.evaluationQuality.diagramTypes.sequence} / 架构 ${report.evaluationQuality.diagramTypes.architecture}`);
 }
 
 main().catch((error) => {

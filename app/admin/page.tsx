@@ -21,6 +21,7 @@ import { sql } from "drizzle-orm";
 import { AdminCollectionChart, type DailySkillCollectionPoint } from "@/components/AdminCollectionChart";
 import { requireSuperAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { growthPercentage } from "@/lib/growth-metrics";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -125,7 +126,8 @@ function firstValue(value: string | string[] | undefined): string {
 }
 
 function formatPercent(value: number, total: number): string {
-  return total > 0 ? `${Math.round((value / total) * 100)}%` : "0%";
+  const result = growthPercentage(value, total);
+  return result === null ? "暂无样本" : `${Math.round(result)}%`;
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
