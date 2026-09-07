@@ -17,6 +17,7 @@
     "benchmark:diagrams": "tsx scripts/benchmark-diagram-recovery.ts",
     "benchmark:documentation": "tsx scripts/benchmark-documentation-format.ts --check",
     "benchmark:adoption": "tsx scripts/benchmark-remote-mcp-adoption.ts --check",
+    "benchmark:output": "tsx scripts/benchmark-documentation-output.ts --check",
     "evaluate:cases": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/evaluate-cases.ts",
     "prepare:case-judgments": "tsx scripts/prepare-case-judgments.ts",
     "apply:case-judgments": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/apply-case-judgments.ts",

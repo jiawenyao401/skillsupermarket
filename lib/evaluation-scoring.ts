@@ -10,7 +10,7 @@ import type {
   SkillType,
 } from "./types";
 
-export const EVALUATOR_VERSION = "3.12.0";
+export const EVALUATOR_VERSION = "3.13.0";
 
 export const WEIGHTS = {
   documentation: 0.22,
@@ -172,9 +172,14 @@ export function scoreDocumentation(
   const has = (pattern: RegExp) => pattern.test(normalized);
   const hasInstallSignal = has(/install|安装|setup|配置|quick\s*start|getting\s*started/);
   const blocks = readmeCodeBlocks(readme);
+  // Explicit output/log blocks are results, not instructions. Filter before BOTH
+  // adoption and usage detection so commands/JSON echoed in logs cannot earn
+  // executable-example credit or bypass the keyword-stuffing guard. Retain
+  // console/shell sessions and unlabelled/text blocks: they can be real commands.
+  const instructionBlocks = blocks.filter(({ language }) => !/^(?:output|stdout|stderr|logs?)$/.test(language));
   const hasExampleSignal = blocks.some((block) => block.content.length >= 20);
-  const hasAdoptionEvidence = hasActionableAdoptionEvidence(blocks);
-  const hasUsageEvidence = hasConcreteUsageEvidence(blocks);
+  const hasAdoptionEvidence = hasActionableAdoptionEvidence(instructionBlocks);
+  const hasUsageEvidence = hasConcreteUsageEvidence(instructionBlocks);
   let checks: EvaluationCheck[] = [
     { id: "description", label: "问题与用途描述", passed: Boolean(description && description.trim().length >= 40), weight: 10 },
     { id: "readme", label: "有效 README", passed: readme.trim().length >= 500, weight: 12, evidence: `${readme.trim().length} 字符` },

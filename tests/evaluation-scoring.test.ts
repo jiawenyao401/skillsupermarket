@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DOCUMENTATION_FORMAT_CASES, DOCUMENTATION_FORMAT_SET_VERSION } from "../data/documentation-format-cases";
+import { DOCUMENTATION_OUTPUT_CASES, DOCUMENTATION_OUTPUT_SET_VERSION } from "../data/documentation-output-cases";
 import { REMOTE_MCP_ADOPTION_CASES, REMOTE_MCP_ADOPTION_SET_VERSION } from "../data/remote-mcp-adoption-cases";
 import {
   SCORING_GOLDEN_CASES,
@@ -24,6 +25,17 @@ import {
 } from "../lib/evaluation-scoring";
 
 const FIXED_NOW = new Date("2026-01-15T00:00:00.000Z");
+
+test(`documentation output set ${DOCUMENTATION_OUTPUT_SET_VERSION} cannot promote logs to actionable evidence`, () => {
+  for (const fixture of DOCUMENTATION_OUTPUT_CASES) {
+    const result = scoreDocumentation(fixture.readme, fixture.description, fixture.filePaths);
+    assert.equal(result.score, fixture.expectedScore, fixture.id);
+    for (const id of ["install", "example"]) {
+      assert.equal(result.checks.find((check) => check.id === id)?.passed, fixture.actionable, `${fixture.id}: ${id}`);
+    }
+    assert.deepEqual(scoreDocumentation(fixture.readme, fixture.description, fixture.filePaths), result);
+  }
+});
 
 test(`remote MCP adoption set ${REMOTE_MCP_ADOPTION_SET_VERSION} recognizes client configuration without executing endpoints`, () => {
   for (const fixture of REMOTE_MCP_ADOPTION_CASES) {
