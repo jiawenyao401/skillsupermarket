@@ -126,7 +126,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
             </Link>
 
-            <nav className="hidden items-center gap-1 text-sm font-medium md:flex" aria-label="主导航">
+            <nav className="hidden items-center gap-1 text-sm font-medium lg:flex" aria-label="主导航">
               <Link href="/" className="nav-link">发现</Link>
               {categories.map(([label, href]) => (
                 <Link key={href} href={href} className="nav-link">{label}</Link>
@@ -152,7 +152,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <AuthNav />
               </Suspense>
 
-              <details className="mobile-menu relative md:hidden">
+              <details className="mobile-menu relative lg:hidden">
                 <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full border bg-card [&::-webkit-details-marker]:hidden" aria-label="打开导航菜单">
                   <Menu className="h-4 w-4" />
                 </summary>
