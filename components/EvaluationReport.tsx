@@ -14,10 +14,12 @@ import {
   X,
 } from "lucide-react";
 import type { EvaluationReport as EvaluationReportType, SecurityFinding } from "@/lib/types";
-import { buildLegacySummary, deriveRiskLevel } from "@/lib/evaluation-scoring";
+import { buildLegacySummary, deriveRiskLevel, EVALUATOR_VERSION } from "@/lib/evaluation-scoring";
+import { getReportVersion } from "@/lib/report-provenance";
 import { cn } from "@/lib/utils";
 import { EvaluationRadar } from "./EvaluationRadar";
 import { EvaluationDiagram, EvaluationDiagramUnavailable } from "./EvaluationDiagram";
+import { ReportProvenance } from "./ReportProvenance";
 
 interface EvaluationRecord {
   overallScore: number;
@@ -32,6 +34,7 @@ interface EvaluationRecord {
 interface EvaluationReportProps {
   evaluation: EvaluationRecord;
   report: EvaluationReportType;
+  reevaluationSlug?: string;
 }
 
 const RISK_LABELS = { low: "低风险", medium: "中风险", high: "高风险", critical: "关键风险" } as const;
@@ -58,7 +61,7 @@ function FindingIcon({ finding }: { finding: SecurityFinding }) {
   return <Info className="h-5 w-5 text-sky-600" />;
 }
 
-export function EvaluationReport({ evaluation, report }: EvaluationReportProps) {
+export function EvaluationReport({ evaluation, report, reevaluationSlug }: EvaluationReportProps) {
   const summary = report.summary ?? legacySummary(evaluation, report);
   const riskLevel = summary.riskLevel;
   const recommendation = report.recommendation;
@@ -80,6 +83,7 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
 
   return (
     <section className="space-y-6" aria-labelledby="evaluation-report-title">
+      <ReportProvenance report={report} evaluatedAt={evaluation.evaluatedAt} currentVersion={EVALUATOR_VERSION} reevaluationSlug={reevaluationSlug} />
       <div className="overflow-hidden rounded-[2rem] border bg-card">
         <div className="grid lg:grid-cols-[0.72fr_1.28fr]">
           <div className="relative flex min-h-72 flex-col justify-between overflow-hidden bg-foreground p-6 text-background sm:p-8">
@@ -254,7 +258,7 @@ export function EvaluationReport({ evaluation, report }: EvaluationReportProps) 
         <div className="mt-5 grid gap-5 border-t pt-5 text-sm sm:grid-cols-2">
           <div><div className="font-semibold">数据来源</div><p className="mt-2 leading-6 text-muted-foreground">{report.methodology?.sources.join("、") || "项目元数据与 README"}</p></div>
           <div><div className="font-semibold">扫描范围</div><p className="mt-2 leading-6 text-muted-foreground">{report.methodology ? `${report.methodology.scannedFiles.length} 个文件 · ${report.methodology.scannedCharacters.toLocaleString()} 字符` : "历史评测未记录扫描范围"}</p></div>
-          <div><div className="font-semibold">评测引擎</div><p className="mt-2 leading-6 text-muted-foreground">v{report.methodology?.evaluatorVersion ?? report.version ?? "1.x"} · AI 复核{report.methodology?.aiJudgeUsed ? `已启用${report.methodology.aiJudgeModel ? `（${report.methodology.aiJudgeModel}）` : ""}` : "未启用"}</p></div>
+          <div><div className="font-semibold">评测引擎</div><p className="mt-2 leading-6 text-muted-foreground">{getReportVersion(report).label} · AI 复核{report.methodology?.aiJudgeUsed ? `已启用${report.methodology.aiJudgeModel ? `（${report.methodology.aiJudgeModel}）` : ""}` : "未启用"}</p></div>
           <div><div className="font-semibold">局限</div><ul className="mt-2 list-disc space-y-1 pl-5 leading-6 text-muted-foreground">{(report.methodology?.limitations ?? ["静态评测不能替代人工安全审计"]).map((item) => <li key={item}>{item}</li>)}</ul></div>
         </div>
       </details>
