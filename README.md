@@ -1,10 +1,28 @@
 # Skill Supermarket
 
-面向 AI Builder 的 Skill、MCP Server 与 Agent Pack 发现和可信评测平台。
+安装一个 AI Skill 或 MCP Server 前，先看风险和证据，不只看 Stars。
 
-- 正式站：[skillsupermarket.com](https://skillsupermarket.com)
-- 运行时：Node.js 20+、Next.js 16、React 19、PostgreSQL
-- 核心原则：只使用公开来源、评测证据可追溯、不执行被评测仓库代码
+Skill Supermarket 帮助 Claude Code 用户、AI 应用开发者和项目维护者发现、比较和评测公开的 Skills、MCP Servers 与 Agent Packs。报告把采用建议与文档证据、静态风险、改进项放在一起，方便你判断下一步该验证什么。
+
+Open-source AI Skill & MCP evaluation: review source evidence, risk findings and workflow diagrams before adoption. Public reports need no account.
+
+## 先体验，不必先部署或注册
+
+1. **[看一份真实报告：SurfSense](https://skillsupermarket.com/skill/modsettersurfsense#evaluation-report-title)** — 查看采用结论、风险证据和交互时序图。这是现有项目的评测示例，不是安全背书或作者推荐。
+2. **[按场景选 Claude Code MCP Server](https://skillsupermarket.com/guides/claude-code-mcp-server-recommendations-2026)** — 从代码协作、浏览器、数据库和监控需求出发，核对最小权限与接入验收项。
+3. **[评测自己的公开项目](https://skillsupermarket.com/evaluate)** — 登录后提交 GitHub 仓库或受支持的公开包地址，获取报告；不要提交私有代码、密钥或个人信息。评测结果会公开展示。
+
+也可以先[浏览能力目录](https://skillsupermarket.com)或[了解评分方法](https://skillsupermarket.com/evaluation)。查看公开报告与指南无需账号，创建评测任务需要登录。
+
+### 报告能帮你判断什么？
+
+- **有什么需要先复核？** 对照风险项的文件位置、证据片段和修复建议，判断是否需要缩小权限或调整安装方式。
+- **文档是否足以开始使用？** 检查安装、输入输出、示例和边界说明的证据，避免只凭项目自述或总分做决定。
+- **它怎样工作？** 有足够文档证据时，报告提供流程图、时序图或结构图，并说明选图理由。图示来自公开文档的分析，不是实际执行轨迹；证据不足时不会强行画图。
+
+报告也会显示生成时间、评测器版本与 AI 复核状态。静态告警可能需要人工判断，低风险不等于无漏洞；本平台不执行被评测项目，也不替代运行时测试或安全审计。
+
+项目采用 [Apache License 2.0](LICENSE)。想自行运行或贡献代码？见[本地开发](#本地开发)。
 
 ## 产品能力
 
@@ -18,7 +36,7 @@
 
 ### 可信评测
 
-评测引擎当前版本为 `3.0.0`，由确定性检查和可选 AI Judge 共同组成：
+评测由确定性检查和可选 AI Judge 共同组成；源码中的当前版本见 [`EVALUATOR_VERSION`](lib/evaluation-scoring.ts)。每份报告保留生成时的版本，发布新引擎不会自动更新历史报告。
 
 | 维度 | 权重 | 主要证据 |
 |---|---:|---|
