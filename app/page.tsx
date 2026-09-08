@@ -19,6 +19,7 @@ import { SkillCard } from "@/components/SkillCard";
 import { RankingTabs } from "@/components/RankingTabs";
 import { JsonLd } from "@/components/JsonLd";
 import { SearchBar } from "@/components/SearchBar";
+import { HomeReportPreview } from "@/components/HomeReportPreview";
 import { formatNumber } from "@/lib/utils";
 import { getRankings } from "@/lib/ranker";
 import { absoluteUrl } from "@/lib/site";
@@ -104,6 +105,7 @@ async function getHomeData() {
       firstSeenAt: skills.firstSeenAt,
       overallScore: latestEvaluations.overallScore,
       report: evaluations.report,
+      evaluatedAt: evaluations.evaluatedAt,
     })
     .from(skills)
     .innerJoin(latestEvaluations, eq(skills.id, latestEvaluations.skillId))
@@ -166,7 +168,7 @@ export default async function HomePage() {
             className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground"
           >
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            收录前经过自动评测与安全扫描
+            了解评测方法与安全扫描范围
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
           <h1 className="text-balance text-4xl font-black leading-[1.06] tracking-[-0.055em] sm:text-6xl lg:text-[4.5rem]">
@@ -176,6 +178,8 @@ export default async function HomePage() {
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
             浏览、比较和评测社区最优秀的 AI Skills、MCP Servers 与 Agent Packs。少踩坑，更快构建真正有用的 AI 工作流。
           </p>
+
+          <HomeReportPreview example={topRated[0]} />
 
           <form
             action="/evaluate"
@@ -291,7 +295,7 @@ export default async function HomePage() {
               </div>
               <h2 className="mt-2 text-2xl font-extrabold tracking-[-0.035em] sm:text-3xl">真实 Skill 评测案例</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-background/60 sm:text-base">
-                展示经过真实仓库证据、静态安全扫描与 AI Judge 复核的代表案例。
+                无需登录即可阅读已有报告；证据来源、扫描范围与是否使用 AI 复核，以各报告记录为准。
               </p>
             </div>
             <Link href="/search?sort=score" className="inline-flex items-center gap-1 text-sm font-semibold text-background/70 hover:text-background">

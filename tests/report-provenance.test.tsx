@@ -7,6 +7,50 @@ import { ReportProvenance } from "../components/ReportProvenance";
 import { EvaluationReport } from "../components/EvaluationReport";
 import type { EvaluationReport as Report } from "../lib/types";
 import { isEvaluationDestination } from "../lib/traffic";
+import { HomeReportPreview } from "../components/HomeReportPreview";
+import { readFileSync } from "node:fs";
+
+test("homepage exposes stored report value before asking visitors to submit a project", () => {
+  const html = renderToStaticMarkup(<HomeReportPreview example={{ slug: "example", name: "Example project",
+    report: { version: "3.8.0", summary: { headline: "需要人工复核" }, recommendation: { nextActions: ["先检查权限", "再固定版本"] } },
+    evaluatedAt: new Date("2026-08-28T20:00:00Z"),
+  }} />);
+  assert.match(html, /先看一份真实报告，无需注册/);
+  assert.match(html, /报告结论：需要人工复核/);
+  assert.match(html, /建议先做：先检查权限/);
+  assert.doesNotMatch(html, /再固定版本/);
+  assert.match(html, /v3\.8\.0/);
+  assert.match(html, /2026\/08\/29/);
+  assert.match(html, /href="\/skill\/example#evaluation-report-title"/);
+  assert.match(html, /不是安全认证或安装推荐/);
+  assert.doesNotMatch(html, /<form|\/login|\/api\/evaluate/);
+  const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.ok(page.indexOf("<HomeReportPreview") < page.indexOf("<form"));
+  assert.ok(page.includes("<HomeReportPreview example={topRated[0]} />"));
+  assert.doesNotMatch(page, /收录前经过自动评测与安全扫描/);
+});
+
+test("homepage does not invent a sample, conclusion, action, version or date when data is absent", () => {
+  assert.equal(renderToStaticMarkup(<HomeReportPreview />), "");
+  for (const report of [null, [], "bad", {}, { summary: { headline: 4 }, recommendation: { nextActions: [null, {}, " "] } }]) {
+    const html = renderToStaticMarkup(<HomeReportPreview example={{ slug: "legacy", name: "Legacy", report, evaluatedAt: new Date("invalid") }} />);
+    assert.match(html, /版本未记录/);
+    assert.match(html, /时间未记录/);
+    assert.match(html, /href="\/skill\/legacy#evaluation-report-title"/);
+    assert.doesNotMatch(html, /报告结论：|建议先做：|<time/);
+  }
+});
+
+test("homepage report excerpts remain escaped and links cannot escape the skill route", () => {
+  const untrusted = '<script>alert(1)</script>' + "very-long-token".repeat(80);
+  const slug = 'demo/?source=https://example.invalid/"#fragment';
+  const html = renderToStaticMarkup(<HomeReportPreview example={{ slug, name: untrusted,
+    report: { summary: { headline: untrusted }, recommendation: { nextActions: [untrusted] } }, evaluatedAt: null }} />);
+  assert.match(html, /\[overflow-wrap:anywhere\]/);
+  assert.ok(html.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
+  assert.ok(html.includes(`href="/skill/${encodeURIComponent(slug)}#evaluation-report-title"`));
+  assert.doesNotMatch(html, /<script|href="https:/);
+});
 
 test("report provenance preserves stored versions and rejects inconsistent or untrusted metadata", () => {
   for (const report of [{ version: "3.10.0" }, { methodology: { evaluatorVersion: "3.10.0" } },
