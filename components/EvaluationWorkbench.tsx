@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { QuotaSnapshot } from "@/lib/quota-policy";
+import { watchEvaluationProgress } from "@/lib/evaluation-progress";
 
 type EvaluationStatus = "pending" | "running" | "done" | "failed";
 interface EvaluationResult {
@@ -74,6 +75,8 @@ export function EvaluationWorkbench({
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progressError, setProgressError] = useState<string | null>(null);
+  const [queryAttempt, setQueryAttempt] = useState(0);
   const [quota, setQuota] = useState(initialQuota);
   const isActive = Boolean(result?.jobId && (result.status === "pending" || result.status === "running"));
   const isSelectedSkill = Boolean(initialSource && initialSkillName && url.trim() === initialSource);
@@ -81,35 +84,26 @@ export function EvaluationWorkbench({
   useEffect(() => {
     const jobId = result?.jobId;
     if (!isActive || !jobId) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    async function poll() {
-      try {
-        const response = await fetch(`/api/evaluate/${jobId}`, { cache: "no-store" });
-        if (response.status === 401) { router.replace("/login?returnTo=%2Fevaluate"); return; }
-        if (!response.ok) throw new Error("进度查询失败");
-        const data = await response.json();
-        if (cancelled) return;
-        setResult((current) => ({ ...current, ...data }));
-        if (data.status === "pending" || data.status === "running") timer = setTimeout(poll, 1800);
-      } catch { if (!cancelled) timer = setTimeout(poll, 3500); }
-    }
-    timer = setTimeout(poll, 900);
-    return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [isActive, result?.jobId, router]);
+    return watchEvaluationProgress(jobId, {
+      onProgress: (data) => setResult((current) => ({ ...current, ...data })),
+      onPause: setProgressError,
+      onUnauthorized: () => router.replace("/login?returnTo=%2Faccount"),
+    });
+  }, [isActive, result?.jobId, queryAttempt, router]);
 
   const progress = Math.max(0, Math.min(100, result?.progress ?? 0));
   const statusTitle = useMemo(() => {
+    if (progressError) return "进度查询已暂停";
     if (result?.status === "done") return result.cached ? "已找到最新评测" : "评测完成";
     if (result?.status === "failed") return "评测暂时失败";
     if (result?.duplicate) return "已接入正在执行的任务";
     return "评测正在进行";
-  }, [result]);
+  }, [result, progressError]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!url.trim()) return;
-    setSubmitting(true); setError(null); setResult(null);
+    setSubmitting(true); setError(null); setProgressError(null); setResult(null);
     try {
       const response = await fetch("/api/evaluate", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: url.trim() }),
@@ -149,17 +143,24 @@ export function EvaluationWorkbench({
               <p id="evaluation-help" className="mt-2 text-xs leading-5 text-muted-foreground">PyPI 包名请使用 <code className="rounded bg-muted px-1.5 py-0.5">pypi:包名</code>，避免与 npm 同名包歧义。</p>
             </div>
             <Button type="submit" disabled={submitting || isActive || !url.trim()} className="h-12 w-full rounded-xl text-sm">
-              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> 正在验证来源…</> : isActive ? <><CircleDashed className="mr-2 h-4 w-4 animate-spin" /> 评测进行中</> : quota.remaining <= 0 ? <>查找免费缓存报告 <ArrowRight className="ml-2 h-4 w-4" /></> : isSelectedSkill ? <>开始评测 {initialSkillName} <ArrowRight className="ml-2 h-4 w-4" /></> : <>开始深度评测 <ArrowRight className="ml-2 h-4 w-4" /></>}
+              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> 正在验证来源…</> : isActive ? progressError ? "已有任务待查询" : <><CircleDashed className="mr-2 h-4 w-4 animate-spin" /> 评测进行中</> : quota.remaining <= 0 ? <>查找免费缓存报告 <ArrowRight className="ml-2 h-4 w-4" /></> : isSelectedSkill ? <>开始评测 {initialSkillName} <ArrowRight className="ml-2 h-4 w-4" /></> : <>开始深度评测 <ArrowRight className="ml-2 h-4 w-4" /></>}
             </Button>
           </form>
           {error && <div role="alert" className="mt-4 flex gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"><TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
           {result && (
-            <div role="status" aria-live="polite" className={`mt-5 rounded-2xl border p-5 ${result.status === "failed" ? "border-destructive/30 bg-destructive/5" : "border-emerald-500/20 bg-emerald-500/[0.06]"}`}>
+            <div role="status" aria-live="polite" className={`mt-5 rounded-2xl border p-5 ${progressError ? "border-amber-500/30 bg-amber-500/5" : result.status === "failed" ? "border-destructive/30 bg-destructive/5" : "border-emerald-500/20 bg-emerald-500/[0.06]"}`}>
               <div className="flex items-start gap-3">
-                {result.status === "done" ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" /> : result.status === "failed" ? <TriangleAlert className="mt-0.5 h-5 w-5 text-destructive" /> : <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary" />}
+                {progressError ? <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" /> : result.status === "done" ? <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" /> : result.status === "failed" ? <TriangleAlert className="mt-0.5 h-5 w-5 text-destructive" /> : <Loader2 className="mt-0.5 h-5 w-5 animate-spin text-primary" />}
                 <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><div className="font-bold">{statusTitle}</div>{result.status !== "failed" && <span className="text-xs font-bold tabular-nums text-muted-foreground">{progress}%</span>}</div>
                   {result.status !== "done" && result.status !== "failed" && <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${Math.max(progress, 4)}%` }} /></div>}
-                  <p className="mt-2 text-sm text-muted-foreground">{result.status === "failed" ? "系统已完成自动重试，请稍后重新提交。" : result.status === "done" ? result.message ?? "报告已生成，可以查看完整证据与建议。" : STAGE_LABELS[result.stage ?? "queued"] ?? "正在处理"}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{progressError ?? (result.status === "failed" ? "系统已完成自动重试，请稍后重新提交。" : result.status === "done" ? result.message ?? "报告已生成，可以查看完整证据与建议。" : STAGE_LABELS[result.stage ?? "queued"] ?? "正在处理")}</p>
+                  {progressError && <div className="mt-3 space-y-3">
+                    <p className="text-xs leading-5 text-muted-foreground">只暂停此页面的查询，后台任务可能仍在执行；上方为最后确认的进度。继续查询不会创建新任务或扣额度。</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className="button-primary min-h-11 px-4 text-sm" onClick={() => { setProgressError(null); setQueryAttempt((value) => value + 1); }}>继续查询原任务</button>
+                      <Link href="/account" className="filter-pill min-h-11 px-4" prefetch={false}>查看账户任务</Link>
+                    </div>
+                  </div>}
                   <div className="mt-4 flex flex-wrap gap-2">{result.slug && result.status === "done" && <Link href={`/skill/${result.slug}`} className="button-primary h-9 px-4 text-sm">查看完整报告 <ArrowRight className="ml-1.5 h-4 w-4" /></Link>}{result.status === "failed" && <button type="button" onClick={() => { setResult(null); setError(null); }} className="filter-pill"><RefreshCw className="mr-1.5 h-3.5 w-3.5" /> 重新提交</button>}</div>
                 </div>
               </div>
