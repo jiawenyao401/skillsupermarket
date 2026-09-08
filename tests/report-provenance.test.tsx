@@ -4,6 +4,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { getReportVersion } from "../lib/report-provenance";
 import { ReportProvenance } from "../components/ReportProvenance";
+import { EvaluationReport } from "../components/EvaluationReport";
+import type { EvaluationReport as Report } from "../lib/types";
 import { isEvaluationDestination } from "../lib/traffic";
 
 test("report provenance preserves stored versions and rejects inconsistent or untrusted metadata", () => {
@@ -60,4 +62,27 @@ test("reevaluation slug cannot escape the same-origin workbench query", () => {
   const html = renderToStaticMarkup(<ReportProvenance report={{}} evaluatedAt={null} currentVersion="3.13.0" reevaluationSlug={slug} />);
   assert.ok(html.includes(`href="/evaluate?skill=${encodeURIComponent(slug)}"`));
   assert.doesNotMatch(html, /href="https:/);
+});
+
+test("report evidence wraps long tokens without truncation or interpreting source markup", () => {
+  const longPath = `scripts/${"nested-".repeat(80)}setup.sh:17`;
+  const evidence = `first line\n${"unbroken-example-".repeat(100)}<script>untrusted</script>`;
+  const report: Report = {
+    documentation: { score: 50, details: "Example", checks: [{ id: "example", label: longPath, passed: true, weight: 10 }] },
+    security: { score: 50, details: "Example", findings: [{ level: "warning", type: "example", message: "Review source", location: longPath, evidence }] },
+    popularity: { score: 0, details: "Example", stats: { stars: 0, forks: 0, downloadsWeekly: 0, starsGrowth7d: 0, starsGrowth30d: 0 } },
+    activity: { score: 0, details: "Example" },
+    quality: { score: 50, details: "Example" },
+    overall: 40,
+  };
+  const html = renderToStaticMarkup(<EvaluationReport report={report} evaluation={{
+    overallScore: 40, documentationScore: 50, securityScore: 50, popularityScore: 0,
+    activityScore: 0, qualityScore: 50, evaluatedAt: null,
+  }} />);
+  assert.match(html, /grid min-w-0 grid-cols-1 gap-6 \[overflow-wrap:anywhere\] lg:grid-cols-2/);
+  assert.equal(html.match(/surface-card min-w-0 p-5 sm:p-6/g)?.length, 2);
+  assert.match(html, /<code class="[^"]*whitespace-pre-wrap[^"]*">first line\n/);
+  assert.ok(html.includes(longPath));
+  assert.ok(html.includes(evidence.replace("<script>", "&lt;script&gt;").replace("</script>", "&lt;/script&gt;")));
+  assert.doesNotMatch(html, /<script>untrusted/);
 });

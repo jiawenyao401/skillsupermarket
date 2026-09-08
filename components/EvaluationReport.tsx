@@ -200,8 +200,8 @@ export function EvaluationReport({ evaluation, report, reevaluationSlug }: Evalu
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="surface-card p-5 sm:p-6">
+      <div className="grid min-w-0 grid-cols-1 gap-6 [overflow-wrap:anywhere] lg:grid-cols-2">
+        <div className="surface-card min-w-0 p-5 sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 font-bold"><FileCheck2 className="h-5 w-5 text-primary" /> 文档证据</div>
             <span className="text-xs font-bold text-muted-foreground">{report.documentation.score}/100</span>
@@ -221,7 +221,7 @@ export function EvaluationReport({ evaluation, report, reevaluationSlug }: Evalu
           ) : <p className="mt-4 text-sm text-muted-foreground">{report.documentation.details}</p>}
         </div>
 
-        <div className="surface-card p-5 sm:p-6">
+        <div className="surface-card min-w-0 p-5 sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 font-bold">{riskLevel === "low" ? <ShieldCheck className="h-5 w-5 text-emerald-600" /> : <ShieldAlert className="h-5 w-5 text-destructive" />} 安全证据</div>
             <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-bold", RISK_STYLES[riskLevel])}>{RISK_LABELS[riskLevel]}</span>
@@ -233,7 +233,7 @@ export function EvaluationReport({ evaluation, report, reevaluationSlug }: Evalu
               {findings.slice(0, 8).map((finding, index) => (
                 <div key={`${finding.location}-${finding.type}-${index}`} className="rounded-xl border bg-background p-4">
                   <div className="flex items-start gap-3"><FindingIcon finding={finding} /><div className="min-w-0"><div className="text-sm font-bold">{finding.message}</div><div className="mt-1 flex flex-wrap gap-2 text-[10px] text-muted-foreground"><code>{finding.type}</code>{finding.location && <span>{finding.location}</span>}{finding.confidence && <span>{finding.confidence} confidence</span>}</div></div></div>
-                  {finding.evidence && <code className="mt-3 block overflow-hidden rounded-lg bg-muted px-3 py-2 text-[11px] text-muted-foreground">{finding.evidence}</code>}
+                  {finding.evidence && <code className="mt-3 block whitespace-pre-wrap rounded-lg bg-muted px-3 py-2 text-[11px] text-muted-foreground">{finding.evidence}</code>}
                   {finding.remediation && <p className="mt-3 text-xs leading-5 text-muted-foreground"><strong className="text-foreground">修复：</strong>{finding.remediation}</p>}
                 </div>
               ))}
