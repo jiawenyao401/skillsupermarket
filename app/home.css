@@ -48,7 +48,8 @@ html:has(.home-page), body:has(.home-page) { overflow-x: clip; }
 .home-report-findings { display: grid; gap: .625rem; margin-top: var(--home-space-sm); font-size: .8125rem; line-height: 1.8; }
 .home-report-findings span { font-weight: 650; }
 .home-report-link { margin-top: var(--home-space-xs); }
-.home-discover { display: grid; gap: var(--home-space-md); }
+.home-discover { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--home-space-md); }
+.home-discover > * { min-width: 0; }
 .home-discover label { display: block; margin-bottom: .75rem; font-size: .875rem; font-weight: 650; }
 .home-popular { display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: center; font-size: .75rem; color: var(--home-muted); }
 .home-popular a { display: inline-flex; min-height: 44px; align-items: center; white-space: nowrap; }

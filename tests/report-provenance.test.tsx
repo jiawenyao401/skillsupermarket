@@ -62,6 +62,12 @@ test("homepage without a report still offers a labelled GET form without inventi
   assert.doesNotMatch(html, /home-report-preview-title|先看真实报告|<svg[^>]+role="img"/);
 });
 
+test("homepage search uses a shrinkable grid track and children on narrow viewports", () => {
+  const css = readFileSync(new URL("../app/home.css", import.meta.url), "utf8");
+  assert.match(css, /\.home-discover\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /\.home-discover\s*>\s*\*\s*\{[^}]*min-width:\s*0/);
+});
+
 test("homepage does not invent a sample, conclusion, action, version or date when data is absent", () => {
   assert.equal(renderToStaticMarkup(<HomeReportPreview />), "");
   for (const report of [null, [], "bad", {}, { summary: { headline: 4 }, recommendation: { nextActions: [null, {}, " "] } }]) {
