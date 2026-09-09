@@ -255,6 +255,7 @@ export default async function SkillDetailPage({ params }: PageProps) {
           evaluation={evaluation}
           report={evaluation.report as unknown as EvaluationReportType}
           reevaluationSlug={evaluationSource ? skill.slug : undefined}
+          shareUrl={`${canonicalUrl}#evaluation-report-title`}
         />
       ) : (
         <div className="surface-card flex flex-col items-center px-6 py-12 text-center">

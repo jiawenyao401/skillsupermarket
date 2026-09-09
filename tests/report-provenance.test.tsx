@@ -10,6 +10,32 @@ import { isEvaluationDestination } from "../lib/traffic";
 import { HomeReportPreview } from "../components/HomeReportPreview";
 import { HomeHero } from "../components/HomeHero";
 import { readFileSync } from "node:fs";
+import { ReportShare } from "../components/ReportShare";
+import { absoluteUrl } from "../lib/site";
+
+test("public report sharing uses a canonical anchored link and remains available without clipboard access", () => {
+  const slug = 'demo/?source=https://example.invalid/"#fragment';
+  const url = `${absoluteUrl(`/skill/${encodeURIComponent(slug)}`)}#evaluation-report-title`;
+  const parsed = new URL(url);
+  assert.equal(parsed.search, "");
+  assert.equal(parsed.hash, "#evaluation-report-title");
+  assert.equal(decodeURIComponent(parsed.pathname.slice('/skill/'.length)), slug);
+  const html = renderToStaticMarkup(<ReportShare url={url} />);
+  assert.match(html, /aria-label="分享公开报告"/);
+  assert.match(html, /type="button"/);
+  assert.match(html, /复制报告链接/);
+  assert.match(html, /不会自动发送消息/);
+  assert.match(html, /不是固定版本存档/);
+  assert.match(html, /<details/);
+  assert.match(html, /readOnly=""/);
+  assert.match(html, /aria-label="公开报告链接"/);
+  assert.match(html, /role="status" aria-live="polite"/);
+  assert.doesNotMatch(html, /链接已复制|<form|<script/);
+  const page = readFileSync(new URL("../app/skill/[slug]/page.tsx", import.meta.url), "utf8");
+  assert.ok(page.includes('shareUrl={`${canonicalUrl}#evaluation-report-title`}'));
+  const component = readFileSync(new URL("../components/ReportShare.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(component, /window\.location|document\.cookie|localStorage|fetch\(|navigator\.share|clipboard\.read/);
+});
 
 test("homepage exposes stored report value before asking visitors to submit a project", () => {
   const html = renderToStaticMarkup(<HomeReportPreview example={{ slug: "example", name: "Example project",
@@ -167,4 +193,5 @@ test("report evidence wraps long tokens without truncation or interpreting sourc
   assert.ok(html.includes(longPath));
   assert.ok(html.includes(evidence.replace("<script>", "&lt;script&gt;").replace("</script>", "&lt;/script&gt;")));
   assert.doesNotMatch(html, /<script>untrusted/);
+  assert.doesNotMatch(html, /分享公开报告/);
 });

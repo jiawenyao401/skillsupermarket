@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { EvaluationRadar } from "./EvaluationRadar";
 import { EvaluationDiagram, EvaluationDiagramUnavailable } from "./EvaluationDiagram";
 import { ReportProvenance } from "./ReportProvenance";
+import { ReportShare } from "./ReportShare";
 
 interface EvaluationRecord {
   overallScore: number;
@@ -35,6 +36,7 @@ interface EvaluationReportProps {
   evaluation: EvaluationRecord;
   report: EvaluationReportType;
   reevaluationSlug?: string;
+  shareUrl?: string;
 }
 
 const RISK_LABELS = { low: "低风险", medium: "中风险", high: "高风险", critical: "关键风险" } as const;
@@ -61,7 +63,7 @@ function FindingIcon({ finding }: { finding: SecurityFinding }) {
   return <Info className="h-5 w-5 text-sky-600" />;
 }
 
-export function EvaluationReport({ evaluation, report, reevaluationSlug }: EvaluationReportProps) {
+export function EvaluationReport({ evaluation, report, reevaluationSlug, shareUrl }: EvaluationReportProps) {
   const summary = report.summary ?? legacySummary(evaluation, report);
   const riskLevel = summary.riskLevel;
   const recommendation = report.recommendation;
@@ -84,6 +86,7 @@ export function EvaluationReport({ evaluation, report, reevaluationSlug }: Evalu
   return (
     <section className="space-y-6" aria-labelledby="evaluation-report-title">
       <ReportProvenance report={report} evaluatedAt={evaluation.evaluatedAt} currentVersion={EVALUATOR_VERSION} reevaluationSlug={reevaluationSlug} />
+      {shareUrl && <ReportShare key={shareUrl} url={shareUrl} />}
       <div className="overflow-hidden rounded-[2rem] border bg-card">
         <div className="grid lg:grid-cols-[0.72fr_1.28fr]">
           <div className="relative flex min-h-72 flex-col justify-between overflow-hidden bg-foreground p-6 text-background sm:p-8">
