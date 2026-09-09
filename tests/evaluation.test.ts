@@ -156,3 +156,10 @@ test("credential scan remains bounded with a long quoted value", () => {
   assert.ok(result.findings[0].evidence!.length <= 180);
   assert.ok(!result.findings[0].evidence!.includes("zzzzzz"));
 });
+
+test("adjacent shell word fragments cannot hide a literal credential suffix", () => {
+  for (const suffix of ["LiteralPart", "'LiteralPart'", '"LiteralPart"', "${SUFFIX}"]) {
+    const content = `export SECRET="$(cat /run/secrets/client_secret)"${suffix}`;
+    assert.equal(scanDocuments([{ path: "build.sh", content, kind: "code" }]).findings.length, 1);
+  }
+});

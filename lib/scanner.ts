@@ -165,10 +165,12 @@ function findLiteralCredential(line: string, pattern: RegExp, document: ScanDocu
     const dockerShellLine = /(?:^|\/)Dockerfile(?:\.[^/]+)?$/i.test(document.path) && /^\s*(?:RUN\s+|export\s+)/.test(line);
     const shell = document.kind === "code" && (shellFile || dockerShellLine) &&
       /^\s*(?:RUN\s+)?(?:export\s+)?[a-zA-Z_][a-zA-Z0-9_]*\s*=/.test(line);
+    const suffix = line.slice((match.index ?? 0) + match[0].length);
+    const completeWord = suffix === "" || /^[\s;&|<>)]/.test(suffix);
     // Only a whole double-quoted secret-file read is nonliteral. Single quotes,
     // nonempty fallbacks, mixed literals and arbitrary commands remain findings.
     // This is not a safety exemption for the build or runtime.
-    if (shell && match[1] !== undefined && /^\$\(\s*cat\s+\/run\/secrets\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*(?:\s+2>\/dev\/null)?(?:\s+\|\|\s+echo\s+'')?\s*\)$/.test(value)) continue;
+    if (shell && completeWord && match[1] !== undefined && /^\$\(\s*cat\s+\/run\/secrets\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*(?:\s+2>\/dev\/null)?(?:\s+\|\|\s+echo\s+'')?\s*\)$/.test(value)) continue;
     return match;
   }
   return null;
