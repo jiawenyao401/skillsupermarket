@@ -8,7 +8,7 @@
     "nav": "Existing navigation preserved, outside redesign scope",
     "footer": "Existing footer preserved, outside redesign scope",
     "scores": { "philosophy": 4, "hierarchy": 4, "execution": 4, "specificity": 5, "restraint": 5, "variety": 4 },
-    "validation": "32 candidate snapshots at 320/375/390/414/768/1023/1024/1280; missing, long and no-JSON-LD cases; final live regression required separately",
+    "validation": "Initial live search-grid overflow failed and was rolled back. Fixed grid sizing; 32 expanded candidate snapshots passed. Full runtime preview and production each passed 9 widths, 32 text-contrast pairs per width, report navigation and source-preserving login, with writes blocked.",
     "exceptions": "Existing font stack and lower-page components retained; not a claim that unchanged site-wide styles pass all 58 design gates"
   }
 ]
