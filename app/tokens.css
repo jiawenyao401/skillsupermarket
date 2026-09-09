@@ -1,0 +1,16 @@
+/* Homepage tokens inherit the existing orange / warm-paper brand. */
+.home-page {
+  --home-ink: hsl(var(--foreground));
+  --home-muted: hsl(var(--muted-foreground));
+  --home-paper: hsl(var(--background));
+  --home-surface: hsl(var(--card));
+  --home-line: hsl(var(--border));
+  --home-accent: hsl(var(--primary));
+  --home-on-ink: hsl(var(--background));
+  --home-space-xs: .5rem;
+  --home-space-sm: 1rem;
+  --home-space-md: 1.5rem;
+  --home-space-lg: 2rem;
+  --home-space-xl: 3rem;
+  --home-radius: .75rem;
+}

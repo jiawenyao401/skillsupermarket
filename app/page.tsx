@@ -1,14 +1,11 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Bot,
-  Braces,
   ChartNoAxesCombined,
   Code2,
   Database,
   Palette,
   ShieldCheck,
-  Sparkles,
   WandSparkles,
   Zap,
 } from "lucide-react";
@@ -19,10 +16,11 @@ import { SkillCard } from "@/components/SkillCard";
 import { RankingTabs } from "@/components/RankingTabs";
 import { JsonLd } from "@/components/JsonLd";
 import { SearchBar } from "@/components/SearchBar";
-import { HomeReportPreview } from "@/components/HomeReportPreview";
+import { HomeHero } from "@/components/HomeHero";
 import { formatNumber } from "@/lib/utils";
 import { getRankings } from "@/lib/ranker";
 import { absoluteUrl } from "@/lib/site";
+import "./home.css";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 3600;
@@ -139,13 +137,13 @@ export default async function HomePage() {
 
   const total = stats?.totalSkills ?? 0;
   const typeStats = [
-    { label: "AI Skills", value: stats?.totalSkill ?? 0, icon: Sparkles },
-    { label: "MCP Servers", value: stats?.totalMcp ?? 0, icon: Braces },
-    { label: "Agent Packs", value: stats?.totalAgent ?? 0, icon: Bot },
+    { label: "AI Skills", value: stats?.totalSkill ?? 0 },
+    { label: "MCP Servers", value: stats?.totalMcp ?? 0 },
+    { label: "Agent Packs", value: stats?.totalAgent ?? 0 },
   ];
 
   return (
-    <div className="space-y-20 sm:space-y-24">
+    <>
       {dailyRanking.items.length > 0 && (
         <JsonLd data={{
           "@context": "https://schema.org",
@@ -160,60 +158,13 @@ export default async function HomePage() {
           })),
         }} />
       )}
-      <section className="relative overflow-hidden rounded-[2rem] border bg-card px-5 py-12 shadow-sm sm:px-10 sm:py-16 lg:px-16 lg:py-20">
-        <div className="hero-grid" aria-hidden="true" />
-        <div className="relative z-10 mx-auto max-w-4xl text-center">
-          <Link
-            href="/evaluation"
-            className="mb-6 inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm backdrop-blur transition-colors hover:text-foreground"
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            了解评测方法与安全扫描范围
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-          <h1 className="text-balance text-4xl font-black leading-[1.06] tracking-[-0.055em] sm:text-6xl lg:text-[4.5rem]">
-            给你的 AI，找到
-            <span className="hero-highlight">下一项超能力</span>
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
-            浏览、比较和评测社区最优秀的 AI Skills、MCP Servers 与 Agent Packs。少踩坑，更快构建真正有用的 AI 工作流。
-          </p>
-
-          <HomeReportPreview example={topRated[0]} />
-
-          <form
-            action="/evaluate"
-            method="get"
-            className="mx-auto mt-8 max-w-2xl rounded-2xl border bg-background/90 p-2 text-left shadow-lg shadow-primary/5 backdrop-blur"
-          >
-            <label className="sr-only" htmlFor="homepage-evaluation-source">公开项目地址或包名</label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                id="homepage-evaluation-source"
-                name="source"
-                type="text"
-                inputMode="url"
-                autoComplete="url"
-                maxLength={500}
-                required
-                aria-describedby="homepage-evaluation-help"
-                placeholder="粘贴 GitHub 地址，或输入 npm / pypi:包名"
-                className="h-12 min-w-0 flex-1 rounded-xl border bg-card px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              <button type="submit" className="button-primary h-12 shrink-0 px-5 text-sm">
-                免费生成评测 <ArrowRight className="ml-2 h-4 w-4" />
-              </button>
-            </div>
-            <p id="homepage-evaluation-help" className="mt-2 flex items-center gap-1.5 px-2 text-xs leading-5 text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-              支持公开 GitHub、npm 与 PyPI 项目；登录后自动带入，无需重复填写。
-            </p>
-          </form>
-
-          <div className="mx-auto mt-6 max-w-2xl">
-            <div className="mb-3 text-xs font-medium text-muted-foreground">或者先搜索已收录的能力</div>
-            <SearchBar size="large" autoFocusHint />
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+      <div className="home-page">
+      <HomeHero example={topRated[0]} />
+      <section className="home-discover" aria-label="搜索与收录数量">
+          <div>
+            <p className="mb-3 text-sm font-semibold">还没选好？先找一个能解决你问题的工具</p>
+            <SearchBar size="large" />
+            <div className="home-popular">
               <span>热门搜索</span>
               {["GitHub", "Postgres", "Notion", "Browser"].map((term) => (
                 <Link key={term} href={`/search?q=${encodeURIComponent(term)}`} className="font-medium hover:text-foreground">
@@ -223,18 +174,14 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="mx-auto mt-10 grid max-w-2xl grid-cols-3 divide-x rounded-2xl border bg-background/70 py-4 shadow-sm backdrop-blur">
-            {typeStats.map(({ label, value, icon: Icon }) => (
-              <div key={label} className="px-2 sm:px-5">
-                <div className="flex items-center justify-center gap-1.5 font-extrabold tracking-tight sm:text-xl">
-                  <Icon className="hidden h-4 w-4 text-primary sm:block" />
-                  {formatNumber(value)}
-                </div>
-                <div className="mt-1 text-[10px] text-muted-foreground sm:text-xs">{label}</div>
+          <div className="home-inventory">
+            {typeStats.map(({ label, value }) => (
+              <div key={label}>
+                <strong>{formatNumber(value)}</strong>
+                <p>{label}</p>
               </div>
             ))}
           </div>
-        </div>
       </section>
 
       <section>
@@ -370,6 +317,7 @@ export default async function HomePage() {
           </Link>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }

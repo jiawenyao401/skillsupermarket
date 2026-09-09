@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-09-09",
+    "brief": "Skill Supermarket homepage first-value redesign",
+    "macrostructure": "Workbench adaptation, split 6/6 copy and real report proof",
+    "theme": "Existing warm paper / orange brand, technical modern-minimal",
+    "enrichment": "Validated stored diagram relationship excerpt; no invented graph",
+    "nav": "Existing navigation preserved, outside redesign scope",
+    "footer": "Existing footer preserved, outside redesign scope",
+    "scores": { "philosophy": 4, "hierarchy": 4, "execution": 4, "specificity": 5, "restraint": 5, "variety": 4 },
+    "validation": "32 candidate snapshots at 320/375/390/414/768/1023/1024/1280; missing, long and no-JSON-LD cases; final live regression required separately",
+    "exceptions": "Existing font stack and lower-page components retained; not a claim that unchanged site-wide styles pass all 58 design gates"
+  }
+]

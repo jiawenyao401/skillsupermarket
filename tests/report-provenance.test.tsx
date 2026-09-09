@@ -8,6 +8,7 @@ import { EvaluationReport } from "../components/EvaluationReport";
 import type { EvaluationReport as Report } from "../lib/types";
 import { isEvaluationDestination } from "../lib/traffic";
 import { HomeReportPreview } from "../components/HomeReportPreview";
+import { HomeHero } from "../components/HomeHero";
 import { readFileSync } from "node:fs";
 
 test("homepage exposes stored report value before asking visitors to submit a project", () => {
@@ -15,9 +16,9 @@ test("homepage exposes stored report value before asking visitors to submit a pr
     report: { version: "3.8.0", summary: { headline: "需要人工复核" }, recommendation: { nextActions: ["先检查权限", "再固定版本"] } },
     evaluatedAt: new Date("2026-08-28T20:00:00Z"),
   }} />);
-  assert.match(html, /先看一份真实报告，无需注册/);
-  assert.match(html, /报告结论：需要人工复核/);
-  assert.match(html, /建议先做：先检查权限/);
+  assert.match(html, /真实报告 · 无需注册/);
+  assert.match(html, /报告结论：<\/span>需要人工复核/);
+  assert.match(html, /建议先做：<\/span>先检查权限/);
   assert.doesNotMatch(html, /再固定版本/);
   assert.match(html, /v3\.8\.0/);
   assert.match(html, /2026\/08\/29/);
@@ -25,9 +26,40 @@ test("homepage exposes stored report value before asking visitors to submit a pr
   assert.match(html, /不是安全认证或安装推荐/);
   assert.doesNotMatch(html, /<form|\/login|\/api\/evaluate/);
   const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.ok(page.indexOf("<HomeReportPreview") < page.indexOf("<form"));
-  assert.ok(page.includes("<HomeReportPreview example={topRated[0]} />"));
+  const hero = readFileSync(new URL("../components/HomeHero.tsx", import.meta.url), "utf8");
+  assert.ok(hero.indexOf("<HomeReportPreview") < hero.indexOf("<form"));
+  assert.ok(page.includes("<HomeHero example={topRated[0]} />"));
+  assert.ok(page.indexOf("<JsonLd") < page.indexOf('className="home-page"'), "hidden metadata must not participate in visible section spacing");
+  assert.doesNotMatch(page, /space-y-20 sm:space-y-24/);
   assert.doesNotMatch(page, /收录前经过自动评测与安全扫描/);
+});
+
+test("homepage relations are bounded excerpts of a validated stored diagram, never invented", () => {
+  const nodes = [{ id: "user", label: "用户" }, { id: "agent", label: "Agent" }, { id: "tool", label: "工具" }];
+  const edges = [{ from: "user", to: "agent", label: "发送任务" }, { from: "agent", to: "tool", label: "请求工具" }, { from: "tool", to: "agent", label: "返回结果" }];
+  for (const type of ["flow", "sequence", "architecture"]) {
+    const diagram = { type, title: "测试关系", rationale: "测试依据", nodes, edges, evidence: ["测试 README"] };
+    const html = renderToStaticMarkup(<HomeReportPreview example={{ slug: "test", name: "Test", evaluatedAt: null, report: { diagram } }} />);
+    assert.match(html, /关系节选/);
+    assert.match(html, /3 个节点、3 条关系/);
+    assert.match(html, /发送任务/);
+    assert.match(html, /请求工具/);
+    assert.doesNotMatch(html, /返回结果/);
+    for (const invalid of [null, {}, { ...diagram, edges: [{ from: "user", to: "missing", label: "错误关系" }] }]) {
+      const absent = renderToStaticMarkup(<HomeReportPreview example={{ slug: "test", name: "Test", evaluatedAt: null, report: { diagram: invalid } }} />);
+      assert.doesNotMatch(absent, /关系节选|错误关系/);
+    }
+  }
+});
+
+test("homepage without a report still offers a labelled GET form without inventing proof", () => {
+  const html = renderToStaticMarkup(<HomeHero />);
+  assert.match(html, /<h1 id="home-title"/);
+  assert.match(html, /action="\/evaluate" method="get"/);
+  assert.match(html, /for="homepage-evaluation-source"/);
+  assert.match(html, /name="source"/);
+  assert.match(html, /maxLength="500"/);
+  assert.doesNotMatch(html, /home-report-preview-title|先看真实报告|<svg[^>]+role="img"/);
 });
 
 test("homepage does not invent a sample, conclusion, action, version or date when data is absent", () => {

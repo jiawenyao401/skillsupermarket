@@ -1,0 +1,9 @@
+{
+  "scannedAt": "2026-09-09",
+  "scope": "Homepage first fold only",
+  "framework": "Next.js 16.3.0 / React 19 / Tailwind 3",
+  "tokens": "Existing HSL variables in app/globals.css; homepage aliases in app/tokens.css",
+  "typography": "Preserve existing system sans-serif stack, including CJK fallback",
+  "motion": "No new motion library; color transitions only, reduced-motion supported",
+  "preserved": ["Navigation", "Footer", "Brand", "Authentication", "Evaluation logic", "Database schema"]
+}
