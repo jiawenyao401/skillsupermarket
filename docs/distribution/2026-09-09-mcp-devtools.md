@@ -2,6 +2,8 @@
 
 准备日期：2026-09-09（北京时间）。状态：**目标、内容和产品链接已核实，尚未向第三方发送，等待用户确认这一个 PR**。
 
+9 月 10 日增量：继续同一目标，将正文从泛化示例改成“只读查看 PR”的可核对任务，并附可直接校验的一行补丁；没有新增渠道、发送或重置观察窗口。
+
 ## 目标与用户价值
 
 - 目标仓库：[punkpeye/awesome-mcp-devtools](https://github.com/punkpeye/awesome-mcp-devtools)，目标分支 `main`，文件 `README.md` 的 `Testing Tools` 分类。
@@ -25,7 +27,7 @@
 
 ## 可直接提交的内容
 
-拟用分支名：`add-skill-supermarket`。确认前不创建远程 fork、分支、Issue 或 PR。
+拟用分支名：`codex/add-skill-supermarket`。确认前不创建远程 fork、分支、Issue 或 PR。
 
 PR 标题：
 
@@ -52,8 +54,9 @@ Disclosure: this is a maintainer submission for Skill Supermarket, prepared with
 
 The tool brings static risk findings, documentation checks, source evidence and review recommendations into a public report. It is intended to help developers decide what to inspect before adopting a project; it does not install or execute the projects being evaluated.
 
-An existing MCP report can be read without an account:
-[Filesystem MCP report](https://skillsupermarket.com/skill/modelcontextprotocol-server-filesystem#evaluation-report-title).
+For a concrete example, a developer considering GitHub MCP for read-only pull-request inspection can open the [public GitHub MCP report](https://skillsupermarket.com/skill/githubgithub-mcp-server#evaluation-report-title) without an account. It shows the report date and version, source-based review findings, and an inferred deployment diagram—not a record of a live MCP session.
+
+The linked [PR adoption checklist](https://skillsupermarket.com/guides/claude-code-mcp-server-recommendations-2026) separates the proposed task from tool permissions, identity permissions and repository scope. It gives checks and stopping conditions; we have not executed that integration test for the reader.
 
 [Methodology and limitations](https://skillsupermarket.com/evaluation) are also public. The website is currently in Chinese. Creating a new evaluation requires signing in, and results are public.
 
@@ -99,3 +102,32 @@ These are static checks and optional AI review of the retrieved project material
 唯一需要用户决策：是否按上述内容向 `punkpeye/awesome-mcp-devtools` 提交这 **1 个**收录 PR。确认只覆盖该目标与内容，不扩大为社区群发、其他目录或后续推广评论。
 
 未获确认期间，保持现有增长观察；继续处理真实首次使用问题或维护者已有反馈，不用新增内部技术功能替代获客结果。本次只保存分发资料，不做应用发版，不将未配置的注册保护部署到生产。
+
+## 2026-09-10 · 可执行投稿材料与证据更新
+
+### 为什么调整这一份材料
+
+原稿证明“有一个公开报告”，但没有让目录维护者快速判断它如何帮助开发者完成具体选择。本站现有 PR 案例已经上线，GitHub MCP 报告的真实凭证误报也已纠正；现在可以用同一任务展示“先看报告，再单独核对权限”的边界。不是借项目高分做安全背书，也不把新报告说成实测成功。
+
+07:49 的目标路径基线仍为最近七个北京时间自然日：指南直接浏览 1、站内浏览 1，评测 CTA/继续阅读均为 0；GitHub MCP 报告没有流量行。它不证明无人读取或零收录，不能计算独立用户转化率；凌晨纠错和本轮验收均不算用户访问。
+
+### 一行补丁
+
+文件：[awesome-mcp-devtools.patch](awesome-mcp-devtools.patch)。补丁只在原 `Testing Tools` 分类插入已审核的同一条目，不复制或重排其他作者条目。使用零上下文补丁，**必须先核对固定基线，不能应用到任意更新后的 README**：
+
+- upstream main：`0b704918976f0c6c08e14746dd97a312bca3380e`。
+- README SHA-256：`bdaf04d25336754dd76a02e3277f01195174d3bcf4bba4222474058f6c5ea622`。
+- 原文件第 208 行之前插入；在对应的本地副本里运行 `git apply --check --unidiff-zero <补丁绝对路径>`，再核对仅 1 行新增、0 行删除。发送前按上面的规则再次查重和复核目标 HEAD。
+- 本文件的 PR 标题与正文是唯一待发内容；补丁不授权建 fork 或提交 PR。
+
+### 本轮已核实的边界
+
+目标仍未归档、默认分支 main、HEAD 未变；重新读取[贡献规则](https://github.com/punkpeye/awesome-mcp-devtools/blob/0b704918976f0c6c08e14746dd97a312bca3380e/CONTRIBUTING.md)与 README，分类仍适用。品牌精确词的全状态 Issue/PR 搜索返回 0；搜索有索引延迟，不能替代发送前查重。没有维护者同意或合并保证。
+
+示例报告、对应指南和方法页本轮匿名 HTTP 200、canonical 指向正式站，报告锚点和图示存在；最新样例为 9 月 10 日的 3.14.0 报告。正文不写固定分数，若报告以后变化，应如实保留新的风险或无图说明，不自动重评来迎合投稿。当前页面主要是中文，英文 PR 明确披露这一点及维护者身份、AI 辅助、登录要求、静态评测限制。
+
+搜索后台仍未取得只读数据：本机无 Vercel 项目标识，Google/百度验证变量未配置；这仅是本机状态，不证明生产缺失或站点未被验证。浏览器入口因 Mac 锁定无法检查，本轮没有尝试绕过锁屏或读取浏览器凭证。搜索抽样未提供本站目标 URL，不据此推导零收录。发现/索引问题仍按原计划处理，不新增一个后台功能或反复提交 sitemap 来代替证据。
+
+本轮仅更新这份可执行分发包，不做应用发版；发送授权仍是原有唯一待确认项，未重复催问。9 月 11 日指南与 9 月 16 日 GitHub 链路观察窗口不变。
+
+07:57 验收：在临时只读 clone 中确认精确 HEAD 和 README 哈希，再运行补丁 `--check` 和 `--numstat`：可应用，恰好新增 1 行、删除 0 行；clone 工作区仍干净，没有实际改动或推送第三方仓库。补丁 SHA-256 为 `0030a3b6b33118e4ff99ecd2728fd0ce8a315441ab38fe283b836bf3a4d794d7`。草稿代码块闭合、所有本地引用及披露检查通过；本机 typecheck、lint、完整评测回归、榜单回归与生产 build 全部退出 0。它们证明材料可交付，不证明投稿、收录或增长已经发生。
