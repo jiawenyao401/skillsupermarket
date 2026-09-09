@@ -87,7 +87,7 @@ const RULES: PatternRule[] = [
     confidence: "high",
   },
   {
-    pattern: /(?:password|passwd|secret)\s*[:=]\s*["'][^"'\n]{6,}["']/i,
+    pattern: /(?:password|passwd|secret)\s*[:=]\s*(?:"([^"\r\n]{6,})"|'([^'\r\n]{6,})')/i,
     type: "hardcoded-credential",
     level: "danger",
     category: "secret",
@@ -152,8 +152,26 @@ function isDefensivePromptExample(line: string, injectionIndex: number): boolean
     /(?:never|do not|don't|不要|禁止)\s*$/i.test(prefix);
 }
 
-function isPlaceholderCredential(line: string): boolean {
-  return /(?:replace[-_ ]?me|change[-_ ]?me|your[-_ ]?(?:password|secret)|example|placeholder|dummy|test[-_ ]?(?:only|password)|xxx+|<[^>]+>|\$\{[^}]+\})/i.test(line);
+function isPlaceholderCredential(value: string): boolean {
+  return /^(?:replace[-_ ]?me|change[-_ ]?me|your[-_ ]?(?:password|secret)|example|placeholder|dummy|test[-_ ]?(?:only|password)|xxx+|<[^<>]+>|\$\{[^{}]+\})$/i.test(value);
+}
+
+function findLiteralCredential(line: string, pattern: RegExp, document: ScanDocument): RegExpMatchArray | null {
+  for (const match of line.matchAll(new RegExp(pattern.source, "gi"))) {
+    const value = match[1] ?? match[2];
+    // Check the assigned value, never surrounding comments or other assignments.
+    if (isPlaceholderCredential(value)) continue;
+    const shellFile = /\.(?:sh|bash)$/i.test(document.path);
+    const dockerShellLine = /(?:^|\/)Dockerfile(?:\.[^/]+)?$/i.test(document.path) && /^\s*(?:RUN\s+|export\s+)/.test(line);
+    const shell = document.kind === "code" && (shellFile || dockerShellLine) &&
+      /^\s*(?:RUN\s+)?(?:export\s+)?[a-zA-Z_][a-zA-Z0-9_]*\s*=/.test(line);
+    // Only a whole double-quoted secret-file read is nonliteral. Single quotes,
+    // nonempty fallbacks, mixed literals and arbitrary commands remain findings.
+    // This is not a safety exemption for the build or runtime.
+    if (shell && match[1] !== undefined && /^\$\(\s*cat\s+\/run\/secrets\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*(?:\s+2>\/dev\/null)?(?:\s+\|\|\s+echo\s+'')?\s*\)$/.test(value)) continue;
+    return match;
+  }
+  return null;
 }
 
 export function scanDocuments(documents: ScanDocument[]): ScanResult {
@@ -170,10 +188,11 @@ export function scanDocuments(documents: ScanDocument[]): ScanResult {
       if (rule.contexts && document.kind && !rule.contexts.includes(document.kind)) continue;
       lines.forEach((line, index) => {
         const pattern = new RegExp(rule.pattern.source, rule.pattern.flags.replace("g", ""));
-        const match = line.match(pattern);
+        const match = rule.type === "hardcoded-credential"
+          ? findLiteralCredential(line, pattern, document)
+          : line.match(pattern);
         if (!match) return;
         if ((rule.category === "prompt-injection") && isDefensivePromptExample(line, match.index ?? 0)) return;
-        if (rule.type === "hardcoded-credential" && isPlaceholderCredential(line)) return;
         const key = `${document.path}:${index + 1}:${rule.type}`;
         if (dedupe.has(key) || findings.length >= MAX_FINDINGS) return;
         dedupe.add(key);
@@ -183,7 +202,7 @@ export function scanDocuments(documents: ScanDocument[]): ScanResult {
           category: rule.category,
           message: rule.message,
           location: `${document.path}:${index + 1}`,
-          evidence: redactEvidence(line),
+          evidence: redactEvidence(rule.type === "hardcoded-credential" ? match[0] : line),
           remediation: rule.remediation,
           confidence: rule.confidence,
         });

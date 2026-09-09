@@ -14,5 +14,6 @@ export function redactKnownSecrets(value: string): string {
     .replace(/AKIA[0-9A-Z]{16}/g, "AKIA***redacted***")
     .replace(/AIza[0-9A-Za-z_-]{20,}/g, "AIza***redacted***")
     .replace(/xox[baprs]-[0-9a-zA-Z-]{8,}/g, "xox*-***redacted***")
-    .replace(/((?:password|passwd|secret)\s*[:=]\s*["'])[^"'\n]{6,}(["'])/gi, "$1***redacted***$2");
+    .replace(/((?:password|passwd|secret)\s*[:=]\s*")[^"\r\n]{6,}"/gi, '$1***redacted***"')
+    .replace(/((?:password|passwd|secret)\s*[:=]\s*')[^'\r\n]{6,}'/gi, "$1***redacted***'");
 }
