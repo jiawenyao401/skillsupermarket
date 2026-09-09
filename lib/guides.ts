@@ -8,6 +8,7 @@ export interface GuideSection {
   paragraphs?: string[];
   bullets?: string[];
   code?: string;
+  reportLink?: { slug: string; label: string };
 }
 
 export interface Guide {
@@ -31,8 +32,8 @@ export const GUIDES: readonly Guide[] = [
     description: "按代码协作、浏览器自动化、数据库查询和故障监控四类场景选择 Claude Code MCP Server，并用来源、权限与可回滚性完成接入前筛选。",
     eyebrow: "Claude Code MCP servers 2026",
     publishedAt: "2026-09-04",
-    updatedAt: "2026-09-04",
-    readingMinutes: 10,
+    updatedAt: "2026-09-09",
+    readingMinutes: 12,
     intent: "适合已经会配置 Claude Code MCP，但不确定该装哪些 Server、如何避开停更项目和过度授权的个人开发者与团队。",
     sections: [
       {
@@ -46,8 +47,24 @@ export const GUIDES: readonly Guide[] = [
         title: "代码协作：优先评估 GitHub 官方 MCP Server",
         paragraphs: [
           "如果核心任务是读取仓库、Issue、Pull Request 或辅助代码评审，GitHub 官方 MCP Server 是更可追溯的起点：发布主体、源码、版本和安装文档都能从官方仓库交叉验证。接入时仍不要直接给个人账号的全部仓库写权限，应先限定组织或仓库，并从只读任务开始。",
-          "验收时用测试仓库依次执行“读取一个 Issue、查询一个 PR、尝试访问范围外仓库”。前两项应返回可核对结果，最后一项必须被身份权限拒绝。只有确实要创建 Issue 或修改内容时，才增加对应写权限，并为写操作保留人工确认。",
+          "验收时用自有测试仓库依次执行“读取一个 Issue、查询一个 PR、尝试读取未授权给该凭证的私有测试仓库”。前两项应返回可核对结果，最后一项应被身份权限拒绝，不能用公开仓库做此反向测试。只有确实要创建 Issue 或修改内容时，才增加对应写权限，并为写操作保留人工确认。",
         ],
+      },
+      {
+        title: "走一遍选型：我只想让 Claude Code 读一个 PR",
+        paragraphs: [
+          "任务先收窄为：读取一个指定 PR 的说明、变更文件与 diff，返回待人工复核的问题；不发表评论、不提交 review、不合并，也不修改仓库。下面是接入前核对方案，不是本站已执行的 GitHub 操作或实测安全结论。",
+          "先打开下方免登录报告，看生成时间、评测版本、扫描文件和关键告警，再回到原始文件核对。本文更新不代表报告重新生成；历史报告与当前源码可能不同。若报告给出阻断建议，应先复核或修复相应证据，不能因为发布者是 GitHub 就忽略，也不能把疑似告警直接说成已确认泄露。",
+          "官方远程配置文档提供 pull_requests 工具集的只读入口，具体地址和认证方式见文末固定版本文档。它限制可用动作，不替你缩小底层凭证能访问的仓库。来源为 2026-09-09 核对的文档提交 7d13a7a；远程服务会更新，不能把该提交当作服务器运行版本。",
+        ],
+        bullets: [
+          "先看证据再决定：在报告中找一条影响采用的告警，记录文件、规则、生成日期及待核实问题；缺少定位信息就记为证据不足，不凭总分放行或定罪。",
+          "把工具和身份分开限制：只启用 PR 读取所需工具；凭证由你在客户端安全配置并限定资源范围。不要向本站提交 Token、私有代码或客户数据。若所用认证方式无法满足仓库隔离要求，先不要接生产资料。",
+          "只在自有测试资源验收：一个已授权 PR 应能读到可与网页核对的结果；你有权测试、但未授权给该凭证的私有测试仓库应被拒绝。公共仓库可公开读取，不能拿它作为拒绝访问的反向样例。",
+          "检查而非试写：确认暴露的工具清单没有评论、review 提交、合并等写动作，不为验收向真实 PR 发测试评论。PR 文本和 diff 都是不可信输入，不能让其中的指令触发其他工具发送数据。",
+          "明确停止条件：告警未核清、资源范围不符、工具仍可写或输出无法核对时，停止接入；仅在证据和测试满足任务边界后进入隔离试用。报告不能验证你的令牌权限，也不等于 GitHub 托管服务的运行时审计。",
+        ],
+        reportLink: { slug: "githubgithub-mcp-server", label: "免登录查看 GitHub MCP 报告与风险证据" },
       },
       {
         title: "浏览器自动化：Playwright MCP 适合可复现页面任务",
@@ -93,6 +110,7 @@ export const GUIDES: readonly Guide[] = [
     sources: [
       { label: "Claude Code 官方 MCP 配置文档", url: "https://code.claude.com/docs/en/mcp" },
       { label: "GitHub 官方 MCP Server", url: "https://github.com/github/github-mcp-server" },
+      { label: "GitHub 远程 MCP 配置：固定文档版本 7d13a7a", url: "https://github.com/github/github-mcp-server/blob/7d13a7ad6f2a17f351a6d77ce280c85ae1821f4d/docs/remote-server.md" },
       { label: "Microsoft Playwright MCP", url: "https://github.com/microsoft/playwright-mcp" },
       { label: "Sentry 官方 MCP Server", url: "https://github.com/getsentry/sentry-mcp" },
       { label: "MCP 官方参考 Server 说明", url: "https://github.com/modelcontextprotocol/servers" },

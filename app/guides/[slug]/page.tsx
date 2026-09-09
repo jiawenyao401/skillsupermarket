@@ -96,6 +96,11 @@ export default async function GuidePage({ params }: GuidePageProps) {
                   <div className="min-w-0 flex-1">
                     <h2 id={`section-${index}`} className="text-2xl font-extrabold tracking-[-0.035em]">{section.title}</h2>
                     {section.paragraphs?.map((paragraph) => <p key={paragraph} className="mt-4 text-[15px] leading-7 text-foreground/80">{paragraph}</p>)}
+                    {section.reportLink && (
+                      <Link href={`/skill/${encodeURIComponent(section.reportLink.slug)}#evaluation-report-title`} prefetch={false} className="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary underline underline-offset-4 [overflow-wrap:anywhere]">
+                        <span>{section.reportLink.label}</span><ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0" />
+                      </Link>
+                    )}
                     {section.bullets && (
                       <ul className="mt-5 space-y-3">
                         {section.bullets.map((item) => (
