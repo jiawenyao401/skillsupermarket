@@ -8,7 +8,7 @@
 - SDK 接口版本：`1.0.0`
 - 本次封装的评测器版本：`3.14.0`；AI rubric：`3.5.0`
 - 许可：**Apache-2.0**，完整文本见 [LICENSE](./LICENSE)。
-- 发布状态：仓库可构建并打包安装；本次交付**不等于已发布 npm 公共注册表**，请先使用下面的 `.tgz` 安装方式。
+- 发布状态：[SDK 1.0.0 已通过 GitHub Release 发布](https://github.com/jiawenyao401/skillsupermarket/releases/tag/evaluation-sdk-v1.0.0)，提供安装包及 SHA-256；尚未发布 npm 公共注册表。
 
 ## 目录
 
@@ -59,7 +59,17 @@ SDK 只有两项直接运行依赖：CommonMark 解析器 `mdast-util-from-markd
 
 从源码构建需 TypeScript 5.7+：源码使用显式 `.ts` 相对导入，SDK 编译时通过 `rewriteRelativeImportExtensions` 转为 Node 可运行的 `.js`；网站直接消费同一份源码，不要求提前生成 dist。消费者安装包无需修改构建器的扩展名映射。
 
-### 2.2 从仓库生成安装包
+### 2.2 安装正式发布包，或从源码构建
+
+直接安装固定版本的正式制品：
+
+```bash
+npm install https://github.com/jiawenyao401/skillsupermarket/releases/download/evaluation-sdk-v1.0.0/skill-supermarket-evaluation-sdk-1.0.0.tgz
+```
+
+发布包 SHA-256：`c721479d06cf77d1fc3aa9666bb3ac8f6a0ccaeffa934cf1f6224ec89dd86772`。Release 同时提供 `.sha256` 文件；下载后可使用 `shasum -a 256 -c skill-supermarket-evaluation-sdk-1.0.0.sha256` 校验。提交安装生成的 lockfile，以便 CI 使用 `npm ci` 重现依赖。
+
+如需从源码构建：
 
 在 Skill Supermarket 仓库根目录执行：
 
@@ -80,7 +90,7 @@ npm install /absolute/path/skill-supermarket-evaluation-sdk-1.0.0.tgz
 
 把应用的 lockfile 一并提交。生产构建用 `npm ci`，不要在每次上线时重新选择浮动的依赖版本。`.tgz` 要保存在构建系统可访问的制品库，不能依赖某台开发电脑的临时路径。
 
-若已有组织私有 npm registry，也可按组织的发布权限与版本审批流程发布该包，再固定版本安装。本次没有创建 npm 组织、申请包名或执行 `npm publish`。
+若已有组织私有 npm registry，也可按组织的发布权限与版本审批流程发布该包，再固定版本安装。当前公共分发渠道是 GitHub Release；本次 npm 权限检查返回 `ENEEDAUTH`，没有创建 npm 组织、申请包名或执行 `npm publish`。
 
 ### 2.3 模块用法
 

@@ -43,10 +43,25 @@ SDK 完整报告本轮离线测量约 median 0.381ms、p95 1.911ms；初始旧�
 
 最终网站 build 输出 SHA-256：`1295ff62708ac192b3a85e87545da5cc02177a2a75fb83cbd837b9788075b3a5`。
 
-## 分发与上线边界
+## 初次交付时的分发与上线边界
 
 - 本地生成 `artifacts/skill-supermarket-evaluation-sdk-1.0.0.tgz`，可安装，不代表 npm 公共包已经发布；不擅自注册账号、占用包名或执行发布。
 - 本次 SDK 与网站适配代码提交到 main；生产站当前隔离 release 不在此次本地验收中切换。
 - 不将 main 上仍需独立配置/验收的注册验证码等改动夹带上线，不重评线上 Skill、不复制密钥、不改数据库、不清理服务器文件。
 - 后续网站上线应按既有 release 门槛单独验证、部署，并包含 SDK 源目录。应用回滚使用先前已验证的完整 release，不只恢复旧 facade 文件。
 - 下次 SDK 发布前在消费端固定版本与 lockfile，复跑 `sdk:verify`；评分规则变化时同时更新评测器版本和固定回归证据。
+
+## 用户要求发布后的执行记录（2026-09-10）
+
+- 用户明确要求发布、部署，重新核验网络：生产 SSH 正常；GitHub Git HTTPS 仍连接超时，但 GitHub API 可用，不能将单一通道失败描述为整体网络不通。
+- 通过现有 GitHub API 同步脚本逐个核验 blob、tree、commit 的原始 Git SHA，非强制快进 main 到 `bdc425eba696ad6d4abc9b2b7323f5d4ea323b8c`。远端 GET 再次确认同一 SHA，没有重写提交历史。
+- [Evaluation SDK 1.0.0](https://github.com/jiawenyao401/skillsupermarket/releases/tag/evaluation-sdk-v1.0.0) 已公开发布（非 draft），包含 `.tgz` 与 `.sha256`，应用可直接通过发布 URL 安装。
+- GitHub 返回的制品摘要与本地已验证包一致：`c721479d06cf77d1fc3aa9666bb3ac8f6a0ccaeffa934cf1f6224ec89dd86772`，50,060 字节。发布后仅补充仓库文档的安装入口，没有覆盖已发布制品。
+- [GitHub Evaluation SDK CI](https://github.com/jiawenyao401/skillsupermarket/actions/runs/34431824207) 已成功完成，覆盖 Node 20/22/24。
+- 在生产服务器 Node 20.20.2 的新临时消费目录额外验证：安装包 SHA-256、独立 npm 安装、ESM、CommonJS 动态导入、离线不联网、3.14.0 报告，全部通过。使用明确标记的虚构输入，不读取或写入业务数据库、不调用模型、不变更在线服务。
+- npm 登录检查返回 `ENEEDAUTH`：未发布 npm 注册表；不把 GitHub Release 与 npm 发布混为一谈。后续 npm 发布需要具备该 scope 发布权限的身份，不需要在聊天里发送 token。
+- 网站 SDK 改动已单独 cherry-pick 到当前生产基线 `6084f03`，候选提交 `3918867d510d0b41d45029136a0541c0e6b4a139`。仅 README 版本说明发生冲突并解决；`lib/auth.ts`、`lib/schema.ts`、`package-lock.json` 与当前生产基线相同，不带入未配置的注册保护。
+- 候选源码归档已上传服务器临时目录，SHA-256 `d8e4d0713b42af855d783c9bda57a04e3e02f8e9ff4dcd58c52491cfbe5aeff0`。归档上传不等于网站已部署，未切换线上版本。
+- 生产只读检查：仍运行 `skillsupermarket-20260910-6084f03`；前一回滚 `skillsupermarket-20260909-cb55644` 的构建存在；现有数据库备份 2,225,000 字节；11:03:41（北京时间）安全差异检查 healthy。
+- 磁盘剩余 5,165,804 KiB（约 4.9 GiB），使用率 87%，未达到既有 6 GiB 新 release 分配门槛。已向用户申请仅删除不在用的 `skillsupermarket-20260902-3209180`、`skillsupermarket-20260903-116203a` 两个旧目录（约 2.1 GiB），保留当前、最近回滚及全部数据库备份。未获授权前不执行清理、不降低门槛。
+- 后续：清理授权后，先再次检查目录类型、实际进程 cwd、当前 symlink 和备份，再释放这两个精确目标；重查 6 GiB 门槛，创建新数据库备份，安装、SDK/网站回归、构建全部通过后原子切换；健康、Web/Worker、定时器、报告与代码完整性通过后登记部署。不能直接把 main 全量上线。
