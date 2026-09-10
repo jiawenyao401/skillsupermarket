@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { randomUUID } from "node:crypto";
 import { SITE_URL } from "../lib/site";
 
 interface CheckResult {
@@ -45,6 +46,18 @@ function protectedRedirect(result: ResponseSnapshot, returnTo: string): boolean 
 async function main() {
   const checks: CheckResult[] = [];
   const caseSlug = process.env.SEO_CASE_SLUG?.trim() || "githubgithub-mcp-server";
+  // Exercise the shared image optimizer before OG rendering. A cached image
+  // does not initialize Sharp, so use one tiny local PNG with a unique cache
+  // key. No remote fetch, tracking event or evaluation job is created here.
+  const icon = `/brand-icon.png?og-check=${randomUUID()}`;
+  const optimizedIcon = await request(`/_next/image?url=${encodeURIComponent(icon)}&w=64&q=75`);
+  checks.push({
+    name: "分享图前置：首次图片优化",
+    ok: optimizedIcon.status === 200
+      && optimizedIcon.headers.get("content-type")?.startsWith("image/") === true
+      && optimizedIcon.headers.get("x-nextjs-cache") === "MISS",
+    detail: `HTTP ${optimizedIcon.status} · cache=${optimizedIcon.headers.get("x-nextjs-cache") ?? "unknown"}`,
+  });
   const protectedPaths = ["/evaluate", "/account", "/admin"] as const;
   const [
     health,
