@@ -134,6 +134,7 @@ test("configured providers use correct endpoints and headers without implicit re
       const body = JSON.parse(String(init?.body));
       assert.equal(body.temperature, 0);
       assert.equal(body.max_tokens, 1800);
+      assert.deepEqual(body.thinking, provider === "deepseek" ? { type: "disabled" } : undefined);
       if (provider === "anthropic") {
         assert.equal(String(url), "https://api.anthropic.com/v1/messages");
         assert.equal(headers.get("x-api-key"), "test-only-key");
@@ -149,6 +150,24 @@ test("configured providers use correct endpoints and headers without implicit re
     assert.equal(result.report.diagram?.type, "sequence");
     assert.equal(calls, 1);
   }
+});
+
+test("DeepSeek Flash keeps quality and diagram recovery in non-thinking JSON mode", async () => {
+  const input = { ...rich, readme: rich.readme + "\n## Architecture\nClient -> Server\n" };
+  let calls = 0;
+  const judge = createLLMJudge({ provider: "deepseek", apiKey: "test", model: "deepseek-flash", fetch: async (_url, init) => {
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.model, "deepseek-flash");
+    assert.deepEqual(body.thinking, { type: "disabled" });
+    assert.deepEqual(body.response_format, { type: "json_object" });
+    assert.equal(body.max_tokens, calls === 0 ? 1800 : 900);
+    calls++;
+    return response(calls === 1 ? judgeResponse(null) : { diagram: ai.diagram });
+  } });
+  const result = await evaluate(input, { judge, aiPolicy: "required", evaluatedAt: at });
+  assert.equal(calls, 2);
+  assert.equal(result.report.methodology.aiJudgeModel, "deepseek-flash");
+  assert.equal(result.report.methodology.diagramRecoveryStatus, "generated");
 });
 
 test("optional diagram recovery stays bounded and records genuine failure separately from quality", async () => {

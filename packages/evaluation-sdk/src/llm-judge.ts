@@ -93,6 +93,9 @@ export function createLLMJudge(options: LLMJudgeOptions): Judge {
             model: config.model,
             max_tokens: maxTokens,
             temperature: 0,
+            // Keep the bounded JSON judge non-thinking, including newer DeepSeek
+            // model names whose API default would spend this budget on reasoning.
+            ...(config.provider === "deepseek" ? { thinking: { type: "disabled" } } : {}),
             ...(anthropic
               ? { system, messages: [{ role: "user", content: prompt }] }
               : { response_format: { type: "json_object" }, messages: [{ role: "system", content: system }, { role: "user", content: prompt }] }),
