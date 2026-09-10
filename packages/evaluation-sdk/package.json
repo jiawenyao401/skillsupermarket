@@ -1,0 +1,33 @@
+{
+  "name": "@skill-supermarket/evaluation-sdk",
+  "version": "1.0.0",
+  "description": "Evidence-based static evaluation for AI skills, MCP servers and agent packs",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": { "node": ">=20.3.0" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./judge": { "types": "./dist/llm-judge.d.ts", "import": "./dist/llm-judge.js" },
+    "./scoring": { "types": "./dist/evaluation-scoring.d.ts", "import": "./dist/evaluation-scoring.js" },
+    "./scanner": { "types": "./dist/scanner.d.ts", "import": "./dist/scanner.js" }
+  },
+  "files": ["dist", "README.md", "LICENSE", "examples"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "mdast-util-from-markdown": "2.0.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": { "typescript": "^5.7.3" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiawenyao401/skillsupermarket.git",
+    "directory": "packages/evaluation-sdk"
+  },
+  "keywords": ["mcp", "agent", "skill", "evaluation", "static-analysis"]
+}

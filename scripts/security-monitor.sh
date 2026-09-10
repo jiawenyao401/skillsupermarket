@@ -40,7 +40,7 @@ collect_code_manifest() {
   local output="$1"
   local roots=()
   local candidate
-  for candidate in app components lib scripts deploy public .next/server .next/static; do
+  for candidate in app components lib packages/evaluation-sdk/src packages/evaluation-sdk/dist scripts deploy public .next/server .next/static; do
     [[ -e "$PROJECT_DIR/$candidate" ]] && roots+=("$candidate")
   done
   (
@@ -49,7 +49,7 @@ collect_code_manifest() {
       if ((${#roots[@]} > 0)); then
         find "${roots[@]}" -type f ! -path '*/cache/*' ! -path '*/diagnostics/*' -print0
       fi
-      for candidate in package.json package-lock.json next.config.js ecosystem.config.cjs proxy.ts; do
+      for candidate in package.json package-lock.json packages/evaluation-sdk/package.json next.config.js ecosystem.config.cjs proxy.ts; do
         [[ -f "$candidate" ]] && printf '%s\0' "$candidate"
       done
       true

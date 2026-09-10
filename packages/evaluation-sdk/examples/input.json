@@ -1,0 +1,11 @@
+{
+  "name": "Local Read-only Inspector",
+  "type": "mcp-server",
+  "description": "A local read-only inspector that lists a caller-selected folder without modifying its files.",
+  "readme": "# Local Read-only Inspector\n\n## Install\nRun the inspected package in a restricted test environment.\n\n```bash\nnpm install @example/local-inspector\n```\n\n## Tools and inputs\nThe list_files tool takes a folder argument. Only explicitly permitted folders can be read.\n\n## Outputs\nReturns a JSON array of file names; an empty folder returns an empty array.\n\n## Security and limitations\nThe tool does not write files or access the network. Only use a test folder with no secrets. These are example documentation claims, not runtime-verified guarantees.\n\n## Errors\nAn inaccessible folder returns an access-denied error; do not retry without verifying permissions.\n\n## License\nApache-2.0.\n",
+  "files": [
+    { "path": "package.json", "content": "{\"name\":\"@example/local-inspector\",\"version\":\"1.0.0\",\"license\":\"Apache-2.0\"}", "kind": "manifest" }
+  ],
+  "hasLicense": true,
+  "sources": ["Synthetic integration fixture; not a real recommendation"]
+}

@@ -1,0 +1,32 @@
+name: Evaluation SDK
+
+on:
+  push:
+    branches: [main]
+    paths: ["packages/evaluation-sdk/**", "lib/eval*", "lib/judge.ts", "lib/scanner.ts", "lib/types.ts", "lib/redaction.ts", "tests/sdk.test.ts", "tests/fixtures/sdk-*", "scripts/*evaluation-sdk.mjs", "package*.json", ".github/workflows/sdk.yml"]
+  pull_request:
+    paths: ["packages/evaluation-sdk/**", "lib/eval*", "lib/judge.ts", "lib/scanner.ts", "lib/types.ts", "lib/redaction.ts", "tests/sdk.test.ts", "tests/fixtures/sdk-*", "scripts/*evaluation-sdk.mjs", "package*.json", ".github/workflows/sdk.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sdk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run sdk:build
+      - run: npm run sdk:test
+      - run: npm run test:scoring
+      - run: node --import tsx --test tests/security-monitor.test.ts
+      - run: npm run sdk:verify

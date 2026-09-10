@@ -36,7 +36,7 @@ Open-source AI Skill & MCP evaluation: review source evidence, risk findings and
 
 ### 可信评测
 
-评测由确定性检查和可选 AI Judge 共同组成；源码中的当前版本见 [`EVALUATOR_VERSION`](lib/evaluation-scoring.ts)。每份报告保留生成时的版本，发布新引擎不会自动更新历史报告。
+评测由确定性检查和可选 AI Judge 共同组成；源码中的当前版本见 [`EVALUATOR_VERSION`](packages/evaluation-sdk/src/evaluation-scoring.ts)。每份报告保留生成时的版本，发布新引擎不会自动更新历史报告。
 
 | 维度 | 权重 | 主要证据 |
 |---|---:|---|
@@ -76,6 +76,12 @@ Open-source AI Skill & MCP evaluation: review source evidence, risk findings and
 
 ## 技术架构
 
+### 独立评测 SDK
+
+评测核心已封装为 `@skill-supermarket/evaluation-sdk`（TypeScript / Node.js，Apache-2.0）。可在自己的服务、Worker 或 CI 中离线生成报告，也可显式配置 AI 复核与流程/时序/结构图数据。网站与 SDK 共用评分规则，不依赖网站账号、数据库或 Next.js。
+
+详见 [SDK 详细应用文档](packages/evaluation-sdk/README.md)：安装、完整输入、AI 配置、报告字段、图示、超时取消、错误处理、队列/CI 接入、版本与安全边界。运行 `npm run sdk:pack` 生成 `.tgz`，`npm run sdk:verify` 验证隔离安装。**目前提供源码与安装包，未发布 npm 公共注册表。**
+
 | 层 | 实现 |
 |---|---|
 | Web | Next.js 16 App Router、React 19、TypeScript、Tailwind CSS |
@@ -101,6 +107,7 @@ Open-source AI Skill & MCP evaluation: review source evidence, risk findings and
 app/                  页面、Route Handlers、Metadata、Sitemap
 components/           页面组件、评测报告、图表和认证组件
 lib/                  数据访问、采集、评测、认证、额度和排名逻辑
+packages/evaluation-sdk/ 独立评测核心、类型、应用文档和可运行示例
 scripts/              Worker、采集、榜单、SEO、运营统计与案例工具
 tests/                评测、Judge、认证、额度、代理和榜单测试
 drizzle/              PostgreSQL migration

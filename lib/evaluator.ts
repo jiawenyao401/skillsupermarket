@@ -1,22 +1,10 @@
 import { and, asc, eq, gte, lt, sql } from "drizzle-orm";
 import { db } from "./db";
 import { evaluations, evaluationJobs, metricsDaily, skillReadmes, skills } from "./schema";
-import { scanDocuments } from "./scanner";
-import { hasJudgeConfiguration, judgeSkill, type JudgeResult } from "./judge";
-import {
-  buildSummary,
-  calculateConfidenceBreakdown,
-  calculateEffectiveReadmeEvidenceCharacters,
-  calculateOverallScore,
-  combineQualityScore,
-  countIndependentEvidenceSources,
-  deterministicQualityScore,
-  EVALUATOR_VERSION,
-  scoreActivity,
-  scoreDocumentation,
-  scorePopularity,
-  WEIGHTS,
-} from "./evaluation-scoring";
+import { evaluate } from "../packages/evaluation-sdk/src/index";
+import { inferDocumentKind } from "../packages/evaluation-sdk/src/input";
+import { hasJudgeConfiguration, judgeSkill } from "./judge";
+import { EVALUATOR_VERSION } from "./evaluation-scoring";
 import { getEvaluationFiles, getReadmeDocument, getRepo } from "./github";
 import { getNpmWeeklyDownloads } from "./npm";
 import { getPypiWeeklyDownloads } from "./pypi";
@@ -24,7 +12,6 @@ import { EVALUATION_QUEUE_PRIORITY, SCHEDULED_COVERAGE_TRIGGER } from "./evaluat
 import { inferGitHubSkillType, SKILL_CLASSIFIER_VERSION } from "./skill-classification";
 import { readmeCacheValues } from "./readme-cache";
 import type {
-  EvaluationReport,
   PopularityStats,
 } from "./types";
 
@@ -41,14 +28,6 @@ export interface EvaluateOptions {
 
 async function updateJob(jobId: string, values: Partial<typeof evaluationJobs.$inferInsert>) {
   await db.update(evaluationJobs).set(values).where(eq(evaluationJobs.id, jobId));
-}
-
-function inferDocumentKind(path: string): "documentation" | "instruction" | "code" | "manifest" {
-  const normalized = path.toLowerCase();
-  if (normalized.includes("skill.md")) return "instruction";
-  if (normalized.endsWith(".json") || normalized.endsWith(".toml") || normalized.includes("requirements")) return "manifest";
-  if (/dockerfile|\.ya?ml$|\.js$|\.ts$|\.py$/.test(normalized)) return "code";
-  return "documentation";
 }
 
 async function resolveJob(options: EvaluateOptions): Promise<typeof evaluationJobs.$inferSelect> {
@@ -94,18 +73,6 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
       ? inferGitHubSkillType(repo)
       : skill.type;
 
-    const documents = [
-      { path: "README.md", content: readme, kind: "documentation" as const },
-      ...extraFiles
-        .filter((file) => file.path.toLowerCase() !== "readme.md")
-        .map((file) => ({ path: file.path, content: file.content, kind: inferDocumentKind(file.path) })),
-    ];
-    const filePaths = documents.map((document) => document.path);
-    const documentation = scoreDocumentation(readme, skill.description, filePaths);
-
-    await updateJob(job.id, { stage: "security", progress: 40 });
-    const security = scanDocuments(documents);
-
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const metricRows = await db.select().from(metricsDaily).where(and(
@@ -132,143 +99,40 @@ export async function evaluateSkill(options: EvaluateOptions): Promise<string> {
       starsGrowth7d: growth7,
       starsGrowth30d: growth30,
     };
-    const popularityScore = scorePopularity(popStats);
     const lastCommit = repo?.pushed_at ? new Date(repo.pushed_at) : skill.githubLastCommit;
-    const activityScore = scoreActivity(lastCommit, repo?.open_issues_count ?? skill.githubOpenIssues ?? 0, popStats.stars);
-    const deterministicQuality = deterministicQualityScore(documentation, filePaths, Boolean(skill.license ?? repo?.license), Boolean(repoFullName), evaluationType);
-
-    await updateJob(job.id, { stage: "quality", progress: 66 });
-    let aiResult: JudgeResult | null = null;
-    let aiFailure: string | null = null;
-    if (hasJudgeConfiguration()) {
-      try {
-        aiResult = await judgeSkill({
-          name: skill.name,
-          type: evaluationType,
-          description: skill.description ?? "",
-          readme,
-          deterministicEvidence: documentation.checks.map((check) => `${check.passed ? "通过" : "缺失"}: ${check.label}`),
-        });
-      } catch (error) {
-        aiFailure = error instanceof Error ? error.message : "LLM Judge 失败";
-        console.error(`[evaluator] AI judge failed for ${skill.slug}:`, error);
-      }
-    } else {
-      aiFailure = "未配置可用的 LLM Judge";
-    }
-    if (options.requireAIJudge && !aiResult) {
-      throw new Error(`案例评测要求 AI Judge 成功：${aiFailure ?? "未获得有效结果"}`);
-    }
-    const qualityScore = combineQualityScore(deterministicQuality, aiResult?.score ?? null);
-    const overall = calculateOverallScore({
-      documentation: documentation.score,
-      security: security.score,
-      popularity: popularityScore,
-      activity: activityScore,
-      quality: qualityScore,
-      riskLevel: security.riskLevel,
+    const { report, diagnostics } = await evaluate({
+      name: skill.name,
+      type: evaluationType,
+      description: skill.description,
+      readme,
+      files: extraFiles.filter((file) => file.path.toLowerCase() !== "readme.md")
+        .map((file) => ({ path: file.path, content: file.content, kind: inferDocumentKind(file.path) })),
+      hasLicense: Boolean(skill.license ?? repo?.license),
+      hasRepository: Boolean(repoFullName),
+      hasRepositoryMetadata: Boolean(repo),
+      popularity: popStats,
+      lastCommitAt: lastCommit?.toISOString() ?? null,
+      openIssues: repo?.open_issues_count ?? skill.githubOpenIssues ?? 0,
+      sources: [repoFullName ? "GitHub Repository API" : "Market metadata", packageName ? "Package registry metrics" : ""].filter(Boolean),
+      classifierVersion: skill.source === "github" ? SKILL_CLASSIFIER_VERSION : undefined,
+      caseStudy: triggeredBy === "case-study",
+    }, {
+      judge: hasJudgeConfiguration() ? judgeSkill : undefined,
+      aiPolicy: options.requireAIJudge ? "required" : "optional",
+      onStage: (stage) => updateJob(job.id, { stage, progress: { security: 40, quality: 66, report: 88 }[stage] }),
     });
-
-    const confidenceBreakdown = calculateConfidenceBreakdown({
-      readmeEvidenceCharacters: calculateEffectiveReadmeEvidenceCharacters(readme),
-      evidenceSourceCount: countIndependentEvidenceSources(documents),
-      aiJudgeUsed: Boolean(aiResult),
-      hasRepoMetadata: Boolean(repo),
-      hasActivity: Boolean(lastCommit),
-    });
-    const confidence = confidenceBreakdown.score;
-    const summary = buildSummary(overall, security.riskLevel, confidence);
-    const concerns = [
-      ...security.findings.slice(0, 3).map((finding) => finding.message),
-      ...(aiResult?.calibrationNotes ?? []),
-      ...documentation.improvements.slice(0, 3).map((item) => `缺少${item}`),
-      ...(aiResult?.concerns ?? []),
-    ].filter((value, index, values) => values.indexOf(value) === index).slice(0, 6);
-    const strengths = [
-      ...documentation.strengths,
-      ...(security.riskLevel === "low" ? ["未发现已知高风险模式"] : []),
-      ...(aiResult?.strengths ?? []),
-    ].filter((value, index, values) => values.indexOf(value) === index).slice(0, 6);
-
-    await updateJob(job.id, { stage: "report", progress: 88 });
-    const report: EvaluationReport = {
-      version: EVALUATOR_VERSION,
-      summary,
-      diagram: aiResult?.diagram,
-      documentation,
-      security: {
-        score: security.score,
-        details: security.details,
-        findings: security.findings,
-        riskLevel: security.riskLevel,
-        scannedFiles: security.scannedFiles,
-        scannedCharacters: security.scannedCharacters,
-      },
-      popularity: {
-        score: popularityScore,
-        details: `${popStats.stars.toLocaleString()} Stars · ${popStats.downloadsWeekly.toLocaleString()} 周下载 · 30 天增长 ${popStats.starsGrowth30d >= 0 ? "+" : ""}${popStats.starsGrowth30d}`,
-        stats: popStats,
-      },
-      activity: {
-        score: activityScore,
-        details: lastCommit ? `最近提交于 ${lastCommit.toISOString().slice(0, 10)}` : "未获得有效提交记录",
-        lastCommitAt: lastCommit?.toISOString() ?? null,
-      },
-      quality: {
-        score: qualityScore,
-        details: aiResult?.details ?? `确定性工程质量 ${deterministicQuality}/100${aiFailure ? " · AI 复核暂不可用" : ""}`,
-        llmComment: aiResult?.comment,
-        deterministicScore: deterministicQuality,
-        aiScore: aiResult?.score ?? null,
-        subScores: aiResult?.scores,
-        evidence: aiResult?.evidence,
-      },
-      recommendation: {
-        strengths,
-        concerns,
-        bestFor: aiResult?.bestFor ?? [],
-        avoidFor: aiResult?.avoidFor ?? (security.riskLevel === "critical" ? ["生产环境与敏感数据场景"] : []),
-        nextActions: [
-          ...security.findings.slice(0, 3).map((finding) => finding.remediation).filter((item): item is string => Boolean(item)),
-          ...documentation.improvements.slice(0, 3).map((item) => `补充${item}`),
-        ].filter((value, index, values) => values.indexOf(value) === index).slice(0, 6),
-      },
-      methodology: {
-        evaluatorVersion: EVALUATOR_VERSION,
-        evaluatedAt: new Date().toISOString(),
-        sources: [repoFullName ? "GitHub Repository API" : "Market metadata", packageName ? "Package registry metrics" : ""].filter(Boolean),
-        scannedFiles: filePaths,
-        scannedCharacters: security.scannedCharacters,
-        aiJudgeUsed: Boolean(aiResult),
-        diagramStatus: aiResult?.diagramStatus ?? "judge-unavailable",
-        diagramRejectionReason: aiResult?.diagramRejectionReason,
-        diagramRecoveryAttempted: aiResult?.diagramRecoveryAttempted,
-        diagramRecoveryStatus: aiResult?.diagramRecoveryStatus,
-        aiJudgeModel: aiResult?.model,
-        rubricVersion: aiResult?.rubricVersion,
-        aiJudgeCalibration: aiResult?.calibrationNotes,
-        evaluatedSkillType: evaluationType,
-        skillClassifierVersion: skill.source === "github" ? SKILL_CLASSIFIER_VERSION : undefined,
-        weights: WEIGHTS,
-        confidenceFactors: confidenceBreakdown.factors,
-        limitations: [
-          "静态评测不会安装或执行项目代码",
-          "安全扫描基于高信号文件与已知模式，不能替代人工审计",
-          "流行度只反映采用程度，不代表安全或工程质量",
-        ],
-        caseStudy: triggeredBy === "case-study",
-      },
-      overall,
-    };
+    if (diagnostics.aiStatus === "failed") {
+      console.error("[evaluator] AI judge failed:", diagnostics.aiErrorCode);
+    }
 
     const [evaluation] = await db.insert(evaluations).values({
       skillId: skill.id,
-      overallScore: overall,
-      documentationScore: documentation.score,
-      securityScore: security.score,
-      popularityScore,
-      activityScore,
-      qualityScore,
+      overallScore: report.overall,
+      documentationScore: report.documentation.score,
+      securityScore: report.security.score,
+      popularityScore: report.popularity.score,
+      activityScore: report.activity.score,
+      qualityScore: report.quality.score,
       report,
       evaluatedBy: `${triggeredBy}:v${EVALUATOR_VERSION}`,
     }).returning();

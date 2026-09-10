@@ -17,6 +17,8 @@ node_modules
 
 # production
 /build
+/packages/evaluation-sdk/dist/
+/artifacts/
 
 # misc
 .DS_Store

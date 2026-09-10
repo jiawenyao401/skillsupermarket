@@ -7,6 +7,12 @@ import test from "node:test";
 
 const monitorScript = path.resolve("scripts/security-monitor.sh");
 
+test("integrity monitor includes the extracted SDK runtime and manifest", () => {
+  const script = readFileSync(monitorScript, "utf8");
+  assert.match(script, /for candidate in[^\n]*packages\/evaluation-sdk\/src[^\n]*packages\/evaluation-sdk\/dist/);
+  assert.match(script, /for candidate in[^\n]*packages\/evaluation-sdk\/package\.json/);
+});
+
 function runMonitor(projectDir: string, stateDir: string, mode: string, env: Record<string, string> = {}) {
   return spawnSync("bash", [monitorScript, mode], {
     encoding: "utf8",
@@ -28,6 +34,8 @@ test("code baseline acceptance is release-bound and leaves host baselines unchan
     mkdirSync(stateDir);
     writeFileSync(path.join(projectDir, "app", "page.tsx"), "export default function Page() { return null; }\n");
     writeFileSync(path.join(projectDir, "package.json"), "{}\n");
+    mkdirSync(path.join(projectDir, "packages/evaluation-sdk/src"), { recursive: true });
+    writeFileSync(path.join(projectDir, "packages/evaluation-sdk/src/index.ts"), "export const version = 1;\n");
     writeFileSync(path.join(stateDir, "code.sha256"), "old-code-baseline\n");
     writeFileSync(path.join(stateDir, "accounts.txt"), "trusted-account\n");
     writeFileSync(path.join(stateDir, "authorized-keys.sha256"), "trusted-key\n");
@@ -37,6 +45,12 @@ test("code baseline acceptance is release-bound and leaves host baselines unchan
     assert.equal(digestResult.status, 0, digestResult.stderr);
     const digest = digestResult.stdout.match(/digest=([0-9a-f]{64})/)?.[1];
     assert.ok(digest);
+
+    writeFileSync(path.join(projectDir, "packages/evaluation-sdk/src/index.ts"), "export const version = 2;\n");
+    const changedSdk = runMonitor(projectDir, stateDir, "--code-digest");
+    assert.equal(changedSdk.status, 0, changedSdk.stderr);
+    assert.notEqual(changedSdk.stdout.match(/digest=([0-9a-f]{64})/)?.[1], digest);
+    writeFileSync(path.join(projectDir, "packages/evaluation-sdk/src/index.ts"), "export const version = 1;\n");
 
     const unapproved = runMonitor(projectDir, stateDir, "--accept-code", {
       SECURITY_EXPECTED_RELEASE: projectDir,
