@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { randomUUID } from "node:crypto";
+import { IMAGE_PROBE_URL, prepareLocalImageProbe } from "../lib/og-image-probe";
 import { SITE_URL } from "../lib/site";
 
 interface CheckResult {
@@ -46,11 +46,11 @@ function protectedRedirect(result: ResponseSnapshot, returnTo: string): boolean 
 async function main() {
   const checks: CheckResult[] = [];
   const caseSlug = process.env.SEO_CASE_SLUG?.trim() || "githubgithub-mcp-server";
-  // Exercise the shared image optimizer before OG rendering. A cached image
-  // does not initialize Sharp, so use one tiny local PNG with a unique cache
-  // key. No remote fetch, tracking event or evaluation job is created here.
-  const icon = `/brand-icon.png?og-check=${randomUUID()}`;
-  const optimizedIcon = await request(`/_next/image?url=${encodeURIComponent(icon)}&w=64&q=75`);
+  // Run from the active release. Rebuild only our exact local 64px PNG cache
+  // entry so this strict check cannot pass on HIT or weaken local URL rules.
+  const removed = prepareLocalImageProbe(process.cwd());
+  console.log(`[seo:check] Prepared local image probe; rebuildable cache files removed: ${removed}`);
+  const optimizedIcon = await request(IMAGE_PROBE_URL, { headers: { "User-Agent": "SkillSupermarketSEOHealth/1.0", Accept: "*/*" } });
   checks.push({
     name: "分享图前置：首次图片优化",
     ok: optimizedIcon.status === 200

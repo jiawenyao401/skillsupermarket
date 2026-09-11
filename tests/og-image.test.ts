@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createElement } from "react";
 import { ImageResponse } from "next/og";
 import { getSharp } from "next/dist/server/image-optimizer";
 import { imageConfigDefault } from "next/dist/shared/lib/image-config";
+import { hasLocalMatch } from "next/dist/shared/lib/match-local-pattern";
+import { IMAGE_PROBE_CACHE_KEY, IMAGE_PROBE_URL, prepareLocalImageProbe } from "../lib/og-image-probe";
 import { bufferPngResponse } from "../lib/og-image";
 
 test("dynamic OG images cross the route boundary as a complete PNG response", async () => {
@@ -46,4 +51,47 @@ test("OG rendering survives image optimizer initialization in the same process",
   await Promise.all(Array.from({ length: 3 }, renderPng));
   // Restoring the internal SVG renderer must not opt user-supplied SVGs in.
   assert.equal(imageConfigDefault.dangerouslyAllowSVG, false);
+});
+
+test("optimizer probe respects query restrictions and evicts only its exact local cache entry", () => {
+  const root = mkdtempSync(join(tmpdir(), "skill-og-probe-"));
+  try {
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "skill-supermarket" }));
+    const url = new URL(IMAGE_PROBE_URL, "https://skillsupermarket.com");
+    const source = url.searchParams.get("url")!;
+    assert.equal(source, "/brand-icon.png");
+    assert.equal(hasLocalMatch([{ pathname: "**", search: "" }], source), true);
+    assert.equal(hasLocalMatch([{ pathname: "**", search: "" }], source + "?nonce=1"), false);
+    assert.equal(prepareLocalImageProbe(root), 0);
+    const images = join(root, ".next", "cache", "images");
+    const target = join(images, IMAGE_PROBE_CACHE_KEY);
+    mkdirSync(target, { recursive: true });
+    mkdirSync(join(images, "unrelated"));
+    writeFileSync(join(target, "generated.png"), "rebuildable");
+    writeFileSync(join(images, "unrelated", "keep.png"), "preserve");
+    assert.equal(prepareLocalImageProbe(root), 1);
+    assert.equal(existsSync(target), false);
+    assert.equal(readFileSync(join(images, "unrelated", "keep.png"), "utf8"), "preserve");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("optimizer probe refuses symlinked ancestors, nested entries and wrong projects", () => {
+  const root = mkdtempSync(join(tmpdir(), "skill-og-probe-"));
+  const outside = mkdtempSync(join(tmpdir(), "skill-og-outside-"));
+  try {
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "wrong-project" }));
+    assert.throws(() => prepareLocalImageProbe(root), /requires a Skill/);
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "skill-supermarket" }));
+    symlinkSync(outside, join(root, ".next"), "dir");
+    assert.throws(() => prepareLocalImageProbe(root), /Unsafe image cache directory/);
+    unlinkSync(join(root, ".next"));
+    const target = join(root, ".next", "cache", "images", IMAGE_PROBE_CACHE_KEY);
+    mkdirSync(join(target, "unexpected-directory"), { recursive: true });
+    writeFileSync(join(target, "keep.png"), "preserve");
+    assert.throws(() => prepareLocalImageProbe(root), /Unsafe image cache entry/);
+    assert.equal(readFileSync(join(target, "keep.png"), "utf8"), "preserve");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+  }
 });
