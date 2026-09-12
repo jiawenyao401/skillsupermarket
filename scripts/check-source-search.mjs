@@ -40,6 +40,8 @@ try {
     const link = page.locator(`a[href="${report}"]`);
     await link.waitFor();
     assert.match(await link.textContent(), /无需登录/);
+    assert.equal(await page.getByLabel("类型筛选").count(), 0);
+    if (width >= 390) assert.ok((await link.boundingBox()).y < 844, `${width}: report action below first screen`);
     assert.equal(await page.locator('link[rel="canonical"]').getAttribute("href"), "https://skillsupermarket.com/search");
     assert.match(await page.locator('meta[name="robots"]').getAttribute("content"), /noindex/);
     assert.equal(await page.evaluate(() => {
@@ -52,7 +54,7 @@ try {
     await page.locator("#evaluation-report-title").waitFor();
     assert.equal(new URL(page.url()).pathname, "/skill/githubgithub-mcp-server");
   }
-  await page.goto(new URL(`/search?source=${encodeURIComponent(missing)}`, base));
+  await page.goto(new URL(`/search?source=${encodeURIComponent(missing)}`, base).href);
   await page.getByRole("link", { name: "登录后评测项目", exact: true }).click();
   await page.waitForURL(url => url.pathname === "/login");
   const returnTo = new URL(page.url()).searchParams.get("returnTo");
@@ -61,21 +63,23 @@ try {
   assert.equal(new URL(returnTo, base).searchParams.get("source"), missing);
 
   for (const query of ["source=https%3A%2F%2Fu%3Acredential-canary%40github.com%2Fa%2Fb", "source=react&source=other", `source=${"x".repeat(501)}`]) {
-    assert.equal((await page.goto(new URL(`/search?${query}`, base))).status(), 200);
+    assert.equal((await page.goto(new URL(`/search?${query}`, base).href)).status(), 200);
     assert.match(await page.locator("main").innerText(), /请输入支持的项目地址或包名/);
     assert.equal(await page.locator("input[name=source]").inputValue(), "");
     for (const href of await page.locator("main a").evaluateAll(nodes => nodes.map(node => node.getAttribute("href")))) {
       assert.ok(!href.includes("credential-canary"));
     }
   }
-  await page.goto(new URL("/search?q=GitHub", base));
+  await page.goto(new URL("/search?q=GitHub", base).href);
   assert.equal(await page.locator("h1").innerText(), "搜索 AI 能力");
   assert.ok(await page.locator('a[href^="/skill/"]').count() > 0);
-  await page.goto(new URL(`/search?source=${encodeURIComponent(source)}`, base));
+  await page.goto(new URL(`/search?source=${encodeURIComponent(source)}`, base).href);
   await page.locator("input[name=source]").fill("https://u:credential-canary@github.com/a/b");
   await page.getByRole("button", { name: "提交搜索", exact: true }).click();
   await page.getByRole("heading", { name: "请输入支持的项目地址或包名", exact: true }).waitFor();
   assert.equal(await page.locator("input[name=source]").inputValue(), "");
+  await page.goto(new URL(`/search?source=${encodeURIComponent(source)}&type=agent-pack&tag=absent`, base).href);
+  await page.locator(`a[href="${report}"]`).waitFor();
   await ctx.close();
 
   const noJs = await context(false);

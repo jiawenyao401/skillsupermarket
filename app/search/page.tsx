@@ -60,9 +60,9 @@ export default async function SearchPage({ searchParams }: PageProps) {
   if (sourceMode) resolvedSearchParams.source = source ?? "";
   const evaluateHref = source ? `/evaluate?source=${encodeURIComponent(source)}` : "/evaluate";
   const q = resolvedSearchParams.q?.trim();
-  const tag = resolvedSearchParams.tag?.trim();
-  const sort = SORT_OPTIONS.some((option) => option.value === resolvedSearchParams.sort) ? resolvedSearchParams.sort! : "stars";
-  const type = TYPE_OPTIONS.some((option) => option.value === resolvedSearchParams.type) ? resolvedSearchParams.type : "";
+  const tag = sourceMode ? undefined : resolvedSearchParams.tag?.trim();
+  const sort = !sourceMode && SORT_OPTIONS.some((option) => option.value === resolvedSearchParams.sort) ? resolvedSearchParams.sort! : "stars";
+  const type = !sourceMode && TYPE_OPTIONS.some((option) => option.value === resolvedSearchParams.type) ? resolvedSearchParams.type : "";
 
   const conditions = [eq(skills.status, "active")];
   if (sourceMode) {
@@ -127,7 +127,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
   return (
     <div className="space-y-8">
       <section className="rounded-[2rem] border bg-card px-5 py-8 sm:px-8 sm:py-10">
-        <div className="section-eyebrow">Explore the market</div>
+        {!sourceMode && <div className="section-eyebrow">Explore the market</div>}
         <h1 className="section-title mt-2">{sourceMode ? "先看项目已有的公开报告" : "搜索 AI 能力"}</h1>
         <p className="section-description">{sourceMode ? "无需注册、不消耗评测额度。按项目来源匹配，阅读前请核对报告日期与证据范围。" : "按名称、场景或技术栈搜索，再用类型与数据维度缩小范围。"}</p>
         <div className="mt-6 max-w-3xl"><SearchBar key={sourceMode ? `source:${source ?? "invalid"}` : `query:${q ?? ""}`} initial={sourceMode ? source ?? "" : q ?? ""} queryParameter={sourceMode ? "source" : "q"} size="large" /></div>
@@ -135,7 +135,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
       </section>
 
       <section>
-        <div className="flex flex-col gap-5 border-b pb-6">
+        {!sourceMode && <div className="flex flex-col gap-5 border-b pb-6">
           <div className="flex items-center gap-2 text-sm font-bold"><SlidersHorizontal className="h-4 w-4" /> 筛选结果</div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap gap-2" aria-label="类型筛选">
@@ -168,7 +168,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
               <Link href={createSearchHref(resolvedSearchParams, { tag: undefined })} className="text-muted-foreground underline underline-offset-4 hover:text-foreground">清除</Link>
             </div>
           )}
-        </div>
+        </div>}
 
         <div className="my-6 flex items-center justify-between gap-4">
           <h2 className="min-w-0 break-all font-bold">{searchContext}</h2>
@@ -179,7 +179,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
           <div className="surface-card flex flex-col items-center px-6 py-16 text-center">
             <SearchX className="h-9 w-9 text-primary" />
             <h2 className="mt-4 text-lg font-bold">{sourceMode && !source ? "请输入支持的项目地址或包名" : "没有找到匹配项"}</h2>
-            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{sourceMode ? "本次只查找站内记录，没有生成评测。可检查地址与筛选条件，或登录后提交；有效的项目地址会保留到评测页。" : "试试更宽泛的关键词、清除类型筛选，或提交这个项目让它加入市场。"}</p>
+            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{sourceMode ? "本次只查找站内记录，没有生成评测。可检查地址，或登录后提交；有效的项目地址会保留到评测页。" : "试试更宽泛的关键词、清除类型筛选，或提交这个项目让它加入市场。"}</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <Link href="/search" className="filter-pill">清除全部筛选</Link>
               <Link href={evaluateHref} prefetch={false} className="button-primary h-9 px-4 text-sm">登录后评测项目</Link>
