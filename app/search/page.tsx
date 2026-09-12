@@ -7,9 +7,10 @@ import { eq, desc, sql, and, or, ilike } from "drizzle-orm";
 import { SkillCard } from "@/components/SkillCard";
 import { SearchBar } from "@/components/SearchBar";
 import { cn } from "@/lib/utils";
+import { sourceSearchCondition, sourceSearchInput } from "@/lib/source-search";
 
 interface PageProps {
-  searchParams: Promise<{ q?: string; tag?: string; sort?: string; type?: string }>;
+  searchParams: Promise<{ [key in "q" | "tag" | "sort" | "type" | "source"]?: string | string[] }>;
 }
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ const TYPE_OPTIONS = [
   { value: "agent-pack", label: "Agent Packs" },
 ] as const;
 
-type SearchParams = Awaited<PageProps["searchParams"]>;
+type SearchParams = Partial<Record<"q" | "tag" | "sort" | "type" | "source", string>>;
 
 function createSearchHref(current: SearchParams, changes: Record<string, string | undefined>) {
   const params = new URLSearchParams();
@@ -47,14 +48,26 @@ function createSearchHref(current: SearchParams, changes: Record<string, string 
 }
 
 export default async function SearchPage({ searchParams }: PageProps) {
-  const resolvedSearchParams = await searchParams;
+  const rawParams = await searchParams;
+  const resolvedSearchParams: SearchParams = {};
+  for (const key of ["q", "tag", "sort", "type", "source"] as const) {
+    const value = rawParams[key];
+    if (typeof value === "string" && value.length <= 500) resolvedSearchParams[key] = value.trim();
+  }
+  const sourceMode = rawParams.source !== undefined;
+  const source = sourceSearchInput(resolvedSearchParams.source);
+  // Never reflect rejected addresses (including embedded credentials) into links or form fields.
+  if (sourceMode) resolvedSearchParams.source = source ?? "";
+  const evaluateHref = source ? `/evaluate?source=${encodeURIComponent(source)}` : "/evaluate";
   const q = resolvedSearchParams.q?.trim();
   const tag = resolvedSearchParams.tag?.trim();
   const sort = SORT_OPTIONS.some((option) => option.value === resolvedSearchParams.sort) ? resolvedSearchParams.sort! : "stars";
   const type = TYPE_OPTIONS.some((option) => option.value === resolvedSearchParams.type) ? resolvedSearchParams.type : "";
 
   const conditions = [eq(skills.status, "active")];
-  if (q) {
+  if (sourceMode) {
+    conditions.push(source ? sourceSearchCondition(source) : sql`false`);
+  } else if (q) {
     conditions.push(
       or(
         ilike(skills.name, `%${q}%`),
@@ -72,6 +85,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
     .selectDistinctOn([evaluations.skillId], {
       skillId: evaluations.skillId,
       overallScore: evaluations.overallScore,
+      hasReport: sql<boolean>`${evaluations.report} is not null`.as("has_report"),
     })
     .from(evaluations)
     .orderBy(evaluations.skillId, desc(evaluations.evaluatedAt))
@@ -100,6 +114,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
       license: skills.license,
       firstSeenAt: skills.firstSeenAt,
       overallScore: latestEvaluations.overallScore,
+      hasReport: latestEvaluations.hasReport,
     })
     .from(skills)
     .leftJoin(latestEvaluations, eq(latestEvaluations.skillId, skills.id))
@@ -107,15 +122,16 @@ export default async function SearchPage({ searchParams }: PageProps) {
     .orderBy(orderBy)
     .limit(50);
 
-  const searchContext = q ? `“${q}”` : tag ? `#${tag}` : "全部能力";
+  const searchContext = sourceMode ? (source ?? "请输入有效项目地址") : q ? `“${q}”` : tag ? `#${tag}` : "全部能力";
 
   return (
     <div className="space-y-8">
       <section className="rounded-[2rem] border bg-card px-5 py-8 sm:px-8 sm:py-10">
         <div className="section-eyebrow">Explore the market</div>
-        <h1 className="section-title mt-2">搜索 AI 能力</h1>
-        <p className="section-description">按名称、场景或技术栈搜索，再用类型与数据维度缩小范围。</p>
-        <div className="mt-6 max-w-3xl"><SearchBar initial={q ?? ""} size="large" /></div>
+        <h1 className="section-title mt-2">{sourceMode ? "先看项目已有的公开报告" : "搜索 AI 能力"}</h1>
+        <p className="section-description">{sourceMode ? "无需注册、不消耗评测额度。按项目来源匹配，阅读前请核对报告日期与证据范围。" : "按名称、场景或技术栈搜索，再用类型与数据维度缩小范围。"}</p>
+        <div className="mt-6 max-w-3xl"><SearchBar key={sourceMode ? `source:${source ?? "invalid"}` : `query:${q ?? ""}`} initial={sourceMode ? source ?? "" : q ?? ""} queryParameter={sourceMode ? "source" : "q"} size="large" /></div>
+        {sourceMode && <p className="mt-3 text-sm leading-6 text-muted-foreground">支持公开 GitHub 地址、npm 包名与 pypi:包名。历史报告不等于安全认证，也不代表已评测所粘贴的分支、文件或指定版本。</p>}
       </section>
 
       <section>
@@ -155,33 +171,39 @@ export default async function SearchPage({ searchParams }: PageProps) {
         </div>
 
         <div className="my-6 flex items-center justify-between gap-4">
-          <h2 className="font-bold">{searchContext}</h2>
-          <span className="text-sm text-muted-foreground">{results.length} 个结果</span>
+          <h2 className="min-w-0 break-all font-bold">{searchContext}</h2>
+          <span className="shrink-0 text-sm text-muted-foreground">{results.length} 个结果</span>
         </div>
 
         {results.length === 0 ? (
           <div className="surface-card flex flex-col items-center px-6 py-16 text-center">
             <SearchX className="h-9 w-9 text-primary" />
-            <h2 className="mt-4 text-lg font-bold">没有找到匹配项</h2>
-            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">试试更宽泛的关键词、清除类型筛选，或提交这个项目让它加入市场。</p>
+            <h2 className="mt-4 text-lg font-bold">{sourceMode && !source ? "请输入支持的项目地址或包名" : "没有找到匹配项"}</h2>
+            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">{sourceMode ? "本次只查找站内记录，没有生成评测。可检查地址与筛选条件，或登录后提交；有效的项目地址会保留到评测页。" : "试试更宽泛的关键词、清除类型筛选，或提交这个项目让它加入市场。"}</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <Link href="/search" className="filter-pill">清除全部筛选</Link>
-              <Link href="/evaluate" className="button-primary h-9 px-4 text-sm">提交项目</Link>
+              <Link href={evaluateHref} prefetch={false} className="button-primary h-9 px-4 text-sm">登录后评测项目</Link>
             </div>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {results.map((skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={{
-                  ...skill,
-                  tags: skill.tags ?? [],
-                  firstSeenAt: skill.firstSeenAt ?? new Date(),
-                  githubStars: skill.githubStars ?? 0,
-                }}
-                score={skill.overallScore ?? undefined}
-              />
+              <div key={skill.id} className="min-w-0 space-y-3">
+                <SkillCard
+                  skill={{
+                    ...skill,
+                    tags: skill.tags ?? [],
+                    firstSeenAt: skill.firstSeenAt ?? new Date(),
+                    githubStars: skill.githubStars ?? 0,
+                  }}
+                  score={skill.overallScore ?? undefined}
+                />
+                {sourceMode && (skill.hasReport ? (
+                  <Link prefetch={false} className="inline-block text-sm font-semibold text-primary underline underline-offset-4" href={`/skill/${encodeURIComponent(skill.slug)}#evaluation-report-title`}>阅读已有报告 · 无需登录 →</Link>
+                ) : (
+                  <p className="text-sm text-muted-foreground">已收录，暂无报告。<Link prefetch={false} className="text-primary underline underline-offset-4" href={evaluateHref}>登录后评测</Link></p>
+                ))}
+              </div>
             ))}
           </div>
         )}

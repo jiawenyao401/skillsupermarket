@@ -97,6 +97,9 @@ try {
   const source = "https://github.com/example/example";
   await page.locator('#homepage-evaluation-source').fill(source);
   await page.locator('.home-submit').click();
+  await page.waitForURL(url => url.pathname === "/search");
+  assert.equal(new URL(page.url()).searchParams.get("source"), source);
+  await page.getByRole("link", { name: "登录后评测项目", exact: true }).click();
   await page.waitForURL(url => url.pathname === "/login");
   const login = new URL(page.url());
   const destination = login.searchParams.get("returnTo") || login.searchParams.get("callbackURL") || login.searchParams.get("next");

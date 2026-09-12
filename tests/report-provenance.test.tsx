@@ -81,7 +81,7 @@ test("homepage relations are bounded excerpts of a validated stored diagram, nev
 test("homepage without a report still offers a labelled GET form without inventing proof", () => {
   const html = renderToStaticMarkup(<HomeHero />);
   assert.match(html, /<h1 id="home-title"/);
-  assert.match(html, /action="\/evaluate" method="get"/);
+  assert.match(html, /action="\/search" method="get"/);
   assert.match(html, /for="homepage-evaluation-source"/);
   assert.match(html, /name="source"/);
   assert.match(html, /maxLength="500"/);

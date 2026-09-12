@@ -4,14 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { normalizeEvaluationSource } from "@/lib/source-parser";
 
 interface SearchBarProps {
   initial?: string;
   size?: "default" | "large";
   autoFocusHint?: boolean;
+  queryParameter?: "q" | "source";
 }
 
-export function SearchBar({ initial = "", size = "default", autoFocusHint = false }: SearchBarProps) {
+export function SearchBar({ initial = "", size = "default", autoFocusHint = false, queryParameter = "q" }: SearchBarProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState(initial);
@@ -33,13 +35,19 @@ export function SearchBar({ initial = "", size = "default", autoFocusHint = fals
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const params = new URLSearchParams();
-    if (q.trim()) params.set("q", q.trim());
+    if (queryParameter === "source") {
+      const source = normalizeEvaluationSource(q) ?? "";
+      setQ(source);
+      params.set("source", source);
+    } else if (q.trim()) params.set("q", q.trim());
     const queryString = params.toString();
     router.push(queryString ? `/search?${queryString}` : "/search");
   }
 
   return (
     <form
+      action="/search"
+      method="get"
       onSubmit={handleSubmit}
       role="search"
       className={cn(
@@ -48,14 +56,16 @@ export function SearchBar({ initial = "", size = "default", autoFocusHint = fals
       )}
     >
       <Search className={cn("absolute text-muted-foreground", size === "large" ? "left-5 h-5 w-5" : "left-3.5 h-4 w-4")} aria-hidden="true" />
-      <label htmlFor="skill-search" className="sr-only">搜索 AI 技能</label>
+      <label htmlFor="skill-search" className="sr-only">{queryParameter === "source" ? "项目地址或包名" : "搜索 AI 技能"}</label>
       <input
         ref={inputRef}
         id="skill-search"
         type="search"
+        name={queryParameter}
+        maxLength={500}
         value={q}
         onChange={(event) => setQ(event.target.value)}
-        placeholder="搜索能力、工具或使用场景…"
+        placeholder={queryParameter === "source" ? "GitHub 地址，或 npm / pypi:包名" : "搜索能力、工具或使用场景…"}
         autoComplete="off"
         className={cn(
           "min-w-0 flex-1 appearance-none bg-transparent pr-10 text-foreground placeholder:text-muted-foreground/80 focus:outline-none [&::-webkit-search-cancel-button]:hidden",
