@@ -4,11 +4,13 @@
 
 9 月 10 日增量：继续同一目标，将正文从泛化示例改成“只读查看 PR”的可核对任务，并附可直接校验的一行补丁；没有新增渠道、发送或重置观察窗口。
 
+9 月 13 日增量：待发正文补入已上线的项目地址查找入口，让读者可以查自己的候选项目，而不仅是阅读预选示例。继续同一个 PR；尚未发送，不新增渠道或再次催促确认。
+
 ## 目标与用户价值
 
 - 目标仓库：[punkpeye/awesome-mcp-devtools](https://github.com/punkpeye/awesome-mcp-devtools)，目标分支 `main`，文件 `README.md` 的 `Testing Tools` 分类。
 - 面向正在接入或维护 MCP Server 的开发者：安装前阅读已有报告，对照静态风险与文档证据，再决定是否评测自己的公开项目。
-- 路径：目录条目 → 本项目 README 的免登录示例 → 报告 → 登录后评测。不是把网站冒充 MCP Server，也不是声称替代运行时测试。
+- 路径：目录条目 → 本项目 README → 按候选项目地址查已有报告（或直接阅读示例）→ 需要新报告时再登录评测。不是把网站冒充 MCP Server，也不是声称替代运行时测试。
 - 只投一个匹配条目，不群发 Issue、不索要 Stars、不购买推荐位，不向被评测项目发送漏洞定性或安全背书。
 
 ## 收录规则与可行性证据
@@ -55,6 +57,8 @@ Disclosure: this is a maintainer submission for Skill Supermarket, prepared with
 The tool brings static risk findings, documentation checks, source evidence and review recommendations into a public report. It is intended to help developers decide what to inspect before adopting a project; it does not install or execute the projects being evaluated.
 
 For a concrete example, a developer considering GitHub MCP for read-only pull-request inspection can open the [public GitHub MCP report](https://skillsupermarket.com/skill/githubgithub-mcp-server#evaluation-report-title) without an account. It shows the report date and version, source-based review findings, and an inferred deployment diagram—not a record of a live MCP session.
+
+To check a different candidate, open the [project address lookup](https://skillsupermarket.com/search?source=https%3A%2F%2Fgithub.com%2Fgithub%2Fgithub-mcp-server), replace the example with a public GitHub URL or npm/PyPI package identifier, and read any existing report without signing in. Lookup only searches the catalog: it does not fetch the submitted project, start an evaluation or consume evaluation credits. A repository match does not establish coverage of a particular branch or file; check the report date and evidence scope.
 
 The linked [PR adoption checklist](https://skillsupermarket.com/guides/claude-code-mcp-server-recommendations-2026) separates the proposed task from tool permissions, identity permissions and repository scope. It gives checks and stopping conditions; we have not executed that integration test for the reader.
 
@@ -131,3 +135,17 @@ These are static checks and optional AI review of the retrieved project material
 本轮仅更新这份可执行分发包，不做应用发版；发送授权仍是原有唯一待确认项，未重复催问。9 月 11 日指南与 9 月 16 日 GitHub 链路观察窗口不变。
 
 07:57 验收：在临时只读 clone 中确认精确 HEAD 和 README 哈希，再运行补丁 `--check` 和 `--numstat`：可应用，恰好新增 1 行、删除 0 行；clone 工作区仍干净，没有实际改动或推送第三方仓库。补丁 SHA-256 为 `0030a3b6b33118e4ff99ecd2728fd0ce8a315441ab38fe283b836bf3a4d794d7`。草稿代码块闭合、所有本地引用及披露检查通过；本机 typecheck、lint、完整评测回归、榜单回归与生产 build 全部退出 0。它们证明材料可交付，不证明投稿、收录或增长已经发生。
+
+## 2026-09-13 · 从预选示例走向读者自己的候选项目
+
+沿用原假设、同一目录和 9 月 16 日检查点。读者的采用问题不一定是 GitHub MCP；待发正文增加已经上线的地址查找入口及其明确边界，避免让一份预选报告代替读者自己的选型任务。没有增加新网页、SDK 文档、渠道或模型调用，也没有把静态查找说成即时新评测。
+
+20:16（北京时间）真实库存只读核验：189 个 active 项目均可被自身合法来源地址匹配，没有不支持或漏匹配记录。9 组项目共享同一仓库地址，因此查询可能返回多个项目；保留仓库与子目录/分支范围限制，不将结果描述为精确版本匹配。检查只做数据库 SELECT，未写业务表、注册、生成评测或计入前端流量。当天匿名流量表无记录，新增账号 0；这不是零曝光或零收录的证明，也没有新增使用效果可报告。
+
+核验过程中，先前临时脚本把 postgres 的事务对象交给 Drizzle 初始化，因事务对象没有驱动需要的 `options.parsers` 而在读取业务表前失败。这是验收脚本错误，不是网站查询故障。改用现有 PostgreSQL 回归相同的 `pg` 客户端和参数化 SQL 编译方式，显式 `BEGIN READ ONLY`、单语句 10 秒超时、结束 `ROLLBACK`，才得到上述完整结果；未修改线上查询或忽略断言。
+
+本轮重新读取 upstream 主分支和完整贡献规则：基准提交仍为 `0b704918976f0c6c08e14746dd97a312bca3380e`，品牌精确词的全状态 Issue/PR 搜索仍返回 0。单行 README 补丁不变。生产地址查找及其报告直达链接通过，示例/方法页和其他关键路径 200；Web/Worker、两个 timer 正常。没有应用变更，不创建 release 或重复部署。
+
+搜索后台缺口没有变化：本机没有可用 Vercel CLI 登录或项目关联；浏览器读取超时未取得后台信息。未尝试绕过登录或访问限制，未将探测失败包装成搜索问题根因。现有第三方发送确认仍是原待办，不重复提醒；下一步是经确认后提交这一项，而非继续润色文案或另铺渠道。
+
+提交前验证：原 README 与补丁 SHA-256 相符，单行新增/零删除及周围位置校验通过；正文 4 个正式站链接、来源参数、2 个本地引用与维护者/AI 辅助/中文页面/静态局限披露通过。typecheck、lint、生产 build 退出 0，完整评测回归 157 通过、1 项 Linux-only 跳过、0 失败。本机构建仍有既有 BetterAuth 默认 secret 告警；未隐藏或修改密钥，不宣称本机生产认证验证通过。本轮只提交这份分发材料，不修改线上环境、历史报告、权限或支付，也没有新增获客效果。
