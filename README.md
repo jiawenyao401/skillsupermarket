@@ -80,7 +80,16 @@ Open-source AI Skill & MCP evaluation: review source evidence, risk findings and
 
 评测核心已封装为 `@skill-supermarket/evaluation-sdk`（TypeScript / Node.js，Apache-2.0）。可在自己的服务、Worker 或 CI 中离线生成报告，也可显式配置 AI 复核与流程/时序/结构图数据。网站与 SDK 共用评分规则，不依赖网站账号、数据库或 Next.js。
 
-详见 [SDK 详细应用文档](packages/evaluation-sdk/README.md)：安装、完整输入、AI 配置、报告字段、图示、超时取消、错误处理、队列/CI 接入、版本与安全边界。运行 `npm run sdk:pack` 生成 `.tgz`，`npm run sdk:verify` 验证隔离安装。**目前提供源码与安装包，未发布 npm 公共注册表。**
+**[直接生成第一份本地报告](docs/sdk-first-report.md)**：安装已发布的固定版本，先运行包内样例，再评测自己准备的 README。不必克隆、构建或部署本站，也不需要账号和模型密钥；离线报告不会上传到网站。
+
+```bash
+npm install --ignore-scripts --no-audit --no-fund https://github.com/jiawenyao401/skillsupermarket/releases/download/evaluation-sdk-v1.0.0/skill-supermarket-evaluation-sdk-1.0.0.tgz
+node node_modules/@skill-supermarket/evaluation-sdk/examples/offline.mjs node_modules/@skill-supermarket/evaluation-sdk/examples/input.json
+```
+
+包内输入是明确标记的虚构材料，不是软件推荐；离线模式不生成 AI 图示，低置信度不是程序错误。首次使用和校验安装包见上面的接入指南。SDK 1.0.0 已在 GitHub Release 发布，**未发布 npm 公共注册表**，不要使用不存在的 `npm install @skill-supermarket/evaluation-sdk`。
+
+详见 [SDK 详细应用文档](packages/evaluation-sdk/README.md)：完整输入、AI 配置、报告字段、图示、超时取消、错误处理、队列/CI 接入、版本与安全边界。仅修改 SDK 源码的贡献者需要运行 `npm run sdk:pack` 和 `npm run sdk:verify`，普通使用者无需安装网站依赖。
 
 | 层 | 实现 |
 |---|---|

@@ -1,6 +1,18 @@
 # 公开评测产品能力矩阵
 
-最后增量复核：2026-09-09（GitHub MCP 配置一项）；其余条目仍为 9 月 4 日证据。只记录公开、可追溯信息；不推断私有算法或黑箱权重。
+最后完整专题复核：2026-09-13，范围为 skills.sh、OpenSSF Scorecard、Socket 的首次结果与风险解释。见[本周复盘及交付决策](research/2026-09-13-first-result-paths.md)。GitHub MCP 配置保持 9 月 9 日证据，未在本轮复核的其余历史条目保持原日期；只记录公开信息，不推断私有算法或黑箱权重。
+
+## 9 月 13 日：首次结果路径对照
+
+| 产品 / 证据 | 目标任务与转化设计 | 评分 / 报告方式 | 优点与局限 | 本站差距、唯一借鉴点 | 成本、风险与验证 |
+| --- | --- | --- | --- | --- | --- |
+| [skills.sh 文档](https://www.skills.sh/docs)、[Audits](https://www.skills.sh/audits) | 安装前发现 Skill，文档直接提供安装动作，并从目录进入审计 | 并列 Gen、Socket、Snyk 结果；可出现不同风险结论和 Pending | 结果与采用入口接近；各供应商覆盖、时间、方法不等价，聚合页面不能证明安全 | 本站并非唯一有审计的目录；本轮只借鉴“在完整接入之前交付一个可验证结果”，不复制其评分或安装量排行 | 只改自有 SDK 首次使用文档；验证真实安装、离线产出与失败边界，不跟踪个人安装 |
+| [Scorecard](https://scorecard.dev/)、[检查说明](https://github.com/ossf/scorecard/blob/main/docs/checks.md) | 开源采用方可选择手动 CLI；维护者可接入 Action | 检查有风险、评分依据与修复路径；适用条件和小项目局限公开 | 接入方式与后续工作相连；缺少实践不自动等于存在漏洞，也不涵盖全部 AI 行为 | 已有 SDK 不应让新读者先构建整站；使用已发布制品与调用示例承接同一首次价值假设，不开发新 CLI/CI 产品 | 无运行时或依赖变更；不保证耗时、不复制对方 token 权限指引，本站离线步骤无需 token |
+| [Socket Package Scores](https://docs.socket.dev/docs/package-scores) | 包采用方区分不同风险，而非只看总分 | 五类评分；告警严重性与包属性参与计算；文档提示可能滞后于部署 | 维度说明较细；公开公式不是当前线上实现的完整证明 | 本站第一份报告应解释置信度、AI 状态和空建议，不能将运行成功等同于通过安全审核 | 不照搬权重、热门度豁免或软上限；固定制品输出与说明一致才发布 |
+
+本轮只采用一项机制：**先运行已发布制品取得首份可解释结果，再进入完整 SDK 集成**。交付为[首份本地报告指南](sdk-first-report.md)与根 README 的真实安装/运行入口；不是三条并行功能需求。业务指标与停止条件延续 9 月 16 日 GitHub 入口窗口，新增 SDK 下载信号单列且排除已知验收，不声称它代表用户或网站转化。
+
+## 历史能力矩阵
 
 | 产品 / 公开能力 | 解决的问题与目标用户 | 评分 / 报告方式 | 优点 | 局限 | 与本站差距 / 可借鉴假设 | 成本、风险与验证指标 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -10,7 +22,7 @@
 | [Official MCP Registry](https://github.com/modelcontextprotocol/registry/blob/main/docs/modelcontextprotocol-io/about.mdx) | MCP 使用方发现可安装、可配置的公开 Server | `server.json` 明确服务器名称、包或远程地址、执行参数、环境变量与能力元数据 | “Server”对应可定位、安装或连接的具体交付物，而非只要内容提到 MCP 就算 Server | 只覆盖提交到 Registry 的公开 Server，不能直接判断 GitHub 教程、SDK 或集合仓库 | 借鉴交付物边界：GitHub 元数据只有明确 Server 证据才归入 `mcp-server`；课程、示例集合、SDK 归入 `agent-pack` | 低运行成本；固定真实样本覆盖 Server、Skill、课程、集合和 SDK；任何已知 Server 被降类即停止发布并补回归样本 |
 | [GitHub MCP Server](https://github.com/github/github-mcp-server) / [Playwright MCP](https://github.com/microsoft/playwright-mcp) / [Sentry MCP](https://github.com/getsentry/sentry-mcp) | Claude Code 用户按代码协作、浏览器自动化和故障诊断场景选择 Server | 官方源码与配置文档公开；各产品提供不同的工具、身份与运行边界 | 发布主体和使用场景可交叉验证，能形成可执行的选型对照 | 官方维护不等于默认安全；浏览器、仓库和监控数据仍会扩大权限与不可信输入面 | 不做安装量榜单，落地“场景 → 最小权限 → 越界验收 → 可撤销”的选型指南 | 内容风险低；7 天观察指南访问、继续阅读与评测 CTA，三项均为 0 则停止扩写同类推荐词并调整入口或搜索意图 |
 
-## 当前进入实现的假设
+## 9 月 4 日指南假设（9 月 11 日已复盘，不再扩写同类篇数）
 
 - 问题：D7 指南只有 3 次浏览，继续阅读和评测 CTA 都是 0；评测调度同期完成率 100%，当前主要瓶颈已从交付稳定性转为高意图自然流量与指南承接。
 - 实验：发布一篇“Claude Code MCP Server 推荐 2026”选型指南，基于 GitHub、Microsoft、Sentry 和 MCP 官方公开资料，把代码、浏览器、数据库与监控需求映射为最小权限和越界验收步骤，并接入现有指南内链与 SEO 回归。
