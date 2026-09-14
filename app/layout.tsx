@@ -55,9 +55,12 @@ export const metadata: Metadata = {
     title: "Skill Supermarket - AI Skill / MCP 发现与安全评测平台",
     description: "发现、比较并评测 AI Skills、MCP Servers 与 Agent Packs，用可追溯证据完成选型。",
   },
-  verification: process.env.GOOGLE_SITE_VERIFICATION
-    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
-    : undefined,
+  verification: {
+    google: [
+      "VxgQUPb8k5ZszDBkz1hO9o28isFeN2RNRQIzAULSAiI",
+      ...(process.env.GOOGLE_SITE_VERIFICATION ? [process.env.GOOGLE_SITE_VERIFICATION] : []),
+    ],
+  },
   other: process.env.BAIDU_SITE_VERIFICATION
     ? { "baidu-site-verification": process.env.BAIDU_SITE_VERIFICATION }
     : undefined,
