@@ -13,6 +13,20 @@ import { readFileSync } from "node:fs";
 import { ReportShare } from "../components/ReportShare";
 import { absoluteUrl } from "../lib/site";
 
+test("global footer displays the complete website ICP filing as a safe official link", () => {
+  const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  const footer = layout.match(/<footer\b[\s\S]*?<\/footer>/)?.[0];
+  assert.ok(footer, "filing must be in the shared server-rendered footer");
+  assert.equal(footer.match(/冀ICP备2026036754号-2/g)?.length, 1);
+  const link = footer.match(/<a\s+href="https:\/\/beian\.miit\.gov\.cn\/"[\s\S]*?<\/a>/)?.[0];
+  assert.ok(link);
+  assert.match(link, /target="_blank"/);
+  assert.match(link, /rel="noopener noreferrer"/);
+  assert.match(link, /冀ICP备2026036754号-2/);
+  assert.match(footer, /flex-wrap/);
+  assert.match(footer, /href="\/privacy"/);
+});
+
 test("public report sharing uses a canonical anchored link and remains available without clipboard access", () => {
   const slug = 'demo/?source=https://example.invalid/"#fragment';
   const url = `${absoluteUrl(`/skill/${encodeURIComponent(slug)}`)}#evaluation-report-title`;

@@ -222,7 +222,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="border-t">
             <div className="container flex flex-col gap-2 py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span>© {new Date().getFullYear()} Skill Supermarket</span>
-              <span className="flex items-center gap-3"><Link href="/privacy" className="hover:text-foreground">隐私说明</Link><span>为 AI builder 构建 · 开源项目</span></span>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 sm:justify-end">
+                <Link href="/privacy" className="hover:text-foreground">隐私说明</Link>
+                <span>为 AI builder 构建 · 开源项目</span>
+                <a
+                  href="https://beian.miit.gov.cn/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="工信部备案查询（新窗口打开）"
+                  className="whitespace-nowrap hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-offset-4"
+                >
+                  冀ICP备2026036754号-2
+                </a>
+              </div>
             </div>
           </div>
         </footer>
