@@ -1,6 +1,8 @@
 <!-- Hallmark · pre-emit critique (audit and plan, not a rendered redesign): P5 H4 E4 S5 R4 V4. Visual implementation gates not claimed as passed. -->
 # Skill Supermarket：增长与视觉的四周迭代方案
 
+**2026-09-16 状态优先于下文初稿：** [原七天入口实验已经复盘](research/2026-09-16-first-value-review.md)，未记录到预定 GitHub 目标访问，停止继续润色首页/README/同类指南/SDK 入门材料。下一主动作是已准备且待确认的单项目录 PR；没有新用户证据不切回技术小修或大改版。`skill-supermarket.vercel.app` 尚未证实属于本用户，暂停其迁移支线；Google DNS 所有者验证仍是独立待确认动作。上述停止决定不回滚已经可用的公开报告与查找能力，也不宣称产品需求已被否定。
+
 初稿日期：2026-09-09。初稿范围：真实数据复盘、公开资料调研、首页视觉审查和执行方案，未包含代码或部署。后续执行状态见末节和当日日报。以下目标是建议的实验决策门槛，不是流量或收入预测。
 
 ## 结论先行
@@ -99,29 +101,29 @@
 
 ## 5. “死板”具体在哪里：视觉审查
 
-依据：当前源码、今日发布后的桌面/手机截图，以及本轮约 10:07 的只读生产浏览器测量。两档视口为 1280×800、390×844；拦截统计与所有非 GET/HEAD 请求，未提交表单、未发起评测。本次不是全站无障碍或性能认证。
+以下保留 9 月 9 日首页改版前的审查，不是当前页面的新问题清单。源码行号固定到当时提交 `274f2cfdd5d51ae0a845f3b39cf55465b5720b6a`，避免后续改版使引用越界或指向无关内容。依据包括当时桌面/手机截图及约 10:07 的只读生产浏览器测量；两档视口为 1280×800、390×844，拦截统计与所有非 GET/HEAD 请求，未提交表单、未发起评测。本次不是全站无障碍或性能认证。
 
 ### critical · 结构优先级问题（设计严重度，不是安全漏洞）
 
 | Tell | 位置与证据 | 一句话修正方向 |
 | --- | --- | --- |
-| Full-viewport centered hero / Centered-everything：标题、说明、报告、输入、搜索和统计沿同一中心轴堆叠 | [app/page.tsx:163](/Users/jiawy/skillsupermarket/app/page.tsx:163)、[app/page.tsx:184](/Users/jiawy/skillsupermarket/app/page.tsx:184)。桌面 hero 高约 1172px；报告入口顶部 y=801，已在 800px 视口之外，输入框所在表单 y=926 | 桌面改为紧凑的任务说明＋真实报告双栏，手机先放用途和主要动作，别再在现有 hero 里继续加模块 |
-| Card-in-card：大圆角 hero 内再套报告卡、输入卡和统计卡 | [HomeReportPreview.tsx:20](/Users/jiawy/skillsupermarket/components/HomeReportPreview.tsx:20)、[app/page.tsx:226](/Users/jiawy/skillsupermarket/app/page.tsx:226) | 拆掉包住整个首屏的大盒子，保留一个需要边界的报告预览，其余用排版与分隔线组织 |
+| Full-viewport centered hero / Centered-everything：标题、说明、报告、输入、搜索和统计沿同一中心轴堆叠 | [app/page.tsx:163](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L163)、[app/page.tsx:184](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L184)。桌面 hero 高约 1172px；报告入口顶部 y=801，已在 800px 视口之外，输入框所在表单 y=926 | 桌面改为紧凑的任务说明＋真实报告双栏，手机先放用途和主要动作，别再在现有 hero 里继续加模块 |
+| Card-in-card：大圆角 hero 内再套报告卡、输入卡和统计卡 | [HomeReportPreview.tsx:20](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/components/HomeReportPreview.tsx#L20)、[app/page.tsx:226](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L226) | 拆掉包住整个首屏的大盒子，保留一个需要边界的报告预览，其余用排版与分隔线组织 |
 
 ### major · 价值表达与层次问题
 
 | Tell | 位置与证据 | 一句话修正方向 |
 | --- | --- | --- |
-| Same-padding / mechanical spacing：不可见元素意外制造首段间距 | [app/page.tsx:148](/Users/jiawy/skillsupermarket/app/page.tsx:148)、[JsonLd.tsx:4](/Users/jiawy/skillsupermarket/components/JsonLd.tsx:4)。hero 前一个兄弟是 display:none 的 JSON-LD script，hero 的 computed margin-top 桌面 96px、手机 80px；顶部 y=201/177 | 把结构化数据与可视版块间距容器分开，保留 JSON-LD，并补“有/无 ItemList 都没有首段多余间距”的回归 |
-| Startup-cliché copy：通用承诺没有说清采用问题 | [app/page.tsx:174](/Users/jiawy/skillsupermarket/app/page.tsx:174) 的“下一项超能力”“社区最优秀” | 用任务与产出说明代替超能力口号；删掉没有选择标准支撑的“最优秀” |
-| Icon-tile feature cards：分类、案例、最新列表主要靠相似盒子区分 | [app/page.tsx:251](/Users/jiawy/skillsupermarket/app/page.tsx:251)、[app/page.tsx:305](/Users/jiawy/skillsupermarket/app/page.tsx:305)、[app/page.tsx:335](/Users/jiawy/skillsupermarket/app/page.tsx:335) | 场景做紧凑入口，重点案例做一个大样例，目录保留高信息密度的行列表；同类数据可以用卡片，但不是整页所有内容都用 |
-| Eyebrow on every section：英文装饰标签重复占层级 | [app/page.tsx:243](/Users/jiawy/skillsupermarket/app/page.tsx:243)、[app/page.tsx:270](/Users/jiawy/skillsupermarket/app/page.tsx:270)、[app/page.tsx:326](/Users/jiawy/skillsupermarket/app/page.tsx:326) | 去掉不提供新信息的英文标签，以清楚的中文标题和结果摘要建立层次 |
+| Same-padding / mechanical spacing：不可见元素意外制造首段间距 | [app/page.tsx:148](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L148)、[JsonLd.tsx:4](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/components/JsonLd.tsx#L4)。hero 前一个兄弟是 display:none 的 JSON-LD script，hero 的 computed margin-top 桌面 96px、手机 80px；顶部 y=201/177 | 把结构化数据与可视版块间距容器分开，保留 JSON-LD，并补“有/无 ItemList 都没有首段多余间距”的回归 |
+| Startup-cliché copy：通用承诺没有说清采用问题 | [app/page.tsx:174](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L174) 的“下一项超能力”“社区最优秀” | 用任务与产出说明代替超能力口号；删掉没有选择标准支撑的“最优秀” |
+| Icon-tile feature cards：分类、案例、最新列表主要靠相似盒子区分 | [app/page.tsx:251](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L251)、[app/page.tsx:305](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L305)、[app/page.tsx:335](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L335) | 场景做紧凑入口，重点案例做一个大样例，目录保留高信息密度的行列表；同类数据可以用卡片，但不是整页所有内容都用 |
+| Eyebrow on every section：英文装饰标签重复占层级 | [app/page.tsx:243](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L243)、[app/page.tsx:270](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L270)、[app/page.tsx:326](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/page.tsx#L326) | 去掉不提供新信息的英文标签，以清楚的中文标题和结果摘要建立层次 |
 
 ### minor · 动效细节
 
 | Tell | 位置与证据 | 一句话修正方向 |
 | --- | --- | --- |
-| transition-all / simultaneous hover effects | [app/globals.css:82](/Users/jiawy/skillsupermarket/app/globals.css:82)、[app/globals.css:111](/Users/jiawy/skillsupermarket/app/globals.css:111) 同时位移、颜色、阴影变化 | 只过渡必要属性，以焦点、选中和展开状态反馈为主；保留现有 reduced-motion 支持 |
+| transition-all / simultaneous hover effects | [app/globals.css:82](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/globals.css#L82)、[app/globals.css:111](https://github.com/jiawenyao401/skillsupermarket/blob/274f2cfdd5d51ae0a845f3b39cf55465b5720b6a/app/globals.css#L111) 同时位移、颜色、阴影变化 | 只过渡必要属性，以焦点、选中和展开状态反馈为主；保留现有 reduced-motion 支持 |
 
 这里有两点需要讲清：今天新增“先看真实报告”解决了入口缺失，但加在原有居中结构中仍使首屏过长；此前“无横向溢出、链接能用”也不等于“主动作在常见首屏里”。这次应把首屏可见性与任务理解纳入验收，而不只是再次测不溢出。
 
