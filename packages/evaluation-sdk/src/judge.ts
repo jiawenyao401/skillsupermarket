@@ -90,7 +90,7 @@ const diagramRecoveryResponseSchema = z.object({
   diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.5.0";
+const RUBRIC_VERSION = "3.6.0";
 const MAX_README_CHARACTERS = 30_000;
 const MISSING_EVIDENCE_TOTAL_CAP = 72;
 const EXTREME_INFLATION_TOTAL = 90;
@@ -223,10 +223,11 @@ export function selectReadmeEvidence(readme: string): string {
   if (readme.length <= MAX_README_CHARACTERS) return readme;
 
   const sections = splitReadmeSections(readme);
-  const selected: string[] = [];
-  const seen = new Set<string>();
+  const lengths = sections.map(() => 0);
+  const omitted = "\n[评测器节选：本节后续内容已省略]";
   let remaining = MAX_README_CHARACTERS;
   const priorities = [
+    /overview|purpose|how.*works|architecture|workflow|概述|用途|原理|架构|流程/i,
     /quick\s*start|getting\s*started|install|setup|安装|配置/i,
     /usage|example|demo|用法|示例/i,
     /tool|parameter|argument|input|output|api|参数|输入|输出/i,
@@ -235,23 +236,39 @@ export function selectReadmeEvidence(readme: string): string {
     /license|contribut|许可|贡献/i,
   ];
 
-  const add = (section: string) => {
-    if (remaining <= 0 || seen.has(section)) return;
-    seen.add(section);
-    const slice = section.slice(0, remaining);
-    selected.push(slice);
-    remaining -= slice.length + 2;
+  // Reserve room for distinct evidence categories before expanding any one
+  // section. Matching only headings prevents incidental body keywords from
+  // letting a large installation chapter consume the whole prompt budget.
+  const groups = priorities.map((priority) => sections.flatMap((section, index) =>
+    priority.test(section.split("\n", 1)[0]) ? [index] : []));
+  const add = (index: number, limit: number): number => {
+    const overhead = lengths[index] === 0 ? omitted.length + 2 : 0;
+    const count = Math.max(0, Math.min(limit, sections[index].length - lengths[index], remaining - overhead));
+    if (!count) return 0;
+    lengths[index] += count;
+    remaining -= count + overhead;
+    return count;
   };
 
-  add(sections[0] ?? readme.slice(0, 5_000));
-  for (const priority of priorities) {
-    for (const section of sections) {
-      if (priority.test(section)) add(section);
+  if (sections.length) add(0, 2_000);
+  for (const group of groups) {
+    let reserved = 3_000;
+    for (const index of group) {
+      reserved -= add(index, Math.min(1_000, reserved));
+      if (reserved === 0) break;
     }
   }
-  for (const section of sections) add(section);
-
-  return selected.join("\n\n").slice(0, MAX_README_CHARACTERS);
+  const order = [...new Set([...groups.flat(), ...sections.map((_, index) => index)])];
+  let added: number;
+  do {
+    added = 0;
+    for (const index of order) added += add(index, 1_000);
+  } while (remaining > 0 && added > 0);
+  // Keep original source order and explicitly distinguish omitted text from
+  // missing documentation. Marker/separator space was reserved above.
+  return sections.flatMap((section, index) => lengths[index] > 0
+    ? [section.slice(0, lengths[index]) + (lengths[index] < section.length ? omitted : "")]
+    : []).join("\n\n");
 }
 
 const DIAGRAM_EVIDENCE_SECTION = /(?:workflow|how\s+it\s+works|architecture|pipeline|process|request\s+lifecycle|data\s+flow|sequence|learning\s+path|repository\s+structure|步骤|流程|架构|时序|调用链|学习路径|工作原理|处理过程|执行过程|仓库结构)/i;
@@ -471,6 +488,7 @@ export function buildJudgePrompt(input: JudgeInput): string {
 - strengths/concerns 每一项都必须对应输入里的可观察证据，不得写“官方维护”“作者知名”等声誉判断。
 - evidence 必须引用可核对的具体内容，例如章节名、安装命令、工具/参数名、限制声明；不得只写抽象评价。
 - avoidFor 只写有证据支持的真实不适用场景；没有则返回空数组。
+- README 可能为评测器节选；节选标记只表示输入预算限制，不代表项目文档缺失。不得把可选的云服务、仪表盘或联网工具泛化为核心功能的强制依赖；离线限制必须有对应功能的直接证据。
 - 不要把“缺少 SKILL.md”当作 MCP Server、SDK、Agent 工具包的缺点。
 - diagram 用于解释 Skill 的真实工作方式。只有 README 能核实至少 2 个步骤或组件及 1 条关系时才返回上述对象，否则 diagram 必须返回 null。
 - diagram.type 自动选择：两个及以上参与方存在请求、响应或回调时优先选 sequence（即使文档把章节叫 flow）；单一任务的连续处理步骤选 flow；没有明确时间顺序、以组件及依赖关系为主时选 architecture。

@@ -10,7 +10,7 @@ import type {
   SkillType,
 } from "./types.ts";
 
-export const EVALUATOR_VERSION = "3.14.0";
+export const EVALUATOR_VERSION = "3.15.0";
 
 export const WEIGHTS = Object.freeze({
   documentation: 0.22,

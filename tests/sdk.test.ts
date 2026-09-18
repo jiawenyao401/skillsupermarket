@@ -5,7 +5,7 @@ import { performance } from "node:perf_hooks";
 import baseline from "./fixtures/sdk-parity-v3.14.0.json";
 import {
   evaluate, createLLMJudge, EvaluationError, EVIDENCE_LIMITS, parseEvaluationInput,
-  WEIGHTS, type EvaluationInput, type EvaluationOptions, type JudgeResult, type Judge,
+  WEIGHTS, EVALUATOR_VERSION, type EvaluationInput, type EvaluationOptions, type JudgeResult, type Judge,
 } from "../packages/evaluation-sdk/src/index";
 import { scanDocuments as websiteScan } from "../lib/scanner";
 import { scanDocuments as sdkScan } from "../packages/evaluation-sdk/src/scanner";
@@ -31,7 +31,14 @@ test("SDK complete reports match six frozen pre-extraction reports over ten repe
         evaluatedAt: at, judge: fixture.ai ? async () => fixture.ai as JudgeResult : undefined,
       });
       times.push(performance.now() - start);
-      assert.deepEqual(JSON.parse(JSON.stringify(result.report)), fixture.expected, fixture.id);
+      assert.equal(result.report.version, EVALUATOR_VERSION);
+      assert.equal(result.report.methodology.evaluatorVersion, EVALUATOR_VERSION);
+      // 3.15 changes evidence selection, not scoring given the same frozen AI
+      // response. Preserve every historical expected field except version IDs.
+      assert.deepEqual(JSON.parse(JSON.stringify(result.report)), {
+        ...fixture.expected, version: EVALUATOR_VERSION,
+        methodology: { ...fixture.expected.methodology, evaluatorVersion: EVALUATOR_VERSION },
+      }, fixture.id);
     }
   }
   times.sort((a, b) => a - b);

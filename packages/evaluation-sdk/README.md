@@ -6,7 +6,7 @@
 
 - 包名：`@skill-supermarket/evaluation-sdk`
 - SDK 接口版本：`1.0.0`
-- 本次封装的评测器版本：`3.14.0`；AI rubric：`3.5.0`
+- 当前评测器版本：`3.15.0`；AI rubric：`3.6.0`。长 README 在同一 30,000 字符预算内保留多类证据并明确节选；不代表全文审计，历史报告不会自动更新。
 - 许可：**Apache-2.0**，完整文本见 [LICENSE](./LICENSE)。
 - 发布状态：[SDK 1.0.0 已通过 GitHub Release 发布](https://github.com/jiawenyao401/skillsupermarket/releases/tag/evaluation-sdk-v1.0.0)，提供安装包及 SHA-256；尚未发布 npm 公共注册表。
 

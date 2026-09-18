@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { README_EVIDENCE_CASES, README_EVIDENCE_SET_VERSION } from "../data/readme-evidence-cases";
 import {
   DIAGRAM_GOLDEN_CASES,
   DIAGRAM_GOLDEN_SET_VERSION,
@@ -186,6 +187,30 @@ test("long README evidence selection keeps late safety and troubleshooting secti
   assert.ok(selected.length <= 30_000);
   assert.match(selected, /Security and permissions/);
   assert.match(selected, /Troubleshooting/);
+});
+
+test(`README evidence selection ${README_EVIDENCE_SET_VERSION} preserves bounded, diverse evidence`, () => {
+  for (const fixture of README_EVIDENCE_CASES) {
+    const selected = selectReadmeEvidence(fixture.readme);
+    assert.ok(selected.length <= 30_000, fixture.id);
+    for (const fact of fixture.required) assert.ok(selected.includes(fact), `${fixture.id}: ${fact}`);
+    if (fixture.unchanged) assert.equal(selected, fixture.readme);
+    else assert.match(selected, /评测器节选/, fixture.id);
+    assert.equal(selectReadmeEvidence(fixture.readme), selected, fixture.id);
+    const prompt = buildJudgePrompt({ name: "Tool", type: "mcp-server", description: "", readme: fixture.readme, deterministicEvidence: [] });
+    assert.equal(prompt.split("</untrusted_readme>").length - 1, 1, fixture.id);
+    assert.ok(!prompt.includes("[INST]"), fixture.id);
+    assert.match(prompt, /不代表项目文档缺失/);
+    assert.match(prompt, /离线限制必须有对应功能的直接证据/);
+  }
+});
+
+test("long README excerpts retain source ordering without duplicate sections", () => {
+  const readme = `# Package\n${"Intro text. ".repeat(4000)}\n\n## License\nLicense fact.\n\n## Installation\nInstall fact.\n\n## Privacy\nPrivacy fact.`;
+  const selected = selectReadmeEvidence(readme);
+  assert.ok(selected.indexOf("License fact") < selected.indexOf("Install fact"));
+  assert.ok(selected.indexOf("Install fact") < selected.indexOf("Privacy fact"));
+  assert.equal(selected.split("## Privacy").length, 2);
 });
 
 test("diagram recovery gate requires an explicit relationship section", () => {
