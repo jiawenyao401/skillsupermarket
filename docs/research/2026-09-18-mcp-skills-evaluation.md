@@ -52,3 +52,12 @@ SEP-2640 已成为 MCP 官方可选扩展。普通 MCP Server 不因未实现 Sk
 ## 未包含的范围
 
 本轮不主动连接远端 MCP Server，也不执行 `server/discover`、`skills/list`、`skills/get` 或 `resources/read`。远端协议一致性、来源服务器绑定、manifest digest/size 和动态资源应由后续受控采集适配层提供证据，不能由静态仓库材料推断。
+
+## 生产发布验收
+
+- 主干提交 `81874e7` 已推送；生产从现有隔离分支只纳入长 README 证据修复和本次 Agent Skill 适配，发布提交为 `ef64212`，没有带入尚未配置外部服务的注册保护。
+- 清理 28 个未被进程或当前链接引用的过期 release 后，保留当时当前版本和两个回滚版本；磁盘使用率 88% → 21%，数据库备份、上传文件与日志未删除。
+- 发布前数据库备份 2,492,228 字节并通过 `pg_restore --list`。服务器门禁为 151/151、SDK 12/12、typecheck、lint、SDK build 和 Next build 全部通过；首次 Next build 因 2 GB 主机无 Swap 被内核 OOM 终止，流量未切换。随后只在构建生命周期启用临时 2 GB Swap，原检查通过后自动卸载并删除，未降低门槛或停止线上服务。
+- 北京时间 11:34 激活 `skillsupermarket-20260918-agent-skill`。Web/Worker 实际目录一致，健康接口返回 evaluator `3.16.0`、数据库和 Judge ready；五个公开路径 200、两个 timer active、最近流水线 success，安全检查 healthy。PM2 持久化进程列表已重新保存。
+- 生产 DeepSeek 使用纯合成材料各调用一次：37 字符 README 得分 17、证据不足不生成图；增加有效 Skill 正文后得分 42、生成 flow。两次各 1 个模型请求、约 1.85s / 3.32s，不写数据库，也不代表总体准确率或线上 SLA。
+- 发布后临时 Swap 为 0 行且文件不存在；磁盘 23%、约 28.7 GiB 可用。旧报告没有自动重评，只有后续 3.16.0 评测会使用新证据规则。
