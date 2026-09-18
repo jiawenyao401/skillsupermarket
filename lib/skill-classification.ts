@@ -6,7 +6,7 @@ export interface GitHubSkillClassificationInput {
   topics: string[];
 }
 
-export const SKILL_CLASSIFIER_VERSION = "1.1.0";
+export const SKILL_CLASSIFIER_VERSION = "1.2.0";
 
 /**
  * Classify the repository's deliverable, not merely the protocol words it
@@ -31,7 +31,6 @@ export function inferGitHubSkillType(repo: GitHubSkillClassificationInput): Skil
     || /(?:^|[-_ ])(?:claude|agent)[-_ ]?skills?(?:$|[-_ ])/i.test(name)
     || /\b(?:claude|agent) skills?\b/i.test(description)
   );
-  if (hasExplicitSkillSignal) return "claude-skill";
 
   const hasExplicitMcpServerSignal = (
     topics.some((topic) => /^(?:mcp-server|model-context-protocol-server)$/.test(topic))
@@ -40,7 +39,11 @@ export function inferGitHubSkillType(repo: GitHubSkillClassificationInput): Skil
     || /\bserver (?:implementation )?for (?:the )?(?:mcp|model context protocol)\b/i.test(description)
     || /\bimplements? (?:the )?(?:mcp|model context protocol)(?: server)?\b/i.test(description)
   );
+  // A server may now distribute Agent Skills through the optional MCP Skills
+  // extension. Keep the transport/server as its primary artifact type instead
+  // of losing that identity merely because the repository also mentions Skills.
   if (hasExplicitMcpServerSignal) return "mcp-server";
+  if (hasExplicitSkillSignal) return "claude-skill";
 
   // Generic MCP mentions include clients, SDKs, courses and registries. They
   // stay in the broad agent-pack class unless server evidence is explicit.

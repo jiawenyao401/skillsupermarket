@@ -162,7 +162,7 @@ export function EvaluationReport({ evaluation, report, reevaluationSlug, shareUr
           <div className="mt-3 rounded-xl bg-muted p-3 text-xs leading-5 text-muted-foreground">{report.quality.llmComment || report.quality.details}</div>
           {report.quality.evidence?.length ? (
             <div className="mt-4 border-t pt-4">
-              <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">AI 复核证据</div>
+              <div className="text-xs font-bold uppercase tracking-wide text-muted-foreground">质量证据</div>
               <ul className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
                 {report.quality.evidence.map((item) => (
                   <li key={item} className="flex gap-2"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" /><span>{item}</span></li>

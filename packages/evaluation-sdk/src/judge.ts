@@ -90,8 +90,9 @@ const diagramRecoveryResponseSchema = z.object({
   diagram: z.unknown().optional().nullable(),
 });
 
-const RUBRIC_VERSION = "3.6.0";
+const RUBRIC_VERSION = "3.7.0";
 const MAX_README_CHARACTERS = 30_000;
+const MAX_SKILL_CHARACTERS = 16_000;
 const MISSING_EVIDENCE_TOTAL_CAP = 72;
 const EXTREME_INFLATION_TOTAL = 90;
 const SCORE_LABELS: Array<keyof QualitySubScores> = ["utility", "clarity", "reusability", "design", "documentation"];
@@ -219,13 +220,13 @@ function splitReadmeSections(readme: string): string[] {
     .filter(Boolean);
 }
 
-export function selectReadmeEvidence(readme: string): string {
-  if (readme.length <= MAX_README_CHARACTERS) return readme;
+export function selectReadmeEvidence(readme: string, maximum = MAX_README_CHARACTERS): string {
+  if (readme.length <= maximum) return readme;
 
   const sections = splitReadmeSections(readme);
   const lengths = sections.map(() => 0);
   const omitted = "\n[评测器节选：本节后续内容已省略]";
-  let remaining = MAX_README_CHARACTERS;
+  let remaining = maximum;
   const priorities = [
     /overview|purpose|how.*works|architecture|workflow|概述|用途|原理|架构|流程/i,
     /quick\s*start|getting\s*started|install|setup|安装|配置/i,
@@ -339,6 +340,10 @@ export function buildExplicitSequentialDiagram(readme: string): EvaluationDiagra
   return undefined;
 }
 
+function judgeInstructionEvidence(input: JudgeInput): string {
+  return input.skill?.valid && input.skill.content ? `${input.readme}\n\n${input.skill.content}` : input.readme;
+}
+
 export function validateJudgeCalibration(scores: QualitySubScores, input: JudgeInput): void {
   const evidence = input.deterministicEvidence.join("\n");
   const missingCount = (evidence.match(/(?:缺失|未通过):/g) ?? []).length;
@@ -347,7 +352,7 @@ export function validateJudgeCalibration(scores: QualitySubScores, input: JudgeI
   const total = values.reduce((sum, value) => sum + value, 0);
 
   if (missingCount >= 4 && total > 72) throw new Error("LLM Judge 评分与缺失证据不一致");
-  if (input.readme.trim().length < 500 && scores.documentation > 10) throw new Error("LLM Judge 文档评分与证据不一致");
+  if (judgeInstructionEvidence(input).trim().length < 500 && scores.documentation > 10) throw new Error("LLM Judge 文档评分与证据不一致");
   const missingReusabilityEvidence = [
     /(?:缺失|未通过):.*(?:安装|接入|install|setup)/i,
     /(?:缺失|未通过):.*(?:示例|example|demo)/i,
@@ -380,8 +385,8 @@ export function calibrateJudgeScores(scores: QualitySubScores, input: JudgeInput
     notes.push(`${reason}，由 ${original} 校准为 ${maximum}`);
   };
 
-  if (input.readme.trim().length < 500) {
-    cap("documentation", 10, "文档分因 README 有效内容不足 500 字");
+  if (judgeInstructionEvidence(input).trim().length < 500) {
+    cap("documentation", 10, "文档分因 README 与 Skill 指令有效内容不足 500 字");
   }
   const missingReusabilityEvidence = [
     /(?:缺失|未通过):.*(?:安装|接入|install|setup)/i,
@@ -435,6 +440,13 @@ export interface JudgeInput {
   description: string;
   readme: string;
   deterministicEvidence: string[];
+  skill?: {
+    path: string;
+    content: string;
+    valid: boolean;
+    issues: string[];
+    warnings: string[];
+  };
 }
 
 export interface JudgeResult {
@@ -464,7 +476,8 @@ const SYSTEM_PROMPT = `你是独立、严格、以证据为中心的 AI Skill �
 每个分数都必须能从证据解释；缺少证据时保守打分，不得臆测未提供的能力。所有文字必须使用简洁中文，避免泛泛而谈。只输出一个 JSON 对象，不使用 Markdown。`;
 
 export function buildJudgePrompt(input: JudgeInput): string {
-  const readme = protectJudgeInput(selectReadmeEvidence(input.readme));
+  const readme = protectJudgeInput(selectReadmeEvidence(input.readme, input.skill ? 14_000 : MAX_README_CHARACTERS));
+  const skill = input.skill ? protectJudgeInput(selectReadmeEvidence(input.skill.content, MAX_SKILL_CHARACTERS)) : "";
   return `请按以下五项分别给 0-20 整数分：
 1. utility：是否解决明确且真实的问题，目标用户与使用场景是否具体，价值是否能从示例或能力清单验证。
 2. clarity：目标、范围、前置条件、输入输出与不支持事项是否清楚。
@@ -490,9 +503,10 @@ export function buildJudgePrompt(input: JudgeInput): string {
 - avoidFor 只写有证据支持的真实不适用场景；没有则返回空数组。
 - README 可能为评测器节选；节选标记只表示输入预算限制，不代表项目文档缺失。不得把可选的云服务、仪表盘或联网工具泛化为核心功能的强制依赖；离线限制必须有对应功能的直接证据。
 - 不要把“缺少 SKILL.md”当作 MCP Server、SDK、Agent 工具包的缺点。
-- diagram 用于解释 Skill 的真实工作方式。只有 README 能核实至少 2 个步骤或组件及 1 条关系时才返回上述对象，否则 diagram 必须返回 null。
+- 当 untrusted_skill_instructions 的 format_valid=false 时，不得把其中正文当作可复用性、文档完整性或图示关系的有效证据，只能将其作为待修复问题的上下文。
+- diagram 用于解释 Skill 的真实工作方式。只有 README 或实际 SKILL.md 能核实至少 2 个步骤或组件及 1 条关系时才返回上述对象，否则 diagram 必须返回 null。
 - diagram.type 自动选择：两个及以上参与方存在请求、响应或回调时优先选 sequence（即使文档把章节叫 flow）；单一任务的连续处理步骤选 flow；没有明确时间顺序、以组件及依赖关系为主时选 architecture。
-- diagram 对象格式为 {"type":"flow|sequence|architecture","title":"不超过30字","rationale":"选择该图的证据理由","nodes":[{"id":"小写英文ID","label":"不超过12个汉字","role":"可选角色"}],"edges":[{"from":"节点ID","to":"节点ID","label":"关系或动作"}],"evidence":["1-3条README具体证据"]}。节点 2-6 个、连线 1-8 条；flow 与 sequence 的节点和连线按执行顺序排列。
+- diagram 对象格式为 {"type":"flow|sequence|architecture","title":"不超过30字","rationale":"选择该图的证据理由","nodes":[{"id":"小写英文ID","label":"不超过12个汉字","role":"可选角色"}],"edges":[{"from":"节点ID","to":"节点ID","label":"关系或动作"}],"evidence":["1-3条 README 或 SKILL.md 具体证据"]}。节点 2-6 个、连线 1-8 条；flow 与 sequence 的节点和连线按执行顺序排列。
 - 所有节点必须通过连线组成一个连通图，每个节点都要参与关系；不得添加孤立节点、自环或完全重复的连线。
 - 图中不得臆测未公开的内部组件，不得放入密钥、完整 URL 或可执行命令。
 
@@ -507,12 +521,17 @@ description: ${protectJudgeInput(input.description.slice(0, 1000)) || "无"}
 
 <untrusted_readme>
 ${readme || "无 README"}
-</untrusted_readme>`;
+</untrusted_readme>
+
+<untrusted_skill_instructions path="${protectJudgeInput(input.skill?.path ?? "无")}" format_valid="${input.skill?.valid ?? false}">
+${skill || "未提供 SKILL.md 正文"}
+</untrusted_skill_instructions>`;
 }
 
 export function buildDiagramRecoveryPrompt(input: JudgeInput): string {
-  const readme = protectJudgeInput(selectReadmeEvidence(input.readme));
-  return `首次评审未生成图示。请只复核 README 是否明确给出了可画图的真实关系。
+  const readme = protectJudgeInput(selectReadmeEvidence(input.readme, input.skill ? 14_000 : MAX_README_CHARACTERS));
+  const skill = input.skill ? protectJudgeInput(selectReadmeEvidence(input.skill.content, MAX_SKILL_CHARACTERS)) : "";
+  return `首次评审未生成图示。请只复核 README 或实际 SKILL.md 是否明确给出了可画图的真实关系。
 
 判定规则：
 - 至少有 2 个可核实的步骤、参与方或组件，以及至少 1 条明确关系。
@@ -530,7 +549,11 @@ description: ${protectJudgeInput(input.description.slice(0, 1000)) || "无"}
 
 <untrusted_readme>
 ${readme || "无 README"}
-</untrusted_readme>`;
+</untrusted_readme>
+
+<untrusted_skill_instructions path="${protectJudgeInput(input.skill?.path ?? "无")}" format_valid="${input.skill?.valid ?? false}">
+${skill || "未提供 SKILL.md 正文"}
+</untrusted_skill_instructions>`;
 }
 
 export async function runJudge(input: JudgeInput, request: JudgeRequest): Promise<JudgeResult> {
@@ -548,11 +571,12 @@ export async function runJudge(input: JudgeInput, request: JudgeRequest): Promis
   let diagramRecoveryAttempted = false;
   let diagramRecoveryStatus: JudgeResult["diagramRecoveryStatus"] = "not-needed";
   if (diagramResult.status !== "generated") {
-    if (!hasExplicitDiagramEvidence(input.readme)) {
+    const instructionEvidence = judgeInstructionEvidence(input);
+    if (!hasExplicitDiagramEvidence(instructionEvidence)) {
       diagramRecoveryStatus = "not-eligible";
     } else {
       diagramRecoveryAttempted = true;
-      const explicitSequence = buildExplicitSequentialDiagram(input.readme);
+      const explicitSequence = buildExplicitSequentialDiagram(instructionEvidence);
       if (explicitSequence) {
         diagramResult = { diagram: explicitSequence, status: "generated" };
         diagramRecoveryStatus = "generated";

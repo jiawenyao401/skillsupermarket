@@ -40,6 +40,11 @@ test(`GitHub skill classifier ${SKILL_CLASSIFIER_VERSION} keeps explicit servers
     description: "A Claude Skill for diagnosing deployments.",
     topics: ["claude-skill"],
   }), "claude-skill");
+  assert.equal(inferGitHubSkillType({
+    name: "workflow-mcp-server",
+    description: "An MCP server that distributes Agent Skills over MCP.",
+    topics: ["mcp-server", "agent-skills"],
+  }), "mcp-server");
 });
 
 test(`GitHub skill classifier ${SKILL_CLASSIFIER_VERSION} does not let collection wording masquerade as a server`, () => {

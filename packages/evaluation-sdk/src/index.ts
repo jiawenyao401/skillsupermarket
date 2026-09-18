@@ -2,6 +2,8 @@ export { evaluate } from "./evaluate.ts";
 export type { EvaluationOptions, EvaluationResult, EvaluationStage, CompletedEvaluationReport } from "./evaluate.ts";
 export { parseEvaluationInput, EVIDENCE_LIMITS } from "./input.ts";
 export type { EvaluationInput } from "./input.ts";
+export { analyzeAgentSkills } from "./agent-skill.ts";
+export type { AgentSkillAnalysis, AgentSkillInspection } from "./agent-skill.ts";
 export { EvaluationError } from "./errors.ts";
 export type { EvaluationErrorCode } from "./errors.ts";
 export { createLLMJudge } from "./llm-judge.ts";

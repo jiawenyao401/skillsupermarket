@@ -1,6 +1,6 @@
 import type { PopularityStats, RiskLevel, SkillType } from "../lib/types";
 
-export const SCORING_GOLDEN_SET_VERSION = "1.5.1";
+export const SCORING_GOLDEN_SET_VERSION = "1.6.0";
 
 export interface ScoringGoldenCase {
   id: string;
@@ -125,12 +125,12 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
     riskLevel: "low",
     expected: {
       documentation: 100,
-      deterministicQuality: 100,
-      quality: 93,
+      deterministicQuality: 89,
+      quality: 88,
       popularity: 73,
       activity: 100,
       confidence: 71,
-      overall: 95,
+      overall: 94,
       grade: "A+",
       verdict: "recommended",
     },
@@ -187,13 +187,13 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
     riskLevel: "low",
     expected: {
       documentation: 30,
-      deterministicQuality: 70,
-      quality: 70,
+      deterministicQuality: 50,
+      quality: 50,
       popularity: 0,
       activity: 100,
       confidence: 54,
-      overall: 66,
-      grade: "C",
+      overall: 60,
+      grade: "D",
       verdict: "needs-work",
     },
   },
@@ -218,12 +218,12 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
     riskLevel: "low",
     expected: {
       documentation: 100,
-      deterministicQuality: 100,
-      quality: 100,
+      deterministicQuality: 89,
+      quality: 89,
       popularity: 73,
       activity: 100,
       confidence: 56,
-      overall: 97,
+      overall: 94,
       grade: "A+",
       verdict: "promising",
     },
@@ -249,8 +249,8 @@ export const SCORING_GOLDEN_CASES: ScoringGoldenCase[] = [
     riskLevel: "critical",
     expected: {
       documentation: 100,
-      deterministicQuality: 100,
-      quality: 100,
+      deterministicQuality: 89,
+      quality: 89,
       popularity: 73,
       activity: 100,
       confidence: 56,

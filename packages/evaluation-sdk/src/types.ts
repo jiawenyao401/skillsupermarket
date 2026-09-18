@@ -30,9 +30,26 @@ export interface EvaluationReport {
     subScores?: QualitySubScores;
     evidence?: string[];
   };
+  agentSkills?: AgentSkillConformanceReport;
   recommendation?: EvaluationRecommendation;
   methodology?: EvaluationMethodology;
   overall: number;
+}
+
+export interface AgentSkillConformanceReport {
+  detected: number;
+  valid: number;
+  invalid: number;
+  substantive: number;
+  assessedPath?: string;
+  skills: Array<{
+    path: string;
+    name?: string;
+    valid: boolean;
+    substantive: boolean;
+    issues: string[];
+    warnings: string[];
+  }>;
 }
 
 export type EvaluationDiagramType = "flow" | "sequence" | "architecture";

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
-import baseline from "./fixtures/sdk-parity-v3.14.0.json";
+import baseline from "./fixtures/sdk-parity-v3.16.0.json";
 import {
   evaluate, createLLMJudge, EvaluationError, EVIDENCE_LIMITS, parseEvaluationInput,
   WEIGHTS, EVALUATOR_VERSION, type EvaluationInput, type EvaluationOptions, type JudgeResult, type Judge,
@@ -21,7 +21,7 @@ const judgeResponse = (diagram: unknown = ai.diagram) => ({
 });
 const response = (body: unknown) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(body) } }] }));
 
-test("SDK complete reports match six frozen pre-extraction reports over ten repeats", async (t) => {
+test("SDK complete reports match six frozen 3.16 reports over ten repeats", async (t) => {
   assert.equal(websiteScan, sdkScan);
   const times: number[] = [];
   for (const fixture of baseline.fixtures) {

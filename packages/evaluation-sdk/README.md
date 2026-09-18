@@ -6,7 +6,7 @@
 
 - 包名：`@skill-supermarket/evaluation-sdk`
 - SDK 接口版本：`1.0.0`
-- 当前评测器版本：`3.15.0`；AI rubric：`3.6.0`。长 README 在同一 30,000 字符预算内保留多类证据并明确节选；不代表全文审计，历史报告不会自动更新。
+- 当前评测器版本：`3.16.0`；AI rubric：`3.7.0`。实际 `SKILL.md` 会经过 Agent Skills 格式校验并参与质量复核；长证据会按来源分别限额，历史报告不会自动更新。
 - 许可：**Apache-2.0**，完整文本见 [LICENSE](./LICENSE)。
 - 发布状态：[SDK 1.0.0 已通过 GitHub Release 发布](https://github.com/jiawenyao401/skillsupermarket/releases/tag/evaluation-sdk-v1.0.0)，提供安装包及 SHA-256；尚未发布 npm 公共注册表。
 
@@ -55,7 +55,7 @@ SDK 不做以下事情：
 
 运行要求 Node.js **20.3+**，交付格式为 **ESM JavaScript + TypeScript 声明**；建议使用组织仍在维护的 Node LTS 版本。消费者运行编译后的包，不需要 tsx 或 TypeScript 编译器。
 
-SDK 只有两项直接运行依赖：CommonMark 解析器 `mdast-util-from-markdown` 与结构校验器 `zod`。不要将网站完整依赖一起拷贝到使用 SDK 的项目。
+SDK 只有三项直接运行依赖：CommonMark 解析器 `mdast-util-from-markdown`、YAML 解析器 `yaml` 与结构校验器 `zod`。不要将网站完整依赖一起拷贝到使用 SDK 的项目。
 
 从源码构建需 TypeScript 5.7+：源码使用显式 `.ts` 相对导入，SDK 编译时通过 `rewriteRelativeImportExtensions` 转为 Node 可运行的 `.js`；网站直接消费同一份源码，不要求提前生成 dist。消费者安装包无需修改构建器的扩展名映射。
 
@@ -205,6 +205,9 @@ node node_modules/@skill-supermarket/evaluation-sdk/examples/offline.mjs \
 - `readme` 自动作为 `README.md` 参与扫描，不要在 `files` 中再次传入根目录 `README.md`。文件路径大小写不敏感地查重，重复路径会报错，不会默默覆盖。
 - 单份文档（包括 README）最多 **250,000 个 JavaScript 字符**，补充文件最多 **64 个**；README 与补充材料总计最多 **2,000,000 字符**。超限直接拒绝，避免无提示地把漏扫内容当成安全。
 - 空 README、空文件允许通过，但不会得到相应证据分。不要把同一文档复制成多个文件来提高置信度；独立来源会去重、分类封顶。
+- 文件名为 `SKILL.md`（大小写必须完全一致）时，SDK 会按 Agent Skills 规范检查 frontmatter、名称、父目录、可选字段类型与指令正文。仅存在空文件不会加质量分；有效格式贡献 12 分确定性质量，包含可核实步骤或示例再贡献 8 分。
+- `type: 'claude-skill'` 时，有效 `SKILL.md` 正文同时参与文档评分和 AI 质量复核。一个输入包含多个 Skill 时，所有候选都会做格式检查，但只选一个确定候选做质量复核，并在 `report.methodology.limitations` 标明覆盖范围，避免把多个工作流拼成一个虚构能力。
+- MCP Skills 是可选扩展；普通 MCP Server 没有 `SKILL.md` 不会扣分。SDK 不主动调用 `server/discover`、`skills/list`、`skills/get` 或 `resources/read`；调用方如需评测远端 Skill，应先在受控采集层完成来源绑定、大小和摘要验证，再把文本快照交给 SDK。
 - 未知字段会报 `INVALID_INPUT`。先将数据库/GitHub 返回对象映射为 SDK 字段，不要直接传入整条对象。
 
 生产采集建议：固定仓库 commit / 包版本，保存 README 与高信号文件、来源、采集时间、指标窗口和内容 hash；从同一快照读取，避免文档与代码版本混用。SDK 不核验调用方声称的元数据真实性，因此不能直接相信终端用户提交的 Stars 或 `hasLicense`。
@@ -282,6 +285,7 @@ const result = await evaluate(input, {
 | `popularity` | score、details、输入指标 stats |
 | `activity` | score、details、最近提交时间 |
 | `quality` | 综合工程质量分、确定性分、AI 分、五个 AI 子分、评论与证据 |
+| `agentSkills` | 可选；发现/合规/无效/实质性 Skill 数量、实际复核路径，以及逐文件格式问题与警告 |
 | `recommendation` | strengths、concerns、bestFor、avoidFor、nextActions |
 | `methodology` | 时间、评测器版本、AI 模型/rubric、来源、权重、置信度因子、限制、图示状态 |
 | `diagram` | 可选的 flow / sequence / architecture 结构化数据 |
@@ -294,7 +298,7 @@ const result = await evaluate(input, {
 
 ### 图示为什么可能为空？
 
-图示需要 README 中明确的参与方/步骤及其关系，不是每份报告的强制装饰。SDK 输出节点与边，不产生 PNG、SVG、Mermaid 代码或实际执行轨迹。
+图示需要 README 或实际 `SKILL.md` 中明确的参与方/步骤及其关系，不是每份报告的强制装饰。SDK 输出节点与边，不产生 PNG、SVG、Mermaid 代码或实际执行轨迹。
 
 ```ts
 const status = result.report.methodology.diagramStatus;
@@ -451,6 +455,7 @@ type Judge = (
 |---|---|---|
 | 包根 | `evaluate(input, options?)` | `Promise<EvaluationResult>`，完整业务入口 |
 | 包根 | `parseEvaluationInput(unknown)` | 经过校验、填默认值并复制的输入 |
+| 包根 | `analyzeAgentSkills(documents)` | 对调用方提供的 `SKILL.md` 文本做离线格式与正文实质性检查 |
 | 包根 | `createLLMJudge(options)` | 配置复用的 `Judge` 函数，无立即网络调用 |
 | 包根 | `scanDocuments(documents)` / `scanText(text)` | 单独静态扫描，`ScanResult` |
 | 包根 | `EvaluationError`、`EVALUATOR_VERSION`、`WEIGHTS`、`EVIDENCE_LIMITS` | 错误、版本和只读规则常量 |
@@ -467,7 +472,7 @@ type Judge = (
 ## 12. 安全与资源边界
 
 - **离线模式零网络**：不配置 Judge 时，核心不访问网络/磁盘/数据库、不发遥测；传入模型适配器后会向配置的模型服务发送受限的评审材料。
-- **最小材料**：AI 只复核 README、有限元数据与确定性检查说明；补充文件用于静态扫描，不把全部仓库源码发送给 AI。README 按章节选择最多 30,000 字符。
+- **最小材料**：AI 只复核 README、选中的一个 `SKILL.md`、有限元数据与确定性检查说明；其他补充文件只用于静态扫描，不把全部仓库源码发送给 AI。有 Skill 时 README 最多 14,000 字符、Skill 最多 16,000 字符；没有 Skill 时 README 最多 30,000 字符。
 - **模型视为不可信**：输出经过 schema 与评分证据校准，图示不接受任意脚本。提示隔离只能降低风险，不能承诺彻底消除提示注入。
 - **响应大小**：官方适配器每次响应最多 1 MiB，检查 Content-Length 和实际读取字节；错误正文不写日志。
 - **不能滥用密钥**：API Key 只放宿主的 Secret Manager / 服务端环境变量，分别配置生产和测试环境。示例不会复制已有生产密钥。

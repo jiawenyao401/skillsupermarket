@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agentSkillEvidence, analyzeAgentSkills } from "./agent-skill.ts";
 import {
   buildSummary, calculateConfidenceBreakdown, calculateEffectiveReadmeEvidenceCharacters,
   calculateOverallScore, combineQualityScore, countIndependentEvidenceSources,
@@ -116,14 +117,26 @@ export async function evaluate(input: EvaluationInput, options: EvaluationOption
     ...value.files.map((file) => ({ ...file, kind: file.kind ?? inferDocumentKind(file.path) })),
   ];
   const filePaths = documents.map((document) => document.path);
-  const documentation = scoreDocumentation(readme, value.description, filePaths);
+  const skillAnalysis = analyzeAgentSkills(value.files);
+  const selectedSkill = skillAnalysis.selected;
+  const documentationSource = value.type === "claude-skill" && selectedSkill?.valid
+    ? `${readme}\n\n# ${selectedSkill.path}\n${selectedSkill.body}`
+    : readme;
+  const documentation = scoreDocumentation(documentationSource, value.description, filePaths);
   await stage("security");
   const security = scanDocuments(documents);
   const popStats = value.popularity;
   const popularityScore = scorePopularity(popStats);
   const lastCommit = value.lastCommitAt ? new Date(value.lastCommitAt) : null;
   const activityScore = scoreActivity(lastCommit, value.openIssues, popStats.stars, new Date(at));
-  const deterministicQuality = deterministicQualityScore(documentation, filePaths, value.hasLicense, value.hasRepository, value.type);
+  const deterministicQuality = deterministicQualityScore(
+    documentation,
+    filePaths,
+    value.hasLicense,
+    value.hasRepository,
+    value.type,
+    skillAnalysis,
+  );
   await stage("quality");
   let aiResult: JudgeResult | null = null;
   const diagnostics: EvaluationResult["diagnostics"] = {
@@ -133,7 +146,17 @@ export async function evaluate(input: EvaluationInput, options: EvaluationOption
     try {
       aiResult = await invokeJudge(options.judge, {
         name: value.name, type: value.type, description: value.description ?? "", readme,
-        deterministicEvidence: documentation.checks.map((check) => `${check.passed ? "通过" : "缺失"}: ${check.label}`),
+        deterministicEvidence: [
+          ...documentation.checks.map((check) => `${check.passed ? "通过" : "缺失"}: ${check.label}`),
+          ...agentSkillEvidence(skillAnalysis),
+        ],
+        skill: selectedSkill ? {
+          path: selectedSkill.path,
+          content: selectedSkill.content,
+          valid: selectedSkill.valid,
+          issues: selectedSkill.issues,
+          warnings: selectedSkill.warnings,
+        } : undefined,
       }, options.signal, judgeTimeoutMs);
       diagnostics.aiStatus = "completed";
     } catch (error) {
@@ -152,14 +175,24 @@ export async function evaluate(input: EvaluationInput, options: EvaluationOption
     aiJudgeUsed: Boolean(aiResult), hasRepoMetadata: value.hasRepositoryMetadata, hasActivity: Boolean(lastCommit),
   });
   const summary = buildSummary(overall, security.riskLevel, confidenceBreakdown.score);
+  const skillConcerns = skillAnalysis.inspections.flatMap((inspection) => [
+    ...inspection.issues.map((issue) => `${inspection.path}：${issue}`),
+    ...inspection.warnings.map((warning) => `${inspection.path}：${warning}`),
+  ]);
+  const skillEvidence = agentSkillEvidence(skillAnalysis);
+  const skillStrengths = skillEvidence.filter((item) => item.startsWith("通过:"));
+  const qualityEvidence = [...skillEvidence, ...(aiResult?.evidence ?? [])]
+    .filter((item, index, values) => values.indexOf(item) === index);
   const concerns = [
     ...security.findings.slice(0, 3).map((finding) => finding.message),
+    ...skillConcerns,
     ...(aiResult?.calibrationNotes ?? []),
     ...documentation.improvements.slice(0, 3).map((item) => `缺少${item}`),
     ...(aiResult?.concerns ?? []),
   ].filter((v, i, values) => values.indexOf(v) === i).slice(0, 6);
   const strengths = [
     ...documentation.strengths,
+    ...skillStrengths,
     ...(security.riskLevel === "low" ? ["未发现已知高风险模式"] : []),
     ...(aiResult?.strengths ?? []),
   ].filter((v, i, values) => values.indexOf(v) === i).slice(0, 6);
@@ -177,11 +210,29 @@ export async function evaluate(input: EvaluationInput, options: EvaluationOption
     quality: { score: qualityScore,
       details: aiResult?.details ?? `确定性工程质量 ${deterministicQuality}/100 · AI 复核暂不可用`,
       llmComment: aiResult?.comment, deterministicScore: deterministicQuality, aiScore: aiResult?.score ?? null,
-      subScores: aiResult?.scores, evidence: aiResult?.evidence },
+      subScores: aiResult?.scores,
+      evidence: qualityEvidence.length ? qualityEvidence : undefined,
+    },
+    agentSkills: skillAnalysis.detected ? {
+      detected: skillAnalysis.detected,
+      valid: skillAnalysis.valid,
+      invalid: skillAnalysis.invalid,
+      substantive: skillAnalysis.substantive,
+      assessedPath: selectedSkill?.path,
+      skills: skillAnalysis.inspections.map((inspection) => ({
+        path: inspection.path,
+        name: inspection.name,
+        valid: inspection.valid,
+        substantive: inspection.substantive,
+        issues: inspection.issues,
+        warnings: inspection.warnings,
+      })),
+    } : undefined,
     recommendation: { strengths, concerns, bestFor: aiResult?.bestFor ?? [],
       avoidFor: aiResult?.avoidFor ?? (security.riskLevel === "critical" ? ["生产环境与敏感数据场景"] : []),
       nextActions: [
         ...security.findings.slice(0, 3).map((finding) => finding.remediation).filter((item): item is string => Boolean(item)),
+        ...skillConcerns.map((item) => `修复 ${item}`),
         ...documentation.improvements.slice(0, 3).map((item) => `补充${item}`),
       ].filter((v, i, values) => values.indexOf(v) === i).slice(0, 6) },
     methodology: {
@@ -193,7 +244,12 @@ export async function evaluate(input: EvaluationInput, options: EvaluationOption
       rubricVersion: aiResult?.rubricVersion, aiJudgeCalibration: aiResult?.calibrationNotes,
       evaluatedSkillType: value.type, skillClassifierVersion: value.classifierVersion,
       weights: { ...WEIGHTS }, confidenceFactors: confidenceBreakdown.factors,
-      limitations: ["静态评测不会安装或执行项目代码", "安全扫描基于高信号文件与已知模式，不能替代人工审计", "流行度只反映采用程度，不代表安全或工程质量"],
+      limitations: [
+        "静态评测不会安装或执行项目代码",
+        "安全扫描基于高信号文件与已知模式，不能替代人工审计",
+        "流行度只反映采用程度，不代表安全或工程质量",
+        ...(skillAnalysis.detected > 1 ? [`发现 ${skillAnalysis.detected} 个 Skill；质量复核只评审 ${selectedSkill?.path ?? "首个候选"}，其余 ${skillAnalysis.detected - 1} 个仅做格式扫描`] : []),
+      ],
       caseStudy: value.caseStudy,
     },
     overall,

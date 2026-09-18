@@ -10,7 +10,7 @@ import type {
   SkillType,
 } from "./types.ts";
 
-export const EVALUATOR_VERSION = "3.15.0";
+export const EVALUATOR_VERSION = "3.16.0";
 
 export const WEIGHTS = Object.freeze({
   documentation: 0.22,
@@ -259,14 +259,15 @@ export function deterministicQualityScore(
   hasLicense: boolean,
   hasRepo: boolean,
   type: SkillType,
+  skillEvidence?: { valid: number; substantive: number },
 ): number {
   const normalizedPaths = filePaths.map((path) => path.toLowerCase());
-  const hasSkillSpec = normalizedPaths.some((path) => path.endsWith("skill.md"));
   const hasManifest = normalizedPaths.some((path) => /(?:package\.json|pyproject\.toml|requirements\.txt|mcp\.json)$/.test(path));
   let score = 20;
   if (hasRepo) score += 10;
   if (hasLicense) score += 8;
-  if (hasSkillSpec) score += 20;
+  if ((skillEvidence?.valid ?? 0) > 0) score += 12;
+  if ((skillEvidence?.substantive ?? 0) > 0) score += 8;
   if (hasManifest) score += 12;
   if (doc.checks.find((check) => check.id === "example")?.passed) score += 12;
   if (doc.checks.find((check) => check.id === "inputs")?.passed) score += type === "mcp-server" ? 10 : 8;

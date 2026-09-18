@@ -1,7 +1,7 @@
 // 领域类型定义 - 与 lib/schema.ts (Drizzle) 保持一致
 
 import type { SkillType, EvaluationReport } from "../packages/evaluation-sdk/src/types";
-export type { SkillType, EvaluationReport, EvaluationDiagramType, EvaluationDiagramStatus, EvaluationDiagramRecoveryStatus, EvaluationDiagramRejectionReason, EvaluationDiagramNode, EvaluationDiagramEdge, EvaluationDiagram, SecurityFinding, RiskLevel, EvaluationVerdict, EvaluationSummary, EvaluationCheck, QualitySubScores, EvaluationRecommendation, EvaluationConfidenceFactorId, EvaluationConfidenceFactor, EvaluationMethodology, PopularityStats } from "../packages/evaluation-sdk/src/types";
+export type { SkillType, EvaluationReport, AgentSkillConformanceReport, EvaluationDiagramType, EvaluationDiagramStatus, EvaluationDiagramRecoveryStatus, EvaluationDiagramRejectionReason, EvaluationDiagramNode, EvaluationDiagramEdge, EvaluationDiagram, SecurityFinding, RiskLevel, EvaluationVerdict, EvaluationSummary, EvaluationCheck, QualitySubScores, EvaluationRecommendation, EvaluationConfidenceFactorId, EvaluationConfidenceFactor, EvaluationMethodology, PopularityStats } from "../packages/evaluation-sdk/src/types";
 export type SkillStatus = "active" | "archived" | "removed";
 export type SkillSource = "official" | "github" | "npm" | "pypi" | "manual";
 export type RankingPeriod = "daily" | "weekly" | "monthly";

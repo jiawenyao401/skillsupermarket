@@ -13,8 +13,9 @@
     "sdk:test": "node --import tsx --test tests/sdk.test.ts",
     "sdk:pack": "node scripts/pack-evaluation-sdk.mjs",
     "sdk:verify": "node scripts/verify-evaluation-sdk.mjs",
+    "sdk:parity:update": "node --import tsx scripts/regenerate-sdk-parity.ts",
     "typecheck": "tsc --noEmit",
-    "test:evaluation": "tsx --test tests/evaluation.test.ts tests/evaluation-scoring.test.ts tests/evaluation-cache.test.ts tests/evaluation-progress.test.ts tests/evaluation-queue.test.ts tests/judge.test.ts tests/evaluation-diagram.test.tsx tests/auth.test.ts tests/auth-protection.test.ts tests/admin.test.ts tests/proxy.test.ts tests/quota.test.ts tests/skill-classification.test.ts tests/skill-evaluation-source.test.ts tests/skill-source-identity.test.ts tests/traffic.test.ts tests/growth-metrics.test.ts tests/evaluation-version-metrics.test.tsx tests/report-provenance.test.tsx tests/sitemap.test.ts tests/guides.test.ts tests/indexnow.test.ts tests/og-image.test.ts tests/release-retention.test.ts tests/runtime-compatibility.test.ts tests/security-monitor.test.ts",
+    "test:evaluation": "tsx --test tests/evaluation.test.ts tests/evaluation-scoring.test.ts tests/evaluation-cache.test.ts tests/evaluation-progress.test.ts tests/evaluation-queue.test.ts tests/judge.test.ts tests/agent-skill.test.ts tests/evaluation-diagram.test.tsx tests/auth.test.ts tests/auth-protection.test.ts tests/admin.test.ts tests/proxy.test.ts tests/quota.test.ts tests/skill-classification.test.ts tests/skill-evaluation-source.test.ts tests/skill-source-identity.test.ts tests/traffic.test.ts tests/growth-metrics.test.ts tests/evaluation-version-metrics.test.tsx tests/report-provenance.test.tsx tests/sitemap.test.ts tests/guides.test.ts tests/indexnow.test.ts tests/og-image.test.ts tests/release-retention.test.ts tests/runtime-compatibility.test.ts tests/security-monitor.test.ts",
     "auth:check": "NODE_OPTIONS=\"${NODE_OPTIONS:+$NODE_OPTIONS }--conditions=react-server\" tsx scripts/check-registration.ts",
     "test:auth:postgres": "node --conditions=react-server --import tsx --test tests/auth-protection-postgres.test.ts",
     "test:scoring": "tsx --test tests/evaluation-scoring.test.ts tests/judge.test.ts",
@@ -72,6 +73,7 @@
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
     "tailwind-merge": "^2.5.4",
+    "yaml": "2.8.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
