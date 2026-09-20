@@ -9,6 +9,13 @@ export interface GuideSection {
   bullets?: string[];
   code?: string;
   reportLink?: { slug: string; label: string };
+  comparison?: {
+    columns: readonly [string, string];
+    rows: readonly {
+      criterion: string;
+      values: readonly [string, string];
+    }[];
+  };
 }
 
 export interface Guide {
@@ -26,6 +33,93 @@ export interface Guide {
 }
 
 export const GUIDES: readonly Guide[] = [
+  {
+    slug: "openai-skills-vs-anthropic-agent-skills-2026",
+    title: "OpenAI Skills vs Anthropic Agent Skills：2026 该选哪个入口？",
+    description: "对比 Codex Plugins 与 Anthropic Agent Skills 的现行入口、共同格式、安装方式和安全边界，并用真实评测说明为什么不应继续照搬已废弃目录。",
+    eyebrow: "OpenAI Skills vs Anthropic Skills",
+    publishedAt: "2026-09-20",
+    updatedAt: "2026-09-20",
+    readingMinutes: 9,
+    intent: "适合正在为 Codex 或 Claude 选择 Skills、看到 openai/skills 与 anthropics/skills 却不知道哪个仍是现行入口的开发者和团队。",
+    sections: [
+      {
+        title: "先给结论：按运行平台选入口，不按仓库 Star 选",
+        paragraphs: [
+          "如果你主要使用 Codex，当前应从 OpenAI Plugins 文档和 openai/plugins 示例出发；openai/skills 仓库已经由维护方明确标记为废弃，只适合审阅历史 Skill、迁移旧配置或研究格式，不能再当作现行安装目录。一个旧 Skill 即使格式完整、评测分数可接受，也不能抵消来源已经迁移这一事实。",
+          "如果你主要使用 Claude，anthropics/skills 仍提供 Agent Skills 示例，并给出 Claude Code 插件市场、Claude.ai 与 Claude API 的接入方式。它同样不是自动安全认证：仓库明确把示例定位为演示和教育用途，并提醒关键任务上线前自行测试。",
+          "两边并不是两套互斥的文件格式。Agent Skills 开放规范都以目录内的 SKILL.md 为核心，要求 YAML frontmatter 后跟 Markdown 指令；真正需要分别判断的是宿主平台、发现和安装机制、工具权限、许可证以及运行时边界。",
+        ],
+      },
+      {
+        title: "现行入口对比",
+        comparison: {
+          columns: ["Codex / OpenAI", "Claude / Anthropic"],
+          rows: [
+            {
+              criterion: "当前官方入口",
+              values: ["OpenAI Plugins 文档与 openai/plugins；旧 openai/skills 已废弃", "anthropics/skills、Claude Code 插件市场、Claude.ai 或 Skills API"],
+            },
+            {
+              criterion: "基本交付物",
+              values: ["Plugin 可组合 Skills、MCP、Agents、Commands、Hooks 与资产", "Skill 目录包含 SKILL.md，并可附 scripts、references 与 assets"],
+            },
+            {
+              criterion: "适合场景",
+              values: ["希望在 Codex 中分发一组可安装能力或完整工作流", "希望 Claude 按任务加载领域工作流，或通过 API 管理自定义 Skills"],
+            },
+            {
+              criterion: "主要风险",
+              values: ["把废弃目录当现行来源；Plugin 组合后权限和外部连接扩大", "把示例当生产保证；脚本、文件、网络与工具权限未单独复核"],
+            },
+            {
+              criterion: "迁移建议",
+              values: ["先核对 Plugins 新入口，再迁移旧 Skill；不要从旧目录继续复制安装指令", "锁定具体 Skill 和版本，在隔离环境验证触发、输出与副作用"],
+            },
+          ],
+        },
+      },
+      {
+        title: "共同格式能复用什么，不能推导什么",
+        paragraphs: [
+          "Agent Skills 规范要求 SKILL.md 的 name 与父目录一致，name 使用小写字母、数字和单连字符；description 要说明能力和使用时机。license、compatibility、metadata 与 allowed-tools 属于可选字段，其中 allowed-tools 仍是实验字段，客户端支持可能不同。正文没有固定章节，但规范建议提供步骤、输入输出示例和边界情况。",
+          "格式通过只能证明文件可被规范化识别，不能证明 Skill 会稳定触发、脚本安全、输出正确或适合生产。跨平台复用前仍要检查宿主是否支持相同目录位置、工具名、权限声明、脚本运行环境和资源引用；任何一项不一致，都应视为需要适配，而不是直接安装。",
+        ],
+        bullets: [
+          "先验证身份：仓库、文档和分发入口必须来自同一官方主体，旧链接应检查是否有迁移声明。",
+          "再验证格式：SKILL.md、name、description、父目录和正文必须满足开放规范，不能只看文件名。",
+          "然后验证行为：用应该触发、不应触发、缺少输入和恶意内容四类固定样例比较结果。",
+          "最后验证权限：脚本、Shell、网络、文件、MCP 和外发动作逐项收窄，高影响动作保留人工确认。",
+        ],
+      },
+      {
+        title: "怎样理解 openai/skills 的真实评测",
+        paragraphs: [
+          "Skill Supermarket 对 openai/skills 的 3.16.0 报告扫描了公开仓库中的高信号文件，识别到 24 个 SKILL.md，24 个通过格式校验且包含可核实的指令正文；质量复核只选取其中一个 Skill 深入分析，其余只做格式扫描。报告里的流程图和证据帮助理解被选 Skill 的加载步骤，不代表 24 个 Skill 都完成了运行时测试。",
+          "这份报告适合回答“旧目录中的 Skill 是否符合 Agent Skills 格式、公开文件出现了哪些静态信号”，不适合回答“现在应该从哪里安装 Codex 能力”。仓库的废弃声明优先于评分：需要安装或开发 Codex 能力时，应回到 OpenAI Plugins 的现行文档；报告保留为迁移和历史证据。",
+        ],
+        reportLink: { slug: "openaiskills", label: "查看 openai/skills 3.16.0 归档评测、格式证据与流程图" },
+      },
+      {
+        title: "五步选择流程",
+        bullets: [
+          "确定宿主：先写清最终运行在 Codex、Claude Code、Claude.ai、Claude API 还是其他兼容 Agent。",
+          "使用现行入口：Codex 查 OpenAI Plugins；Claude 查 anthropics/skills 与 Claude 官方文档；不要从搜索结果里的旧 README 直接安装。",
+          "选一个具体任务：例如生成一次可复核的 PR 摘要或处理一份测试 PDF，不要用“提升效率”作为验收目标。",
+          "建立四类样例：正常任务、错误输入、不应触发任务和带注入内容的任务；记录成功、返工、耗时与副作用。",
+          "设停止条件：来源已废弃、许可不清、权限超出任务、输出无法核对或边界样例退化时，停止接入并回到候选选择。",
+        ],
+      },
+    ],
+    sources: [
+      { label: "OpenAI 已废弃的 Skills Catalog 与迁移说明", url: "https://github.com/openai/skills" },
+      { label: "OpenAI Plugins 当前示例仓库", url: "https://github.com/openai/plugins" },
+      { label: "Anthropic Agent Skills 示例与接入说明", url: "https://github.com/anthropics/skills" },
+      { label: "Agent Skills 开放格式规范", url: "https://agentskills.io/specification" },
+      { label: "Skill Supermarket openai/skills 真实评测", url: "/skill/openaiskills" },
+    ],
+    relatedSlugs: ["skill-vs-mcp-vs-agent", "how-to-evaluate-ai-skill", "claude-code-skills-recommended-2026"],
+  },
   {
     slug: "claude-code-mcp-server-recommendations-2026",
     title: "Claude Code MCP Server 推荐 2026：GitHub、浏览器、数据库与监控怎么选",
@@ -352,7 +446,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "Anthropic Agent Skills 官方仓库", url: "https://github.com/anthropics/skills" },
       { label: "Skill Supermarket 公开评测方法", url: "/evaluation" },
     ],
-    relatedSlugs: ["how-to-evaluate-ai-skill", "skill-vs-mcp-vs-agent", "ai-agent-security-risks-2026"],
+    relatedSlugs: ["how-to-evaluate-ai-skill", "skill-vs-mcp-vs-agent", "openai-skills-vs-anthropic-agent-skills-2026"],
   },
   {
     slug: "how-to-evaluate-ai-skill",

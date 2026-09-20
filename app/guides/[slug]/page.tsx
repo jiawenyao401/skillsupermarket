@@ -101,6 +101,26 @@ export default async function GuidePage({ params }: GuidePageProps) {
                         <span>{section.reportLink.label}</span><ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0" />
                       </Link>
                     )}
+                    {section.comparison && (
+                      <div className="mt-5 overflow-x-auto rounded-2xl border" tabIndex={0}>
+                        <table className="min-w-[720px] w-full border-collapse text-left text-sm">
+                          <thead className="bg-foreground text-background">
+                            <tr>
+                              <th scope="col" className="w-36 px-4 py-3 font-bold">比较项</th>
+                              {section.comparison.columns.map((column) => <th key={column} scope="col" className="px-4 py-3 font-bold">{column}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            {section.comparison.rows.map((row) => (
+                              <tr key={row.criterion} className="align-top even:bg-muted/35">
+                                <th scope="row" className="px-4 py-4 font-bold text-foreground">{row.criterion}</th>
+                                {row.values.map((value, valueIndex) => <td key={`${row.criterion}-${valueIndex}`} className="px-4 py-4 leading-6 text-foreground/75">{value}</td>)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                     {section.bullets && (
                       <ul className="mt-5 space-y-3">
                         {section.bullets.map((item) => (

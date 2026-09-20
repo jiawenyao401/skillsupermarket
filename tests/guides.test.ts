@@ -83,3 +83,28 @@ test("guide report links remain explicit local skill references", () => {
     }
   }
 });
+
+test("OpenAI and Anthropic comparison routes readers away from deprecated install sources", async () => {
+  const slug = "openai-skills-vs-anthropic-agent-skills-2026";
+  const guide = getGuide(slug)!;
+  const body = guide.sections.flatMap((section) => [
+    ...(section.paragraphs ?? []),
+    ...(section.bullets ?? []),
+    ...(section.comparison?.rows.flatMap((row) => [row.criterion, ...row.values]) ?? []),
+  ]).join("\n");
+  for (const boundary of ["openai/skills 仓库已经由维护方明确标记为废弃", "OpenAI Plugins", "anthropics/skills", "SKILL.md", "不代表 24 个 Skill 都完成了运行时测试"]) {
+    assert.ok(body.includes(boundary), `missing comparison boundary: ${boundary}`);
+  }
+  assert.ok(guide.sources.some(({ url }) => url === "https://github.com/openai/plugins"));
+  assert.ok(guide.sources.some(({ url }) => url === "https://agentskills.io/specification"));
+  const reportSection = guide.sections.find((section) => section.reportLink);
+  assert.equal(reportSection?.reportLink?.slug, "openaiskills");
+
+  const props = { params: Promise.resolve({ slug }) };
+  const html = renderToStaticMarkup(await GuidePage(props));
+  assert.ok(html.includes("<table"));
+  assert.ok(html.includes("现行入口对比"));
+  assert.ok(html.includes('href="/skill/openaiskills#evaluation-report-title"'));
+  assert.ok(html.indexOf('href="/skill/openaiskills#evaluation-report-title"') < html.indexOf('aria-labelledby="guide-sources"'));
+  assert.deepEqual((await generateMetadata(props)).alternates, { canonical: `/guides/${slug}` });
+});
