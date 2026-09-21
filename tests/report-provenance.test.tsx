@@ -9,9 +9,11 @@ import type { EvaluationReport as Report } from "../lib/types";
 import { isEvaluationDestination } from "../lib/traffic";
 import { HomeReportPreview } from "../components/HomeReportPreview";
 import { HomeHero } from "../components/HomeHero";
+import { HomeFeaturedGuide } from "../components/HomeFeaturedGuide";
 import { readFileSync } from "node:fs";
 import { ReportShare } from "../components/ReportShare";
 import { absoluteUrl } from "../lib/site";
+import { getGuide } from "../lib/guides";
 
 test("global footer displays the complete website ICP filing as a safe official link", () => {
   const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
@@ -106,6 +108,24 @@ test("homepage search uses a shrinkable grid track and children on narrow viewpo
   const css = readFileSync(new URL("../app/home.css", import.meta.url), "utf8");
   assert.match(css, /\.home-discover\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(css, /\.home-discover\s*>\s*\*\s*\{[^}]*min-width:\s*0/);
+});
+
+test("homepage gives the current Agent Skills decision guide a direct, evidence-bounded entry", () => {
+  const guide = getGuide("openai-skills-vs-anthropic-agent-skills-2026");
+  assert.ok(guide);
+  const html = renderToStaticMarkup(<HomeFeaturedGuide guide={guide} />);
+  assert.match(html, /2026 现行入口指南/);
+  assert.match(html, /OpenAI Skills，可能已经是旧入口/);
+  assert.match(html, /Codex → OpenAI Plugins/);
+  assert.match(html, /Claude → Agent Skills/);
+  assert.match(html, /共同格式 → SKILL\.md/);
+  assert.match(html, /href="\/guides\/openai-skills-vs-anthropic-agent-skills-2026"/);
+  assert.match(html, /含真实报告与迁移检查/);
+  assert.doesNotMatch(html, /安全认证|立即安装|target="_blank"/);
+
+  const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.ok(page.includes('<HomeFeaturedGuide guide={FEATURED_GUIDE} />'));
+  assert.ok(page.indexOf("<HomeFeaturedGuide") < page.indexOf("CATEGORY_LINKS.map"));
 });
 
 test("homepage does not invent a sample, conclusion, action, version or date when data is absent", () => {

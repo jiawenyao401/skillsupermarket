@@ -17,9 +17,11 @@ import { RankingTabs } from "@/components/RankingTabs";
 import { JsonLd } from "@/components/JsonLd";
 import { SearchBar } from "@/components/SearchBar";
 import { HomeHero } from "@/components/HomeHero";
+import { HomeFeaturedGuide } from "@/components/HomeFeaturedGuide";
 import { formatNumber } from "@/lib/utils";
 import { getRankings } from "@/lib/ranker";
 import { absoluteUrl } from "@/lib/site";
+import { getGuide } from "@/lib/guides";
 import "./home.css";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +57,8 @@ const CATEGORY_LINKS = [
     className: "bg-amber-500/10 text-amber-700",
   },
 ] as const;
+
+const FEATURED_GUIDE = getGuide("openai-skills-vs-anthropic-agent-skills-2026");
 
 async function getHomeData() {
   const latest = await db
@@ -183,6 +187,8 @@ export default async function HomePage() {
             ))}
           </div>
       </section>
+
+      {FEATURED_GUIDE && <HomeFeaturedGuide guide={FEATURED_GUIDE} />}
 
       <section>
         <div className="mb-6 flex items-end justify-between gap-4">

@@ -85,6 +85,10 @@ test("sign-up ignores forged emailVerified and issues no session until verified 
   assert.ok(!stored.includes(f.sent[0].otp));
   assert.ok(!stored.includes(credentials.email));
   assert.throws(() => assertVerifiedEmail(f.tables.user[0]), EmailVerificationRequiredError);
+  // This case verifies session gating, not the five-minute expiry boundary.
+  // Full-suite password hashing can be CPU-starved long enough to expire the
+  // code before this assertion; expiry remains covered by the next test.
+  for (const row of f.tables.verification) row.expiresAt = new Date(Date.now() + 60 * 60 * 1000);
   const login = await f.request("/sign-in/email", credentials);
   assert.equal(login.status, 403);
   assert.equal((await login.json()).code, "EMAIL_NOT_VERIFIED");
