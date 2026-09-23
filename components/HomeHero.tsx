@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { HomeReportPreview, type HomeReportExample } from "./HomeReportPreview";
-import { HomeLiquidStage } from "./HomeLiquidStage";
 
 export function HomeHero({ example }: { example?: HomeReportExample }) {
   return (
@@ -16,7 +15,7 @@ export function HomeHero({ example }: { example?: HomeReportExample }) {
         </div>
         <p className="home-note">公开报告无需注册 · 历史评测不等于安全认证</p>
       </div>
-      {example && <HomeLiquidStage><HomeReportPreview example={example} /></HomeLiquidStage>}
+      <HomeReportPreview example={example} />
       <form action="/search" method="get" className="home-evaluate">
         <label htmlFor="homepage-evaluation-source">已有想用的项目？先查有没有公开报告</label>
         <div className="home-input-row">

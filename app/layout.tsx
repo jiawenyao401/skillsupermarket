@@ -111,7 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           跳到主要内容
         </a>
 
-        <header className="site-header sticky top-0 z-50 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl">
+        <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl">
           <div className="container flex h-16 items-center justify-between gap-4">
             <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label="Skill Supermarket 首页">
               <span className="brand-mark" aria-hidden="true">
