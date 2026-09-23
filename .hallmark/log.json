@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-09-23",
+    "brief": "Skill Supermarket tactile liquid material refresh",
+    "macrostructure": "Ecosystem Index",
+    "theme": "Midnight navy and brand amber",
+    "enrichment": "CSS liquid field behind a real report",
+    "nav": "Existing navigation retained with a translucent material surface",
+    "footer": "Existing footer retained",
+    "scores": { "philosophy": 4, "hierarchy": 4, "execution": 4, "specificity": 5, "restraint": 4, "variety": 4 },
+    "validation": "Visual viewport checks at 320, 375, 390, 414, 768 and 1440 CSS pixels found no horizontal overflow. Reduced-motion and touch keep a static material treatment."
+  },
+  {
     "date": "2026-09-09",
     "brief": "Skill Supermarket homepage first-value redesign",
     "macrostructure": "Workbench adaptation, split 6/6 copy and real report proof",

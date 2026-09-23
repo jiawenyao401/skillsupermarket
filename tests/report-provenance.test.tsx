@@ -101,6 +101,7 @@ test("homepage without a report still offers a labelled GET form without inventi
   assert.match(html, /for="homepage-evaluation-source"/);
   assert.match(html, /name="source"/);
   assert.match(html, /maxLength="500"/);
+  assert.doesNotMatch(html, /home-liquid-stage/, "no report must not reserve an empty visual stage");
   assert.doesNotMatch(html, /home-report-preview-title|先看真实报告|<svg[^>]+role="img"/);
 });
 
