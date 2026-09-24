@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-09-24",
+    "brief": "Skill Supermarket homepage spatial 3D redesign",
+    "macrostructure": "Map / Diagram",
+    "theme": "Existing warm paper / orange brand with ink stage",
+    "enrichment": "React Three Fiber capability field",
+    "nav": "Existing navigation preserved; compact 320px brand treatment",
+    "footer": "Existing footer preserved",
+    "scores": { "philosophy": 4, "hierarchy": 4, "execution": 4, "specificity": 5, "restraint": 4, "variety": 5 },
+    "validation": "Typecheck, lint, production build and report tests passed. Local visual preview confirmed WebGL rendering, no overflow at 320/375/414/768/1280px, 44px category controls and hero text contrast."
+  },
+  {
     "date": "2026-09-09",
     "brief": "Skill Supermarket homepage first-value redesign",
     "macrostructure": "Workbench adaptation, split 6/6 copy and real report proof",

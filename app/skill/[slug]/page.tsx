@@ -21,6 +21,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { EvaluationBadge } from "@/components/EvaluationBadge";
 import { absoluteUrl, compactDescription } from "@/lib/site";
 import { cache } from "react";
+import type { ComponentProps } from "react";
 import type { EvaluationReport as EvaluationReportType } from "@/lib/types";
 
 interface PageProps {
@@ -322,7 +323,7 @@ export default async function SkillDetailPage({ params }: PageProps) {
                 rawUrl: readme.rawUrl,
               })}
               components={{
-                a: ({ href, children, ...props }) => {
+                a: ({ href, children, ...props }: ComponentProps<"a">) => {
                   const external = Boolean(href && /^https?:\/\//i.test(href));
                   return (
                     <a
@@ -335,7 +336,7 @@ export default async function SkillDetailPage({ params }: PageProps) {
                     </a>
                   );
                 },
-                img: ({ alt, ...props }) => (
+                img: ({ alt, ...props }: ComponentProps<"img">) => (
                   <img alt={alt ?? "README 图片"} loading="lazy" decoding="async" {...props} />
                 ),
               }}

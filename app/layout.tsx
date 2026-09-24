@@ -125,7 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 />
               </span>
               <span className="text-[15px] font-extrabold tracking-[-0.02em] sm:text-base">
-                Skill <span className="text-primary">Supermarket</span>
+                <span className="hidden min-[360px]:inline">Skill </span><span className="text-primary">Supermarket</span>
               </span>
             </Link>
 
@@ -148,7 +148,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 搜索
                 <kbd className="rounded border bg-muted px-1.5 py-0.5 font-sans text-[10px]">⌘ K</kbd>
               </Link>
-              <Link href="/evaluate" className="button-primary h-9 px-3 text-xs sm:px-4 sm:text-sm">
+              <Link href="/evaluate" className="button-primary h-9 whitespace-nowrap px-3 text-xs sm:px-4 sm:text-sm">
                 提交评测
               </Link>
               <Suspense fallback={<span className="hidden h-9 w-16 animate-pulse rounded-full bg-muted sm:block" />}>

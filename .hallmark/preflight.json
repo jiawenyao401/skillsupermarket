@@ -1,9 +1,9 @@
 {
-  "scannedAt": "2026-09-09",
-  "scope": "Homepage first fold only",
-  "framework": "Next.js 16.3.0 / React 19 / Tailwind 3",
+  "scannedAt": "2026-09-24",
+  "scope": "Homepage first fold and narrow-screen header fit",
+  "framework": "Next.js 16.3.4 / React 19 / Tailwind 3",
   "tokens": "Existing HSL variables in app/globals.css; homepage aliases in app/tokens.css",
   "typography": "Preserve existing system sans-serif stack, including CJK fallback",
-  "motion": "No new motion library; color transitions only, reduced-motion supported",
+  "motion": "React Three Fiber 9 and Three.js 0.180; viewport-gated animation, reduced-motion and WebGL fallbacks",
   "preserved": ["Navigation", "Footer", "Brand", "Authentication", "Evaluation logic", "Database schema"]
 }

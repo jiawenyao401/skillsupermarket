@@ -13,4 +13,14 @@
   --home-space-lg: 2rem;
   --home-space-xl: 3rem;
   --home-radius: .75rem;
+  --home-stage: #151c27;
+  --home-stage-surface: #263140;
+  --home-stage-ink: #fff4e5;
+  --home-stage-muted: #d2dbe0;
+  --home-stage-rule: #586575;
+  --home-orbit-core: #ff744b;
+  --home-orbit-ice: #b9e8ee;
+  --home-orbit-lime: #d9f5a7;
+  --home-orbit-peach: #ffd6b9;
+  --home-orbit-line: #f2eee3;
 }
