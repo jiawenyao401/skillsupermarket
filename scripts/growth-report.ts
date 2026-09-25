@@ -82,6 +82,13 @@ interface TrafficRow extends Record<string, unknown> {
   guide_continuation_clicks_1d: number;
   guide_continuation_clicks_7d: number;
   guide_continuation_clicks_30d: number;
+  skill_detail_views_7d: number;
+  organic_skill_detail_views_7d: number;
+  skill_detail_cta_clicks_7d: number;
+  report_open_clicks_1d: number;
+  report_open_clicks_7d: number;
+  report_open_clicks_30d: number;
+  organic_report_open_clicks_7d: number;
   organic_views_7d: number;
   community_views_7d: number;
   github_views_7d: number;
@@ -324,6 +331,13 @@ async function main() {
       coalesce(sum(guide_continuation_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as guide_continuation_clicks_1d,
       coalesce(sum(guide_continuation_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as guide_continuation_clicks_7d,
       coalesce(sum(guide_continuation_clicks) filter (where path like '/guides/%' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as guide_continuation_clicks_30d,
+      coalesce(sum(page_views) filter (where path like '/skill/%' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as skill_detail_views_7d,
+      coalesce(sum(page_views) filter (where path like '/skill/%' and source = 'organic' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as organic_skill_detail_views_7d,
+      coalesce(sum(evaluation_cta_clicks) filter (where path like '/skill/%' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as skill_detail_cta_clicks_7d,
+      coalesce(sum(report_open_clicks) filter (where path like '/skill/%' and date >= timezone('Asia/Shanghai', now())::date), 0)::int as report_open_clicks_1d,
+      coalesce(sum(report_open_clicks) filter (where path like '/skill/%' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as report_open_clicks_7d,
+      coalesce(sum(report_open_clicks) filter (where path like '/skill/%' and date >= timezone('Asia/Shanghai', now())::date - 29), 0)::int as report_open_clicks_30d,
+      coalesce(sum(report_open_clicks) filter (where path like '/skill/%' and source = 'organic' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as organic_report_open_clicks_7d,
       coalesce(sum(page_views) filter (where source = 'organic' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as organic_views_7d,
       coalesce(sum(page_views) filter (where source = 'community' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as community_views_7d,
       coalesce(sum(page_views) filter (where source = 'github' and date >= timezone('Asia/Shanghai', now())::date - 6), 0)::int as github_views_7d
@@ -366,6 +380,13 @@ async function main() {
       guideContinuationClicks30d: traffic?.guide_continuation_clicks_30d ?? 0,
       guideCtaRate7d: percentage(traffic?.guide_cta_clicks_7d, traffic?.guide_views_7d),
       guideContinuationRate7d: percentage(traffic?.guide_continuation_clicks_7d, traffic?.guide_views_7d),
+      skillDetailViews7d: traffic?.skill_detail_views_7d ?? 0,
+      organicSkillDetailViews7d: traffic?.organic_skill_detail_views_7d ?? 0,
+      skillDetailCtaClicks7d: traffic?.skill_detail_cta_clicks_7d ?? 0,
+      reportOpenClicks1d: traffic?.report_open_clicks_1d ?? 0,
+      reportOpenClicks7d: traffic?.report_open_clicks_7d ?? 0,
+      reportOpenClicks30d: traffic?.report_open_clicks_30d ?? 0,
+      organicReportOpenClicks7d: traffic?.organic_report_open_clicks_7d ?? 0,
       sourceViews7d: {
         organic: traffic?.organic_views_7d ?? 0,
         community: traffic?.community_views_7d ?? 0,
@@ -463,6 +484,7 @@ async function main() {
     : "[growth] 访问: 数据不可用（隐私友好流量表尚未部署）");
   if (hasTraffic) {
     console.log(`[growth] 指南漏斗: 浏览 D1 ${report.acquisition.guideViews1d} / D7 ${report.acquisition.guideViews7d} / D30 ${report.acquisition.guideViews30d}；D7 继续阅读 ${report.acquisition.guideContinuationClicks7d}（${report.acquisition.guideContinuationRate7d ?? "暂无有效样本"}），评测 CTA ${report.acquisition.guideEvaluationCtaClicks7d}（${report.acquisition.guideCtaRate7d ?? "暂无有效样本"}）`);
+    console.log(`[growth] 详情页漏斗: D7 浏览 ${report.acquisition.skillDetailViews7d}（自然搜索 ${report.acquisition.organicSkillDetailViews7d}）；报告入口点击 D1 ${report.acquisition.reportOpenClicks1d} / D7 ${report.acquisition.reportOpenClicks7d} / D30 ${report.acquisition.reportOpenClicks30d}（自然搜索 D7 ${report.acquisition.organicReportOpenClicks7d}）；评测 CTA D7 ${report.acquisition.skillDetailCtaClicks7d}。均为事件次数，非去重用户；报告入口计数仅覆盖埋点上线后。`);
   }
   console.log(hasJobs
     ? `[growth] 激活: D1 ${jobs1d} / D7 ${jobs7d} / D30 ${jobs30d} 次用户任务；D7 首评 ${report.activation.firstEvaluations7d} 人、复评 ${report.activation.repeatEvaluators7d} 人、完成率 ${report.activation.completionRate7d ?? "暂无有效样本"}；另排除运维任务 ${report.activation.operationalJobs7d} 次`

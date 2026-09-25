@@ -27,6 +27,7 @@ export function SkillReportLead({ score, report }: SkillReportLeadProps) {
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Link
           href="#evaluation-report-title"
+          data-traffic-event="report_open_click"
           className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           查看评测依据 <ArrowDownRight aria-hidden="true" className="h-4 w-4" />

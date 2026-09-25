@@ -5,6 +5,8 @@ import {
   isAutomatedUserAgent,
   isEvaluationDestination,
   isGuideContinuationDestination,
+  isReportOpenDestination,
+  isSkillDetailPath,
   isTrustedTrafficFetchSite,
   isTrustedTrafficOrigin,
   normalizeTrafficPath,
@@ -12,7 +14,21 @@ import {
 } from "../lib/traffic";
 
 test("traffic event allowlist includes only aggregate funnel events", () => {
-  assert.deepEqual(TRAFFIC_EVENTS, ["page_view", "evaluation_cta_click", "guide_continuation_click"]);
+  assert.deepEqual(TRAFFIC_EVENTS, ["page_view", "evaluation_cta_click", "guide_continuation_click", "report_open_click"]);
+});
+
+test("report opening is counted only on the current public skill report", () => {
+  const origin = "https://skillsupermarket.com";
+  const path = "/skill/githubgithub-mcp-server";
+  assert.equal(isSkillDetailPath(path), true);
+  assert.equal(isSkillDetailPath("/guides/example"), false);
+  assert.equal(isSkillDetailPath("/skill/a?private=1"), false);
+  assert.equal(isReportOpenDestination(`${origin}${path}#evaluation-report-title`, origin, path), true);
+  assert.equal(isReportOpenDestination(`#evaluation-report-title`, `${origin}${path}`, path), true);
+  assert.equal(isReportOpenDestination(`${origin}/skill/other#evaluation-report-title`, origin, path), false);
+  assert.equal(isReportOpenDestination("https://attacker.example/skill/githubgithub-mcp-server#evaluation-report-title", origin, path), false);
+  assert.equal(isReportOpenDestination(`${origin}${path}#other`, origin, path), false);
+  assert.equal(isReportOpenDestination(`${origin}${path}#evaluation-report-title`, origin, "/guides/example"), false);
 });
 
 test("evaluation CTA destinations include prefilled same-origin forms only", () => {

@@ -12,6 +12,7 @@ test("skill detail gives public report evidence priority without claiming certif
   assert.match(html, /综合评分 74 分，满分 100 分/);
   assert.match(html, /适合受控试用/);
   assert.match(html, /href="#evaluation-report-title"/);
+  assert.match(html, /data-traffic-event="report_open_click"/);
   assert.match(html, /非安全认证或安装推荐/);
   assert.match(html, /focus-visible:outline/);
   assert.doesNotMatch(html, /href="https?:|立即安装/);

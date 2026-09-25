@@ -6,6 +6,7 @@ import {
   classifyTrafficSource,
   isEvaluationDestination,
   isGuideContinuationDestination,
+  isReportOpenDestination,
   normalizeTrafficPath,
   type TrafficEvent,
   type TrafficSource,
@@ -60,6 +61,13 @@ export function TrafficTracker() {
         && isGuideContinuationDestination(anchor.href, window.location.origin)
       ) {
         trackCurrentPage("guide_continuation_click");
+        return;
+      }
+      if (
+        anchor.dataset.trafficEvent === "report_open_click"
+        && isReportOpenDestination(anchor.href, window.location.origin, window.location.pathname)
+      ) {
+        trackCurrentPage("report_open_click");
       }
     };
     const trackEvaluationSubmit = (event: SubmitEvent) => {

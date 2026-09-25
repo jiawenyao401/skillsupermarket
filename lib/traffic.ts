@@ -1,5 +1,5 @@
 export type TrafficSource = "direct" | "internal" | "organic" | "github" | "community" | "referral";
-export const TRAFFIC_EVENTS = ["page_view", "evaluation_cta_click", "guide_continuation_click"] as const;
+export const TRAFFIC_EVENTS = ["page_view", "evaluation_cta_click", "guide_continuation_click", "report_open_click"] as const;
 export type TrafficEvent = (typeof TRAFFIC_EVENTS)[number];
 
 const EXACT_TRACKED_PATHS = new Set([
@@ -57,6 +57,23 @@ export function isGuideContinuationDestination(value: string, siteOrigin: string
     const destination = new URL(value, site);
     return destination.origin === site.origin
       && /^\/guides\/[a-zA-Z0-9._~%-]+$/.test(destination.pathname);
+  } catch {
+    return false;
+  }
+}
+
+export function isSkillDetailPath(path: string): boolean {
+  return normalizeTrafficPath(path) === path && /^\/skill\/[a-zA-Z0-9._~%-]+$/.test(path);
+}
+
+export function isReportOpenDestination(value: string, siteOrigin: string, currentPath: string): boolean {
+  if (!isSkillDetailPath(currentPath)) return false;
+  try {
+    const site = new URL(siteOrigin);
+    const destination = new URL(value, site);
+    return destination.origin === site.origin
+      && destination.pathname === currentPath
+      && destination.hash === "#evaluation-report-title";
   } catch {
     return false;
   }

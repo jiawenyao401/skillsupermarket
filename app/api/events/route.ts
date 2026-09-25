@@ -9,6 +9,7 @@ import { SITE_ORIGINS } from "@/lib/site";
 import {
   classifyTrafficSource,
   isAutomatedUserAgent,
+  isSkillDetailPath,
   isTrustedTrafficFetchSite,
   isTrustedTrafficOrigin,
   normalizeTrafficPath,
@@ -74,7 +75,9 @@ export async function POST(request: Request) {
   try {
     const parsed = eventSchema.safeParse(await request.json());
     const path = parsed.success ? normalizeTrafficPath(parsed.data.path) : null;
-    if (!parsed.success || !path) return new NextResponse(null, { status: 400 });
+    if (!parsed.success || !path || (parsed.data.event === "report_open_click" && !isSkillDetailPath(path))) {
+      return new NextResponse(null, { status: 400 });
+    }
 
     // Browser fetch Referer points at the current page rather than the document's
     // acquisition referrer. The client sends only the already-coarsened category;
@@ -84,6 +87,7 @@ export async function POST(request: Request) {
     const pageViewIncrement = parsed.data.event === "page_view" ? 1 : 0;
     const ctaIncrement = parsed.data.event === "evaluation_cta_click" ? 1 : 0;
     const guideContinuationIncrement = parsed.data.event === "guide_continuation_click" ? 1 : 0;
+    const reportOpenIncrement = parsed.data.event === "report_open_click" ? 1 : 0;
     await db.insert(trafficDaily).values({
       date: rankingDateKey(),
       path,
@@ -91,12 +95,14 @@ export async function POST(request: Request) {
       pageViews: pageViewIncrement,
       evaluationCtaClicks: ctaIncrement,
       guideContinuationClicks: guideContinuationIncrement,
+      reportOpenClicks: reportOpenIncrement,
     }).onConflictDoUpdate({
       target: [trafficDaily.date, trafficDaily.path, trafficDaily.source],
       set: {
         pageViews: sql`${trafficDaily.pageViews} + ${pageViewIncrement}`,
         evaluationCtaClicks: sql`${trafficDaily.evaluationCtaClicks} + ${ctaIncrement}`,
         guideContinuationClicks: sql`${trafficDaily.guideContinuationClicks} + ${guideContinuationIncrement}`,
+        reportOpenClicks: sql`${trafficDaily.reportOpenClicks} + ${reportOpenIncrement}`,
         updatedAt: new Date(),
       },
     });
