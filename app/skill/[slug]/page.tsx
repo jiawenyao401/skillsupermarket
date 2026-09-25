@@ -19,6 +19,7 @@ import Link from "next/link";
 import { getSkillEvaluationSource } from "@/lib/skill-evaluation-source";
 import { JsonLd } from "@/components/JsonLd";
 import { EvaluationBadge } from "@/components/EvaluationBadge";
+import { SkillReportLead } from "@/components/SkillReportLead";
 import { absoluteUrl, compactDescription } from "@/lib/site";
 import { cache } from "react";
 import type { ComponentProps } from "react";
@@ -197,11 +198,12 @@ export default async function SkillDetailPage({ params }: PageProps) {
                 <span>{skill.authorName}</span>
               </div>
             )}
+            {evaluation && <SkillReportLead score={evaluation.overallScore} report={report} />}
           </div>
 
           <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row md:flex-col">
             {skill.repoUrl && (
-              <Button asChild className="w-full rounded-xl sm:w-auto">
+              <Button variant="outline" asChild className="w-full rounded-xl sm:w-auto">
                 <a href={skill.repoUrl} target="_blank" rel="noreferrer">
                   <Github className="w-4 h-4 mr-2" />
                   GitHub <ExternalLink className="w-3 h-3 ml-1" />
