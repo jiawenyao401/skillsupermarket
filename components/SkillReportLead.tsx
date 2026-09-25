@@ -32,6 +32,13 @@ export function SkillReportLead({ score, report }: SkillReportLeadProps) {
         >
           查看评测依据 <ArrowDownRight aria-hidden="true" className="h-4 w-4" />
         </Link>
+        <Link
+          href="/evaluate"
+          prefetch={false}
+          className="inline-flex min-h-11 items-center rounded-xl px-1 text-sm font-semibold text-foreground underline decoration-primary/50 underline-offset-4 transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          评测我的项目
+        </Link>
         <span className="text-xs leading-5 text-muted-foreground">基于公开项目证据，非安全认证或安装推荐</span>
       </div>
     </div>
