@@ -74,6 +74,34 @@ test("MCP recommendation guide connects a bounded PR task to real public evidenc
   assert.ok(!unchanged.includes(link), "other guides must not receive an unrelated report");
 });
 
+test("GitHub and Playwright comparison leads from a task choice to two dated public reports", async () => {
+  const slug = "github-mcp-vs-playwright-mcp-claude-code-2026";
+  const guide = getGuide(slug)!;
+  const body = guide.sections.flatMap((section) => [
+    ...(section.paragraphs ?? []),
+    ...(section.bullets ?? []),
+    ...(section.comparison?.rows.flatMap((row) => [row.criterion, ...row.values]) ?? []),
+  ]).join("\n");
+  assert.ok(body.includes("2026 年 9 月和 8 月"), "historical report dates must be explicit");
+  for (const boundary of ["不是最小授权", "不是安全边界", "不证明当前远程服务", "不能替另一个背书"]) {
+    assert.ok(body.includes(boundary), `missing comparison boundary: ${boundary}`);
+  }
+  assert.deepEqual(
+    guide.sections.flatMap((section) => section.reportLink?.slug ? [section.reportLink.slug] : []),
+    ["githubgithub-mcp-server", "microsoftplaywright-mcp"],
+  );
+  assert.ok(guide.sources.some(({ url }) => url.includes("github/github-mcp-server/blob/main/docs/server-configuration.md")));
+  assert.ok(guide.sources.some(({ url }) => url === "https://github.com/microsoft/playwright-mcp"));
+  assert.ok(getGuide("claude-code-mcp-server-recommendations-2026")?.relatedSlugs.includes(slug));
+
+  const props = { params: Promise.resolve({ slug }) };
+  const html = renderToStaticMarkup(await GuidePage(props));
+  assert.ok(html.includes('href="/skill/githubgithub-mcp-server#evaluation-report-title"'));
+  assert.ok(html.includes('href="/skill/microsoftplaywright-mcp#evaluation-report-title"'));
+  assert.ok(html.indexOf("查看 GitHub MCP Server 公开报告") < html.indexOf("免费开始评测"));
+  assert.deepEqual((await generateMetadata(props)).alternates, { canonical: `/guides/${slug}` });
+});
+
 test("guide report links remain explicit local skill references", () => {
   for (const guide of GUIDES) {
     for (const { reportLink } of guide.sections) {

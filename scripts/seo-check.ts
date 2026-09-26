@@ -70,6 +70,7 @@ async function main() {
     agentSecurityGuide,
     claudeCodeMcpGuide,
     mcpRecommendationsGuide,
+    mcpComparisonGuide,
     privacy,
     login,
     robots,
@@ -90,6 +91,7 @@ async function main() {
     request("/guides/ai-agent-security-risks-2026"),
     request("/guides/claude-code-mcp-setup-2026"),
     request("/guides/claude-code-mcp-server-recommendations-2026"),
+    request("/guides/github-mcp-vs-playwright-mcp-claude-code-2026"),
     request("/privacy"),
     request("/login?returnTo=%2Fevaluate"),
     request("/robots.txt"),
@@ -202,6 +204,16 @@ async function main() {
       && mcpRecommendationsGuide.body.includes(`${SITE_URL}/guides/claude-code-mcp-server-recommendations-2026`),
     detail: `HTTP ${mcpRecommendationsGuide.status} · Article + canonical + selection evidence`,
   });
+  checks.push({
+    name: "GitHub 与 Playwright MCP 任务对照指南",
+    ok: mcpComparisonGuide.status === 200
+      && mcpComparisonGuide.body.includes("GitHub MCP vs Playwright MCP")
+      && mcpComparisonGuide.body.includes("/skill/githubgithub-mcp-server#evaluation-report-title")
+      && mcpComparisonGuide.body.includes("/skill/microsoftplaywright-mcp#evaluation-report-title")
+      && mcpComparisonGuide.body.includes("application/ld+json")
+      && mcpComparisonGuide.body.includes(`${SITE_URL}/guides/github-mcp-vs-playwright-mcp-claude-code-2026`),
+    detail: `HTTP ${mcpComparisonGuide.status} · Article + canonical + two real reports`,
+  });
   checks.push({ name: "隐私说明", ok: privacy.status === 200 && privacy.body.includes("Global Privacy Control"), detail: `HTTP ${privacy.status}` });
   checks.push({
     name: "登录页",
@@ -220,6 +232,7 @@ async function main() {
       && sitemap.body.includes("/guides/claude-code-skills-recommended-2026")
       && sitemap.body.includes("/guides/claude-code-mcp-setup-2026")
       && sitemap.body.includes("/guides/claude-code-mcp-server-recommendations-2026")
+      && sitemap.body.includes("/guides/github-mcp-vs-playwright-mcp-claude-code-2026")
       && sitemap.body.includes("/guides/mcp-server-security-checklist-2026"),
     detail: `HTTP ${sitemap.status} · ${(sitemap.body.match(/<loc>/g) ?? []).length} URLs`,
   });

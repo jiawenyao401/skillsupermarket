@@ -34,6 +34,79 @@ export interface Guide {
 
 export const GUIDES: readonly Guide[] = [
   {
+    slug: "github-mcp-vs-playwright-mcp-claude-code-2026",
+    title: "GitHub MCP vs Playwright MCP：Claude Code 先接哪个？",
+    description: "按 PR 阅读与浏览器验收两类任务比较 GitHub MCP Server 和 Playwright MCP 的权限、验证方式与风险边界，并查看两份真实公开评测报告。",
+    eyebrow: "GitHub MCP vs Playwright MCP",
+    publishedAt: "2026-09-27",
+    updatedAt: "2026-09-27",
+    readingMinutes: 9,
+    intent: "适合已经在 Claude Code 中考虑接入 MCP、但只想先完成一个代码协作或浏览器验证任务的开发者；不是所有 MCP Server 的通用排名。",
+    sections: [
+      {
+        title: "先给结论：两者不是替代品",
+        paragraphs: [
+          "需要读指定仓库的 Issue、Pull Request 或文件，先评估 GitHub 官方 MCP Server；需要在测试页面导航、填写表单并核对可见结果，再评估 Microsoft Playwright MCP。不要因为两份报告总分接近，就认为它们能完成同一任务，也不要为了“能力更全”同时接入两个 Server。",
+          "本站的公开报告检查的是当时能取得的仓库证据、静态风险信号和质量说明，不连接你的 GitHub 账号，也不在你的浏览器中执行任务。报告日期分别属于 2026 年 9 月和 8 月；接入前要回到官方文档核对现行配置和版本。",
+        ],
+        comparison: {
+          columns: ["GitHub MCP Server", "Playwright MCP"],
+          rows: [
+            { criterion: "先解决的任务", values: ["只读查询一个 PR、Issue 或仓库文件", "在隔离浏览器中复现并检查一个页面流程"] },
+            { criterion: "主要权限边界", values: ["工具集、只读模式和底层 GitHub 身份的仓库范围", "浏览器进程、登录态、网络可达域和页面副作用"] },
+            { criterion: "可核对结果", values: ["与网页中的 PR 编号、文件和 diff 对照", "与测试页面的可见状态、截图和预期断言对照"] },
+            { criterion: "典型误判", values: ["只读工具不等于凭证只能读取指定仓库", "允许来源列表不等于浏览器沙箱或安全边界"] },
+          ],
+        },
+      },
+      {
+        title: "只读 PR 任务：从 GitHub MCP 开始",
+        paragraphs: [
+          "把任务写成“读取一个我有权访问的测试仓库 PR，列出改动文件并给出待人工复核的问题”；明确不评论、不提交 review、不合并。GitHub 官方配置支持选择 toolsets、单独工具和 read-only 模式；其只读模式会过滤写工具，但不会替你缩小底层身份可以访问的仓库。默认工具集不是最小授权方案，应按任务检查实际暴露的工具清单。",
+          "先看本站下方的归档报告，记录生成日期、评测版本和一条可回到源码核实的风险或质量证据。它适合做接入前筛选，不证明当前远程服务、凭证权限或运行时行为安全。",
+        ],
+        bullets: [
+          "在自有测试仓库用限定资源范围的身份启用 PR 读取所需工具，并打开官方只读模式；不要把 Token、私有仓库内容或客户数据填入本站。",
+          "核对一个已授权 PR 的编号、标题和改动文件；另用你有权测试、但未授权给该凭证的私有测试仓库验证拒绝访问。公共仓库不能充当这个反向样例。",
+          "若工具清单仍有写入动作、身份能读到超出预期的私有资源，或报告告警无法回到原始证据核实，就停止接入，不用真实 PR 留测试评论。",
+        ],
+        reportLink: { slug: "githubgithub-mcp-server", label: "查看 GitHub MCP Server 公开报告与证据" },
+      },
+      {
+        title: "页面验收任务：再考虑 Playwright MCP",
+        paragraphs: [
+          "当目标是验证一个你控制的测试站点在特定浏览器里的交互结果，Playwright MCP 比仓库 API 更贴近任务。它使用浏览器自动化读取页面状态并执行操作；页面文字和可访问性内容是不可信输入，不能因为来自测试页就允许其改写 Agent 的目标或调用其他工具。",
+          "Microsoft 文档明确说明 allowed-origins 不是安全边界，也不约束重定向。因此不要把日常浏览器登录态和生产管理后台直接交给自动化；先用独立浏览器配置、低权限测试账号与测试数据，必要时由网络或容器层做隔离。本站的 Playwright MCP 报告只覆盖公开项目证据，不是浏览器隔离验收。",
+        ],
+        bullets: [
+          "先复现一个无敏感数据的公开或测试页面：导航、读取目标元素、执行一项可恢复操作、核对预期状态。",
+          "再放入一段无害但明显试图指挥 Agent 改变任务的页面文本，确认它被当作页面数据，而不是新的指令；不对第三方站点做越权试验。",
+          "一旦需要真实用户会话、写入生产数据或跨域外发，停止此最小试用并重新设计权限、隔离、审批与审计。",
+        ],
+        reportLink: { slug: "microsoftplaywright-mcp", label: "查看 Playwright MCP 公开报告与证据" },
+      },
+      {
+        title: "什么时候两个都需要？",
+        paragraphs: [
+          "只有同一条可复现工作流确实同时需要仓库证据和页面结果时，才考虑组合：例如从自有 PR 读取变更清单，再在隔离测试环境确认对应页面没有回归。先分别完成单工具验收，最后才连接两边；不要给浏览器读取到的页面文字决定仓库写操作的权力。",
+          "两边都接入后，应分别记录来源、版本、身份范围、工具清单、测试结果和撤销步骤。一个 MCP Server 的静态评分不能替另一个背书；即使两份报告分数相近，也必须按任务和权限分别准入。",
+        ],
+        bullets: [
+          "成功条件：一个明确任务能稳定完成，结果可人工复核，未产生未授权读写或外发。",
+          "停止条件：任一权限边界不能测试、任一报告证据已过时且无法复核、出现不必要写工具或页面注入能改变目标。",
+          "下一步：先打开两份免登录报告看具体证据，再决定是否用自己的公开项目发起评测；不要仅凭目录简介或 Star 作生产准入。",
+        ],
+      },
+    ],
+    sources: [
+      { label: "GitHub MCP Server 官方配置：工具集、只读与边界", url: "https://github.com/github/github-mcp-server/blob/main/docs/server-configuration.md" },
+      { label: "Microsoft Playwright MCP 官方文档与隔离限制", url: "https://github.com/microsoft/playwright-mcp" },
+      { label: "GitHub MCP Server 公开评测", url: "/skill/githubgithub-mcp-server" },
+      { label: "Playwright MCP 公开评测", url: "/skill/microsoftplaywright-mcp" },
+    ],
+    relatedSlugs: ["claude-code-mcp-server-recommendations-2026", "claude-code-mcp-setup-2026", "mcp-server-security-checklist-2026"],
+  },
+  {
     slug: "openai-skills-vs-anthropic-agent-skills-2026",
     title: "OpenAI Skills vs Anthropic Agent Skills：2026 该选哪个入口？",
     description: "对比 Codex Plugins 与 Anthropic Agent Skills 的现行入口、共同格式、安装方式和安全边界，并用真实评测说明为什么不应继续照搬已废弃目录。",
@@ -210,7 +283,7 @@ export const GUIDES: readonly Guide[] = [
       { label: "MCP 官方参考 Server 说明", url: "https://github.com/modelcontextprotocol/servers" },
       { label: "Skill Supermarket MCP 安全扫描", url: "/mcp-server-security-scan" },
     ],
-    relatedSlugs: ["claude-code-mcp-setup-2026", "mcp-server-security-checklist-2026", "ai-agent-security-risks-2026"],
+    relatedSlugs: ["github-mcp-vs-playwright-mcp-claude-code-2026", "claude-code-mcp-setup-2026", "mcp-server-security-checklist-2026"],
   },
   {
     slug: "claude-code-mcp-setup-2026",
